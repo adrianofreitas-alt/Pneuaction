@@ -35,6 +35,8 @@ interface BenchCanvasProps {
   onTriggerManualOverride: (componentId: string) => void;
   onPressButton: (componentId: string, buttonType: 'NA' | 'NF') => void;
   onReleaseButton: (componentId: string, buttonType: 'NA' | 'NF') => void;
+  isCatalogOpen: boolean;
+  onToggleCatalog: () => void;
 }
 
 export const BenchCanvas: React.FC<BenchCanvasProps> = ({
@@ -50,6 +52,8 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   onTriggerManualOverride,
   onPressButton,
   onReleaseButton,
+  isCatalogOpen,
+  onToggleCatalog,
 }) => {
   // Connection wiring state
   const [connectingStart, setConnectingStart] = useState<{
@@ -60,7 +64,6 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   const [hoveredPort, setHoveredPort] = useState<ComponentPort | null>(null);
   const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [isCatalogOpen, setIsCatalogOpen] = useState<boolean>(true);
   const [draggingCompId, setDraggingCompId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -270,7 +273,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                 {filteredTemplates.length} itens
               </span>
               <button
-                onClick={() => setIsCatalogOpen(false)}
+                onClick={onToggleCatalog}
                 className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
                 title="Ocultar catálogo de componentes"
                 aria-label="Ocultar catálogo"
@@ -363,31 +366,6 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
       <main className="flex-1 relative flex flex-col bg-[#0b101b] overflow-hidden">
         {/* Canvas Toolbar overlay */}
         <div className="absolute top-3 left-4 z-20 flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-xs shadow-lg">
-          {/* Botão para ocultar/mostrar catálogo */}
-          <button
-            onClick={() => setIsCatalogOpen((prev) => !prev)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition shadow-sm cursor-pointer ${
-              isCatalogOpen
-                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
-                : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-950/60 border border-cyan-400'
-            }`}
-            title={isCatalogOpen ? 'Ocultar catálogo de componentes' : 'Mostrar catálogo de componentes'}
-          >
-            {isCatalogOpen ? (
-              <>
-                <PanelLeftClose className="w-3.5 h-3.5 text-slate-400" />
-                <span>Ocultar Catálogo</span>
-              </>
-            ) : (
-              <>
-                <PanelLeftOpen className="w-3.5 h-3.5 text-white" />
-                <span>Mostrar Catálogo</span>
-              </>
-            )}
-          </button>
-
-          <span className="text-slate-600">|</span>
-
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
             <span className="font-semibold text-slate-200">Bancada Didática DIN 35</span>
@@ -412,18 +390,6 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             </div>
           )}
         </div>
-
-        {/* Floating Quick Open Button when Catalog is Hidden */}
-        {!isCatalogOpen && (
-          <button
-            onClick={() => setIsCatalogOpen(true)}
-            className="absolute top-14 left-4 z-20 flex items-center gap-2 bg-slate-900/95 hover:bg-slate-800 text-slate-200 hover:text-cyan-300 px-3 py-1.5 rounded-xl border border-slate-700/80 hover:border-cyan-500/50 shadow-xl transition text-xs font-semibold group cursor-pointer"
-            title="Reabrir catálogo de componentes"
-          >
-            <Layers className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-12 transition-transform" />
-            <span>+ Catálogo de Componentes</span>
-          </button>
-        )}
 
         {/* Active Connection Legend */}
         <div className="absolute bottom-3 left-4 z-20 flex items-center gap-3 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-[11px] shadow-lg">

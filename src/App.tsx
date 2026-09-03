@@ -39,8 +39,9 @@ export default function App() {
   const [faults, setFaults] = useState<DiagnosticFault[]>([]);
   const [latestCriticalFault, setLatestCriticalFault] = useState<DiagnosticFault | null>(null);
 
-  // Modals
+  // Modals & UI State
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [isCatalogOpen, setIsCatalogOpen] = useState<boolean>(true);
   const [testDurationSeconds, setTestDurationSeconds] = useState<number>(0);
 
   // Telemetry metrics
@@ -459,6 +460,16 @@ export default function App() {
     );
   };
 
+  // Toggle Catalog Visibility
+  const handleToggleCatalog = () => {
+    if (currentTab !== 'workbench') {
+      setCurrentTab('workbench');
+      setIsCatalogOpen(true);
+    } else {
+      setIsCatalogOpen(prev => !prev);
+    }
+  };
+
   // CAD Export
   const handleExportCAD = (format: 'dxf' | 'svg' | 'json') => {
     if (format === 'dxf') {
@@ -489,6 +500,8 @@ export default function App() {
         onOpenReportModal={() => setIsReportModalOpen(true)}
         activeFaultsCount={faults.length}
         unreadNotifications={faults.filter(f => f.severity === 'critical').length}
+        isCatalogOpen={isCatalogOpen}
+        onToggleCatalog={handleToggleCatalog}
       />
 
       {/* Main Viewport Content based on active tab */}
@@ -507,6 +520,8 @@ export default function App() {
             onTriggerManualOverride={handleTriggerManualOverride}
             onPressButton={handlePressButton}
             onReleaseButton={handleReleaseButton}
+            isCatalogOpen={isCatalogOpen}
+            onToggleCatalog={handleToggleCatalog}
           />
         )}
 

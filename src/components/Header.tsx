@@ -27,6 +27,8 @@ interface HeaderProps {
   onOpenReportModal: () => void;
   activeFaultsCount: number;
   unreadNotifications: number;
+  isCatalogOpen: boolean;
+  onToggleCatalog: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -41,7 +43,9 @@ export const Header: React.FC<HeaderProps> = ({
   onExportCAD,
   onOpenReportModal,
   activeFaultsCount,
-  unreadNotifications
+  unreadNotifications,
+  isCatalogOpen,
+  onToggleCatalog
 }) => {
   return (
     <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 text-slate-100">
@@ -176,6 +180,22 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Botão Mostrar / Ocultar Catálogo - Fisicamente ao lado da tecla Relatório */}
+          <button
+            id="btn-show-catalog"
+            onClick={onToggleCatalog}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm border cursor-pointer ${
+              isCatalogOpen
+                ? 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-700/60 shadow-slate-950/40'
+                : 'bg-gradient-to-r from-sky-600 to-cyan-600 hover:from-sky-500 hover:to-cyan-500 text-white border-cyan-400 shadow-cyan-900/30 ring-1 ring-cyan-400/40'
+            }`}
+            title={isCatalogOpen ? 'Ocultar catálogo de componentes' : 'Mostrar catálogo de componentes didáticos'}
+            aria-label={isCatalogOpen ? 'Ocultar catálogo' : 'Mostrar catálogo'}
+          >
+            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+            <span>{isCatalogOpen ? 'Ocultar Catálogo' : 'Mostrar Catálogo'}</span>
+          </button>
 
           {/* Detailed Report Button */}
           <button
