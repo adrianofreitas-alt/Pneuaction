@@ -98,7 +98,7 @@ export const PushNotificationToast: React.FC<PushNotificationToastProps> = ({
             }}
             className="flex items-center gap-1 text-xs font-bold text-cyan-300 hover:text-cyan-200 transition"
           >
-            <span>Ver Diagnóstico</span>
+            <span>Ver Telemetria</span>
             <ExternalLink className="w-3 h-3" />
           </button>
         </div>

@@ -15,9 +15,6 @@ import { createComponentFromTemplate, ComponentTemplate } from './data/component
 import { Header } from './components/Header';
 import { BenchCanvas } from './components/BenchCanvas';
 import { PhysicsView } from './components/PhysicsView';
-import { DiagnosticsView } from './components/DiagnosticsView';
-import { ComplianceView } from './components/ComplianceView';
-import { CloudMaintenanceView } from './components/CloudMaintenanceView';
 import { TelemetryDashboard } from './components/TelemetryDashboard';
 import { TestReportModal } from './components/TestReportModal';
 import { PushNotificationToast } from './components/PushNotificationToast';
@@ -26,9 +23,7 @@ import { benchAudio } from './utils/audioSynthesizer';
 
 export default function App() {
   // Navigation tab
-  const [currentTab, setCurrentTab] = useState<
-    'workbench' | 'physics' | 'diagnostics' | 'compliance' | 'maintenance' | 'telemetry'
-  >('workbench');
+  const [currentTab, setCurrentTab] = useState<'workbench' | 'physics' | 'telemetry'>('workbench');
 
   // Load initial preset (Ciclo Automático A+ A- com Válvula 5/2 biestável e Sensores)
   const initialData = PRESET_CIRCUITS[0].build();
@@ -427,29 +422,6 @@ export default function App() {
     );
   };
 
-  const handleCreateMaintenanceFromFault = async (fault: DiagnosticFault) => {
-    try {
-      await fetch('/api/maintenance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          componentTag: fault.componentTag,
-          componentName: `Intervenção em ${fault.componentTag}`,
-          type: 'Corretiva',
-          status: 'Em Andamento',
-          technician: 'Operador da Bancada Didática',
-          description: `${fault.message} - ${fault.recommendedAction}`,
-          partsReplaced: [],
-          operatingHours: 150,
-          costEstimateBRL: 120.0
-        })
-      });
-      setCurrentTab('maintenance');
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   // CAD Export
   const handleExportCAD = (format: 'dxf' | 'svg' | 'json') => {
     if (format === 'dxf') {
@@ -508,29 +480,6 @@ export default function App() {
           />
         )}
 
-        {currentTab === 'diagnostics' && (
-          <DiagnosticsView
-            components={components}
-            connections={connections}
-            faults={faults}
-            onInjectFault={handleInjectFault}
-            onClearFault={handleClearFault}
-            onClearAllFaults={handleClearAllFaults}
-            onCreateMaintenanceFromFault={handleCreateMaintenanceFromFault}
-          />
-        )}
-
-        {currentTab === 'compliance' && (
-          <ComplianceView
-            components={components}
-            connections={connections}
-          />
-        )}
-
-        {currentTab === 'maintenance' && (
-          <CloudMaintenanceView />
-        )}
-
         {currentTab === 'telemetry' && (
           <TelemetryDashboard
             metrics={metrics}
@@ -557,7 +506,7 @@ export default function App() {
       <PushNotificationToast
         fault={latestCriticalFault}
         onDismiss={() => setLatestCriticalFault(null)}
-        onNavigateDiagnostics={() => setCurrentTab('diagnostics')}
+        onNavigateDiagnostics={() => setCurrentTab('telemetry')}
       />
     </div>
   );

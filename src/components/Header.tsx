@@ -5,21 +5,18 @@ import {
   RotateCcw, 
   AlertOctagon, 
   Activity, 
-  ShieldCheck, 
   FileText, 
-  Database, 
   Radio, 
   FolderDown, 
   Layers, 
   Cpu, 
-  Wrench,
   Bell
 } from 'lucide-react';
 import { PRESET_CIRCUITS } from '../data/presets';
 
 interface HeaderProps {
-  currentTab: 'workbench' | 'physics' | 'diagnostics' | 'compliance' | 'maintenance' | 'telemetry';
-  setCurrentTab: (tab: 'workbench' | 'physics' | 'diagnostics' | 'compliance' | 'maintenance' | 'telemetry') => void;
+  currentTab: 'workbench' | 'physics' | 'telemetry';
+  setCurrentTab: (tab: 'workbench' | 'physics' | 'telemetry') => void;
   isSimulating: boolean;
   setIsSimulating: (running: boolean) => void;
   isEmergencyActive: boolean;
@@ -219,50 +216,6 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Activity className="w-4 h-4" />
           <span>Simulação Física & Resistência</span>
-        </button>
-
-        <button
-          id="tab-diagnostics"
-          onClick={() => setCurrentTab('diagnostics')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors relative ${
-            currentTab === 'diagnostics'
-              ? 'border-cyan-400 text-cyan-300 bg-slate-800/40'
-              : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/20'
-          }`}
-        >
-          <Wrench className="w-4 h-4" />
-          <span>Diagnósticos em Tempo Real</span>
-          {activeFaultsCount > 0 && (
-            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-red-500 text-white font-bold animate-pulse">
-              {activeFaultsCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          id="tab-compliance"
-          onClick={() => setCurrentTab('compliance')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors ${
-            currentTab === 'compliance'
-              ? 'border-cyan-400 text-cyan-300 bg-slate-800/40'
-              : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/20'
-          }`}
-        >
-          <ShieldCheck className="w-4 h-4" />
-          <span>Conformidade Técnica & IA</span>
-        </button>
-
-        <button
-          id="tab-maintenance"
-          onClick={() => setCurrentTab('maintenance')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors ${
-            currentTab === 'maintenance'
-              ? 'border-cyan-400 text-cyan-300 bg-slate-800/40'
-              : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/20'
-          }`}
-        >
-          <Database className="w-4 h-4" />
-          <span>Banco em Nuvem (Manutenções)</span>
         </button>
 
         <button
