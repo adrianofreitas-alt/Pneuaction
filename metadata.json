@@ -1,0 +1,6 @@
+{
+  "name": "Simulador de Eletropneumática Didática",
+  "description": "Bancada didática virtual de eletropneumática com conexão de mangueiras e fios, simulação física de resistência, diagnósticos em tempo real, integração CAD e histórico de manutenções.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
