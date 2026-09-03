@@ -395,15 +395,15 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
         <div className="absolute bottom-3 left-4 z-20 flex items-center gap-3 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-[11px] shadow-lg">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-1.5 bg-cyan-500 rounded-sm" />
-            <span className="text-slate-300">Mangueira Pneumática (PU 6mm)</span>
+            <span className="text-slate-300">Mangueira Pneumática (PU 6mm Azul Claro)</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-1.5 bg-rose-500 rounded-sm" />
             <span className="text-slate-300">Cabo Elétrico (+24V Vermelho)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-1.5 bg-blue-700 rounded-sm" />
-            <span className="text-slate-300">Cabo Elétrico (0V Azul)</span>
+            <span className="w-3 h-1.5 bg-blue-900 border border-blue-500 rounded-sm shadow-xs" />
+            <span className="text-slate-300">Cabo Elétrico (0V Azul Escuro)</span>
           </div>
         </div>
 
@@ -1036,19 +1036,19 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             ))}
                           </g>
 
-                          {/* Section 3: Barramento 0V (5 conexões elétricas com indicação 0V) */}
+                          {/* Section 3: Barramento 0V (5 conexões elétricas com indicação 0V em Azul Escuro) */}
                           <g transform="translate(6, 92)">
-                            <rect x="0" y="0" width="182" height="44" rx="4" fill="#082f49" stroke="#0369a1" strokeWidth="1" />
-                            <rect x="0" y="0" width="182" height="12" rx="3" fill="#075985" />
-                            <text x="8" y="9" fill="#bae6fd" fontSize="7.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
+                            <rect x="0" y="0" width="182" height="44" rx="4" fill="#0b1329" stroke="#1e3a8a" strokeWidth="1.2" />
+                            <rect x="0" y="0" width="182" height="12" rx="3" fill="#172554" />
+                            <text x="8" y="9" fill="#93c5fd" fontSize="7.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
                               5x RETORNOS: 0V GND
                             </text>
-                            <text x="174" y="9" fill="#93c5fd" fontSize="6.5" fontWeight="bold" textAnchor="end" fontFamily="'JetBrains Mono'">
+                            <text x="174" y="9" fill="#60a5fa" fontSize="6.5" fontWeight="bold" textAnchor="end" fontFamily="'JetBrains Mono'">
                               COMUM [-]
                             </text>
                             {/* Visual guide labels under the 5 knobs */}
                             {[20, 58, 97, 136, 174].map((tx, idx) => (
-                              <text key={idx} x={tx} y="41" fill="#38bdf8" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              <text key={idx} x={tx} y="41" fill="#93c5fd" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
                                 0V
                               </text>
                             ))}
@@ -1143,7 +1143,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                               <circle
                                 r="8.5"
                                 fill="#0f172a"
-                                stroke={isGround ? '#2563eb' : '#ef4444'}
+                                stroke={isGround ? '#1e3a8a' : '#ef4444'}
                                 strokeWidth="2.5"
                                 className="transition-colors group-hover/port:stroke-white"
                               />
@@ -1157,7 +1157,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                               {/* Orifício central do borne 4mm */}
                               <circle
                                 r="2.8"
-                                fill={isConnected ? (isGround ? '#3b82f6' : '#ef4444') : '#020617'}
+                                fill={isConnected ? (isGround ? '#172554' : '#ef4444') : '#020617'}
                               />
                             </g>
                           )}
@@ -1171,7 +1171,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                               height="13"
                               rx="3"
                               fill="#090f1d"
-                              stroke={isPneumatic ? '#0284c7' : isGround ? '#2563eb' : '#dc2626'}
+                              stroke={isPneumatic ? '#0284c7' : isGround ? '#1e3a8a' : '#dc2626'}
                               strokeWidth="0.8"
                               opacity="0.9"
                             />
@@ -1237,9 +1237,16 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                 let isGroundWire = false;
 
                 if (!isPneumatic) {
-                  isGroundWire = conn.fromPortId.includes('0V') || conn.toPortId.includes('0V');
-                  strokeColor = isGroundWire ? '#2563eb' : '#ef4444';
-                  highlightColor = isGroundWire ? '#60a5fa' : '#f87171';
+                  isGroundWire = 
+                    coords.sourcePort?.functionType === 'ground_0v' ||
+                    coords.targetPort?.functionType === 'ground_0v' ||
+                    coords.sourcePort?.name.includes('0V') ||
+                    coords.targetPort?.name.includes('0V') ||
+                    conn.fromPortId.includes('0V') ||
+                    conn.toPortId.includes('0V');
+                  // Cabo 0V (GND) em Azul Escuro para não confundir com mangueiras pneumáticas azuis claras
+                  strokeColor = isGroundWire ? '#172554' : '#ef4444';
+                  highlightColor = isGroundWire ? '#2563eb' : '#f87171';
                 }
 
                 return (
@@ -1293,7 +1300,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       <path
                         d={pathD}
                         fill="none"
-                        stroke={isPneumatic ? '#bae6fd' : '#fef08a'}
+                        stroke={isPneumatic ? '#bae6fd' : isGroundWire ? '#93c5fd' : '#fef08a'}
                         strokeWidth={strokeWidth * 0.5}
                         strokeDasharray={isPneumatic ? '6 12' : '4 8'}
                         strokeLinecap="round"
@@ -1316,9 +1323,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                     ) : (
                       // Plugue Banana 4mm conectado no borne circular de origem
                       <g transform={`translate(${x1}, ${y1})`} className="pointer-events-none">
-                        <circle r="7.5" fill={isGroundWire ? '#1d4ed8' : '#b91c1c'} stroke="#ffffff" strokeWidth="1.2" />
+                        <circle r="7.5" fill={isGroundWire ? '#172554' : '#b91c1c'} stroke={isGroundWire ? '#3b82f6' : '#ffffff'} strokeWidth="1.2" />
                         <circle r="4.5" fill="#0f172a" stroke="#fbbf24" strokeWidth="1.2" />
-                        <circle r="2.5" fill={isGroundWire ? '#60a5fa' : '#f87171'} />
+                        <circle r="2.5" fill={isGroundWire ? '#1e40af' : '#f87171'} />
                       </g>
                     )}
 
@@ -1334,9 +1341,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                     ) : (
                       // Plugue Banana 4mm conectado no borne circular de destino
                       <g transform={`translate(${x2}, ${y2})`} className="pointer-events-none">
-                        <circle r="7.5" fill={isGroundWire ? '#1d4ed8' : '#b91c1c'} stroke="#ffffff" strokeWidth="1.2" />
+                        <circle r="7.5" fill={isGroundWire ? '#172554' : '#b91c1c'} stroke={isGroundWire ? '#3b82f6' : '#ffffff'} strokeWidth="1.2" />
                         <circle r="4.5" fill="#0f172a" stroke="#fbbf24" strokeWidth="1.2" />
-                        <circle r="2.5" fill={isGroundWire ? '#60a5fa' : '#f87171'} />
+                        <circle r="2.5" fill={isGroundWire ? '#1e40af' : '#f87171'} />
                       </g>
                     )}
 
@@ -1376,7 +1383,13 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                   const sag = Math.min(80, Math.max(20, Math.abs(dx) * 0.2));
                   const pathD = `M ${x1} ${y1} C ${x1 + dx * 0.3} ${y1 + sag}, ${x2 - dx * 0.3} ${y2 + sag}, ${x2} ${y2}`;
 
-                  const strokeColor = connectingStart.port.type === 'pneumatic' ? '#0ea5e9' : '#f43f5e';
+                  const isGroundStart = 
+                    connectingStart.port.type === 'electrical' &&
+                    (connectingStart.port.functionType === 'ground_0v' || connectingStart.port.name.includes('0V'));
+
+                  const strokeColor = connectingStart.port.type === 'pneumatic' 
+                    ? '#0ea5e9' 
+                    : (isGroundStart ? '#1e3a8a' : '#f43f5e');
 
                   return (
                     <g className="pointer-events-none">
@@ -1391,7 +1404,14 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         className="animate-pulse"
                       />
                       {/* Origin fitting */}
-                      <circle cx={x1} cy={y1} r="7" fill={connectingStart.port.type === 'pneumatic' ? '#0284c7' : '#ef4444'} />
+                      <circle 
+                        cx={x1} 
+                        cy={y1} 
+                        r="7" 
+                        fill={connectingStart.port.type === 'pneumatic' ? '#0284c7' : (isGroundStart ? '#172554' : '#ef4444')} 
+                        stroke={isGroundStart ? '#3b82f6' : undefined} 
+                        strokeWidth={isGroundStart ? 1.5 : 0} 
+                      />
                       {/* Cursor tip ring */}
                       <circle cx={x2} cy={y2} r="6" fill="none" stroke={strokeColor} strokeWidth="2" />
                     </g>
@@ -1631,10 +1651,10 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       </div>
                       <div className="flex justify-between items-center text-blue-300">
                         <span className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
-                          Conexões 0V (GND):
+                          <span className="w-2 h-2 rounded-full bg-blue-900 border border-blue-500 inline-block" />
+                          Conexões 0V (GND - Azul Escuro):
                         </span>
-                        <span className="font-mono font-bold bg-blue-950/80 px-1.5 py-0.5 rounded border border-blue-800 text-blue-200">
+                        <span className="font-mono font-bold bg-blue-950 px-1.5 py-0.5 rounded border border-blue-800 text-blue-200">
                           5 Bornes
                         </span>
                       </div>
