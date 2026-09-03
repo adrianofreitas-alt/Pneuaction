@@ -253,10 +253,47 @@ export default function App() {
 
   const handleAddComponent = (template: ComponentTemplate) => {
     const existingCount = components.filter(c => c.type === template.type).length;
+    const isElectrical = template.category === 'electrical' || template.type === 'power_supply_24v';
+
+    let targetX = 30;
+    let targetY = 20;
+
+    if (isElectrical) {
+      // Posiciona no Rack Superior lado a lado
+      const electricalComps = components.filter(c => c.category === 'electrical' || c.type === 'power_supply_24v');
+      if (electricalComps.length === 0) {
+        targetX = 30;
+        targetY = 20;
+      } else {
+        const maxX = Math.max(...electricalComps.map(c => c.x + c.width));
+        targetX = maxX + 15;
+        targetY = 20;
+        if (targetX + template.width > 1370) {
+          targetX = 30 + (electricalComps.length % 5) * 40;
+          targetY = 25;
+        }
+      }
+    } else {
+      // Posiciona na Placa Perfilada de Alumínio Ranhurado (Y >= 250)
+      if (template.type === 'frl_unit') {
+        targetX = 30;
+        targetY = 250;
+      } else if (template.type === 'air_manifold') {
+        targetX = 185;
+        targetY = 260;
+      } else {
+        const pneumaticComps = components.filter(c => c.category !== 'electrical' && c.type !== 'power_supply_24v' && c.type !== 'frl_unit' && c.type !== 'air_manifold');
+        const col = pneumaticComps.length % 4;
+        const row = Math.floor(pneumaticComps.length / 4);
+        targetX = 360 + col * 240;
+        targetY = 270 + row * 160;
+      }
+    }
+
     const newComp = createComponentFromTemplate(
       template,
-      100 + Math.random() * 200,
-      100 + Math.random() * 150,
+      targetX,
+      targetY,
       existingCount + 1
     );
     setComponents(prev => [...prev, newComp]);

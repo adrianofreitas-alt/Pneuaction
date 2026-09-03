@@ -26,25 +26,28 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       const sensorTpl = COMPONENT_TEMPLATES.find(t => t.type === 'reed_switch_sensor')!;
       const buttonTpl = COMPONENT_TEMPLATES.find(t => t.type === 'push_button_station')!;
 
-      const frl = createComponentFromTemplate(frlTpl, 40, 40, 1);
-      const manifold = createComponentFromTemplate(manifoldTpl, 220, 50, 1);
-      const ps = createComponentFromTemplate(psTpl, 420, 40, 1);
-      const emerg = createComponentFromTemplate(emergTpl, 600, 50, 1);
-      const btn = createComponentFromTemplate(buttonTpl, 770, 40, 1);
+      // 1. Módulos Elétricos no Rack Superior (Lado a Lado, Y = 20)
+      const ps = createComponentFromTemplate(psTpl, 30, 20, 1);
+      const emerg = createComponentFromTemplate(emergTpl, 255, 20, 1);
+      const btn = createComponentFromTemplate(buttonTpl, 410, 20, 1);
 
-      const valve = createComponentFromTemplate(valve52Tpl, 220, 260, 1);
-      const throttle = createComponentFromTemplate(throttleTpl, 470, 280, 1);
-      const cyl = createComponentFromTemplate(cylTpl, 630, 260, 1);
+      // 2. Componentes Pneumáticos na Placa Perfilada de Alumínio Ranhurado (Y >= 240)
+      // Unidade FRL fixada à esquerda e Manifold de distribuição acoplado ao lado (conforme foto da bancada)
+      const frl = createComponentFromTemplate(frlTpl, 30, 250, 1);
+      const manifold = createComponentFromTemplate(manifoldTpl, 185, 260, 1);
+      const valve = createComponentFromTemplate(valve52Tpl, 380, 270, 1);
+      const throttle = createComponentFromTemplate(throttleTpl, 630, 290, 1);
+      const cyl = createComponentFromTemplate(cylTpl, 780, 270, 1);
 
-      const sensor1 = createComponentFromTemplate(sensorTpl, 630, 420, 1);
+      const sensor1 = createComponentFromTemplate(sensorTpl, 780, 420, 1);
       sensor1.tag = '1S1';
       sensor1.state.detectionPosition = 0; // recuado
 
-      const sensor2 = createComponentFromTemplate(sensorTpl, 800, 420, 2);
+      const sensor2 = createComponentFromTemplate(sensorTpl, 950, 420, 2);
       sensor2.tag = '1S2';
       sensor2.state.detectionPosition = 100; // avançado
 
-      const components: BenchComponent[] = [frl, manifold, ps, emerg, btn, valve, throttle, cyl, sensor1, sensor2];
+      const components: BenchComponent[] = [ps, emerg, btn, frl, manifold, valve, throttle, cyl, sensor1, sensor2];
 
       // Connections:
       // FRL saída -> Manifold entrada
@@ -188,17 +191,18 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
     id: 'preset_direct_single_acting',
     name: 'Acionamento Direto Cilindro Simples Ação (Válvula 3/2 NF)',
     category: 'Pneumática Básica',
-    description: 'Comando direto de avanço e recuo de cilindro com mola através de válvula botão 3/2 NF e regulador FRL.',
+    description: 'Comando direto de avanço e recuo de cilindro com mola através de válvula botão 3/2 NF e regulador FRL na bancada ranhurada.',
     build: () => {
       const frlTpl = COMPONENT_TEMPLATES.find(t => t.type === 'frl_unit')!;
       const v32Tpl = COMPONENT_TEMPLATES.find(t => t.type === 'valve_3_2_button')!;
       const cylTpl = COMPONENT_TEMPLATES.find(t => t.type === 'single_acting_cylinder')!;
       const throttleTpl = COMPONENT_TEMPLATES.find(t => t.type === 'flow_control_throttle')!;
 
-      const frl = createComponentFromTemplate(frlTpl, 80, 100, 1);
-      const v32 = createComponentFromTemplate(v32Tpl, 320, 120, 1);
-      const throttle = createComponentFromTemplate(throttleTpl, 520, 130, 1);
-      const cyl = createComponentFromTemplate(cylTpl, 720, 120, 1);
+      // Componentes montados no painel de alumínio ranhurado (Y >= 250)
+      const frl = createComponentFromTemplate(frlTpl, 30, 250, 1);
+      const v32 = createComponentFromTemplate(v32Tpl, 220, 280, 1);
+      const throttle = createComponentFromTemplate(throttleTpl, 420, 290, 1);
+      const cyl = createComponentFromTemplate(cylTpl, 600, 280, 1);
 
       const c1: VirtualConnection = {
         id: 'c_p1',
@@ -253,14 +257,16 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       const cylTpl = COMPONENT_TEMPLATES.find(t => t.type === 'double_acting_cylinder')!;
       const emergTpl = COMPONENT_TEMPLATES.find(t => t.type === 'emergency_stop_button')!;
 
-      const frl = createComponentFromTemplate(frlTpl, 40, 50, 1);
-      const ps = createComponentFromTemplate(psTpl, 220, 50, 1);
-      const emerg = createComponentFromTemplate(emergTpl, 400, 50, 1);
-      const btn = createComponentFromTemplate(btnTpl, 570, 50, 1);
-      const relay = createComponentFromTemplate(relayTpl, 760, 50, 1);
+      // 1. Módulos Elétricos no Rack Superior (Lado a Lado, Y = 20)
+      const ps = createComponentFromTemplate(psTpl, 30, 20, 1);
+      const emerg = createComponentFromTemplate(emergTpl, 255, 20, 1);
+      const btn = createComponentFromTemplate(btnTpl, 410, 20, 1);
+      const relay = createComponentFromTemplate(relayTpl, 585, 20, 1);
 
-      const valve = createComponentFromTemplate(valveTpl, 350, 260, 1);
-      const cyl = createComponentFromTemplate(cylTpl, 640, 260, 1);
+      // 2. Componentes Pneumáticos no Painel de Alumínio Ranhurado (Y >= 250)
+      const frl = createComponentFromTemplate(frlTpl, 30, 250, 1);
+      const valve = createComponentFromTemplate(valveTpl, 230, 280, 1);
+      const cyl = createComponentFromTemplate(cylTpl, 490, 280, 1);
 
       const c1: VirtualConnection = {
         id: 'c_p1',

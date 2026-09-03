@@ -76,13 +76,38 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
     // Handle dragging component
     if (draggingCompId) {
+      const draggedComp = components.find(c => c.id === draggingCompId);
+      const isElectrical = draggedComp?.category === 'electrical' || draggedComp?.type === 'power_supply_24v';
+
       onUpdateComponents(
         components.map((c) => {
           if (c.id === draggingCompId) {
+            const rawX = x - dragOffset.x;
+            const rawY = y - dragOffset.y;
+
+            const finalX = Math.max(15, Math.min(1385 - c.width, Math.round(rawX / 10) * 10));
+            let finalY: number;
+
+            if (isElectrical) {
+              // Módulos elétricos fixam-se no Rack Superior (lado a lado, trilho Y=20)
+              if (rawY < 180) {
+                finalY = 20; // Alinhamento perfeito no trilho superior
+              } else {
+                finalY = Math.max(20, Math.min(220 - c.height, Math.round(rawY / 10) * 10));
+              }
+            } else {
+              // Componentes pneumáticos (válvulas, atuadores, sensores, FRL, manifold)
+              // Ficam no painel de perfil de alumínio ranhurado (Y >= 238)
+              const clampedY = Math.max(238, Math.min(840 - c.height, rawY));
+              // Encaixe suave nas ranhuras em T (perfil a cada 48px)
+              const grooveIndex = Math.round((clampedY - 240) / 48);
+              finalY = Math.max(240, Math.min(840 - c.height, 240 + grooveIndex * 48));
+            }
+
             return {
               ...c,
-              x: Math.max(10, Math.min(1300 - c.width, Math.round((x - dragOffset.x) / 10) * 10)),
-              y: Math.max(10, Math.min(750 - c.height, Math.round((y - dragOffset.y) / 10) * 10)),
+              x: finalX,
+              y: finalY,
             };
           }
           return c;
@@ -433,15 +458,18 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             }}
           >
             <defs>
-              {/* Aluminum Extrusion T-Slot Pattern */}
-              <pattern id="aluminum-slats" width="50" height="50" patternUnits="userSpaceOnUse">
-                <rect width="50" height="50" fill="#0f172a" />
-                <rect x="0" y="0" width="50" height="46" fill="#141e33" />
+              {/* Aluminum Extrusion T-Slot Pattern for Didactic Bench */}
+              <pattern id="aluminum-slats" width="50" height="48" patternUnits="userSpaceOnUse">
+                {/* Slat aluminum face */}
+                <rect width="50" height="48" fill="#141c2e" />
+                <line x1="0" y1="0" x2="50" y2="0" stroke="#334155" strokeWidth="1" />
+                {/* Subtle surface brushed texture */}
+                <line x1="0" y1="12" x2="50" y2="12" stroke="#1e293b" strokeWidth="0.6" opacity="0.6" />
+                <line x1="0" y1="24" x2="50" y2="24" stroke="#1e293b" strokeWidth="0.6" opacity="0.6" />
                 {/* Horizontal T-Slot groove */}
-                <line x1="0" y1="48" x2="50" y2="48" stroke="#090d16" strokeWidth="3" />
-                <line x1="0" y1="49" x2="50" y2="49" stroke="#1e293b" strokeWidth="1" />
-                {/* Vertical DIN rail markers */}
-                <line x1="25" y1="0" x2="25" y2="50" stroke="#1c2841" strokeWidth="1" strokeDasharray="4 4" />
+                <rect x="0" y="40" width="50" height="7" fill="#070b14" />
+                <line x1="0" y1="43.5" x2="50" y2="43.5" stroke="#1e293b" strokeWidth="1" strokeDasharray="6 4" />
+                <line x1="0" y1="47.5" x2="50" y2="47.5" stroke="#475569" strokeWidth="0.8" />
               </pattern>
 
               {/* Glowing hose filter */}
@@ -456,151 +484,94 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
               </marker>
             </defs>
 
-            {/* Aluminum Workbench Background */}
-            <rect width="100%" height="100%" fill="url(#aluminum-slats)" />
+            {/* ==================================================== */}
+            {/* 1. RACK SUPERIOR: MÓDULOS ELÉTRICOS (24V CC / DIDÁTICO) */}
+            {/* ==================================================== */}
+            <g id="top-electrical-rack">
+              {/* Rack Interior Backplane */}
+              <rect x="0" y="0" width="1400" height="222" fill="#090f1d" />
+              
+              {/* Top Mounting Rail (DIN / Eurocard Frame) */}
+              <rect x="10" y="6" width="1380" height="14" rx="2" fill="#1e293b" stroke="#334155" strokeWidth="1" />
+              {/* Screw holes along the top rail */}
+              {Array.from({ length: 35 }).map((_, i) => (
+                <circle key={`ts_${i}`} cx={25 + i * 39} cy="13" r="2.5" fill="#475569" stroke="#090f1d" strokeWidth="0.6" />
+              ))}
 
-            {/* Workbench Edge Frames */}
-            <rect x="0" y="0" width="1400" height="850" fill="none" stroke="#334155" strokeWidth="4" />
+              {/* Bottom Mounting Rail of Electrical Rack */}
+              <rect x="10" y="202" width="1380" height="14" rx="2" fill="#1e293b" stroke="#334155" strokeWidth="1" />
+              {/* Screw holes along the bottom rail */}
+              {Array.from({ length: 35 }).map((_, i) => (
+                <circle key={`bs_${i}`} cx={25 + i * 39} cy="209" r="2.5" fill="#475569" stroke="#090f1d" strokeWidth="0.6" />
+              ))}
 
-            {/* Top pneumatic manifold supply rail */}
-            <line x1="30" y1="20" x2="1370" y2="20" stroke="#0284c7" strokeWidth="3" opacity="0.3" />
-            <line x1="30" y1="28" x2="1370" y2="28" stroke="#e11d48" strokeWidth="2" opacity="0.3" />
+              {/* Vertical Module Guide Marks (indica baias modulares padronizadas lado a lado) */}
+              {Array.from({ length: 9 }).map((_, i) => (
+                <line
+                  key={`bg_${i}`}
+                  x1={240 + i * 140}
+                  y1="22"
+                  x2={240 + i * 140}
+                  y2="200"
+                  stroke="#1e293b"
+                  strokeWidth="1"
+                  strokeDasharray="4 6"
+                  opacity="0.5"
+                />
+              ))}
 
-            {/* ---------------------------------------------------- */}
-            {/* CONNECTIONS LAYER (Hoses & Wires) */}
-            {/* ---------------------------------------------------- */}
-            <g id="connections-layer">
-              {connections.map((conn) => {
-                const coords = getConnectionCoordinates(conn);
-                if (!coords) return null;
-                const { x1, y1, x2, y2 } = coords;
-
-                const isPneumatic = conn.type === 'pneumatic';
-                const isHovered = hoveredConnectionId === conn.id;
-
-                // Bezier curve calculations for natural hose gravity sag
-                const dx = x2 - x1;
-                const dy = y2 - y1;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                const sag = Math.min(100, Math.max(25, dist * 0.22));
-
-                const cx1 = x1 + dx * 0.3;
-                const cy1 = y1 + sag;
-                const cx2 = x2 - dx * 0.3;
-                const cy2 = y2 + sag;
-
-                const pathD = `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
-
-                // Color based on type and pressure/voltage
-                let strokeColor = '#38bdf8'; // Blue PU hose
-                let strokeWidth = isPneumatic ? 5 : 3.5;
-                if (!isPneumatic) {
-                  strokeColor = conn.fromPortId.includes('0V') || conn.toPortId.includes('0V') 
-                    ? '#2563eb' 
-                    : '#ef4444';
-                }
-
-                return (
-                  <g
-                    key={conn.id}
-                    className="cursor-pointer group"
-                    onMouseEnter={() => setHoveredConnectionId(conn.id)}
-                    onMouseLeave={() => setHoveredConnectionId(null)}
-                  >
-                    {/* Outer glow / hit area */}
-                    <path
-                      d={pathD}
-                      fill="none"
-                      stroke="transparent"
-                      strokeWidth={16}
-                    />
-
-                    {/* Shadow underneath */}
-                    <path
-                      d={pathD}
-                      fill="none"
-                      stroke="#000000"
-                      strokeWidth={strokeWidth + 2}
-                      opacity={0.4}
-                      transform="translate(1, 3)"
-                    />
-
-                    {/* Main hose / wire body */}
-                    <path
-                      d={pathD}
-                      fill="none"
-                      stroke={strokeColor}
-                      strokeWidth={strokeWidth}
-                      strokeLinecap="round"
-                      filter={conn.active && isSimulating ? 'url(#hose-glow)' : undefined}
-                      className={isHovered ? 'brightness-125' : ''}
-                    />
-
-                    {/* Animated flow dash if simulating */}
-                    {isSimulating && conn.active && (
-                      <path
-                        d={pathD}
-                        fill="none"
-                        stroke={isPneumatic ? '#bae6fd' : '#fef08a'}
-                        strokeWidth={strokeWidth * 0.45}
-                        strokeDasharray={isPneumatic ? '6 12' : '4 8'}
-                        strokeLinecap="round"
-                        className="animate-[dash_1s_linear_infinite]"
-                      />
-                    )}
-
-                    {/* Delete Connection Tooltip Button at midpoint */}
-                    {isHovered && (
-                      <g transform={`translate(${(x1 + x2) / 2}, ${(y1 + y2) / 2 + sag * 0.7})`}>
-                        <circle r="12" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
-                        <text
-                          x="0"
-                          y="4"
-                          fill="#ffffff"
-                          fontSize="12"
-                          fontWeight="bold"
-                          textAnchor="middle"
-                          onClick={(e) => handleDeleteConnection(conn.id, e)}
-                          className="cursor-pointer"
-                        >
-                          ×
-                        </text>
-                      </g>
-                    )}
-                  </g>
-                );
-              })}
-
-              {/* Active temporary line while drawing connection */}
-              {connectingStart && (
-                (() => {
-                  const comp = components.find((c) => c.id === connectingStart.componentId);
-                  if (!comp) return null;
-                  const x1 = comp.x + (comp.width * connectingStart.port.x) / 100;
-                  const y1 = comp.y + (comp.height * connectingStart.port.y) / 100;
-                  const x2 = mousePos.x;
-                  const y2 = mousePos.y;
-
-                  const dx = x2 - x1;
-                  const sag = Math.min(80, Math.max(20, Math.abs(dx) * 0.2));
-                  const pathD = `M ${x1} ${y1} C ${x1 + dx * 0.3} ${y1 + sag}, ${x2 - dx * 0.3} ${y2 + sag}, ${x2} ${y2}`;
-
-                  const strokeColor = connectingStart.port.type === 'pneumatic' ? '#0ea5e9' : '#f43f5e';
-
-                  return (
-                    <path
-                      d={pathD}
-                      fill="none"
-                      stroke={strokeColor}
-                      strokeWidth={4}
-                      strokeDasharray="5 5"
-                      strokeLinecap="round"
-                      className="animate-pulse pointer-events-none"
-                    />
-                  );
-                })()
-              )}
+              {/* Rack Superior Title Identification Badge */}
+              <g transform="translate(930, 8)">
+                <rect width="450" height="20" rx="4" fill="#0f172a" stroke="#38bdf8" strokeWidth="1" opacity="0.9" />
+                <circle cx="16" cy="10" r="3.5" fill="#10b981" />
+                <text x="28" y="14" fill="#e2e8f0" fontSize="9" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
+                  RACK SUPERIOR: MÓDULOS DE CONTROLE ELÉTRICO 24V CC (PELV)
+                </text>
+              </g>
             </g>
+
+            {/* ==================================================== */}
+            {/* 2. VIGA DIVISÓRIA ESTRUTURAL (SEPARAÇÃO RACK / PAINEL) */}
+            {/* ==================================================== */}
+            <g id="structural-divider">
+              <rect x="0" y="222" width="1400" height="18" fill="#1e293b" stroke="#475569" strokeWidth="1" />
+              <line x1="0" y1="224" x2="1400" y2="224" stroke="#64748b" strokeWidth="1" opacity="0.6" />
+              <line x1="0" y1="238" x2="1400" y2="238" stroke="#090f1d" strokeWidth="1" />
+              {/* Center plate */}
+              <g transform="translate(560, 224)">
+                <rect width="280" height="14" rx="3" fill="#090f1d" stroke="#334155" strokeWidth="1" />
+                <text x="140" y="234" fill="#38bdf8" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono', monospace">
+                  DIVISOR ESTRUTURAL • BANCADA DIDÁTICA
+                </text>
+              </g>
+            </g>
+
+            {/* ==================================================== */}
+            {/* 3. PAINEL RANHURADO DE PERFIL DE ALUMÍNIO (PNEUMÁTICA) */}
+            {/* ==================================================== */}
+            <g id="lower-pneumatic-panel">
+              {/* Slotted Aluminum Profile Background */}
+              <rect x="0" y="240" width="1400" height="610" fill="url(#aluminum-slats)" />
+
+              {/* Guia de Montagem FRL + Distribuidor (à esquerda conforme a foto) */}
+              <g transform="translate(25, 246)">
+                <rect width="270" height="18" rx="3" fill="#090f1d" stroke="#0284c7" strokeWidth="1" opacity="0.85" />
+                <text x="135" y="258" fill="#38bdf8" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono', monospace">
+                  SUPRIMENTO DE AR (FRL + DISTRIBUIDOR)
+                </text>
+              </g>
+
+              {/* Placa de Identificação do Painel Ranhurado */}
+              <g transform="translate(820, 824)">
+                <rect width="560" height="18" rx="3" fill="#090f1d" stroke="#334155" strokeWidth="1" opacity="0.85" />
+                <text x="280" y="836" fill="#94a3b8" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono', monospace">
+                  PAINEL DE PERFIL DE ALUMÍNIO RANHURADO (VÁLVULAS, SENSORES E ATUADORES)
+                </text>
+              </g>
+            </g>
+
+            {/* Workbench External Frame Border */}
+            <rect x="0" y="0" width="1400" height="850" fill="none" stroke="#334155" strokeWidth="4" />
 
             {/* ---------------------------------------------------- */}
             {/* COMPONENTS LAYER */}
@@ -608,6 +579,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             <g id="components-layer">
               {components.map((comp) => {
                 const isSelected = selectedComponent?.id === comp.id;
+                const isElectrical = comp.category === 'electrical' || comp.type === 'power_supply_24v';
 
                 return (
                   <g
@@ -633,12 +605,34 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       y="0"
                       width={comp.width}
                       height={comp.height}
-                      rx="10"
+                      rx="8"
                       fill="#1e293b"
                       stroke={isSelected ? '#38bdf8' : comp.faults?.isLeaking || comp.faults?.isCoilBurned ? '#ef4444' : '#334155'}
                       strokeWidth={isSelected ? 2.5 : 1.5}
                       className="transition-colors"
                     />
+
+                    {/* Rack Fixation Screws (Módulos elétricos aparafusados no rack superior conforme a foto) */}
+                    {isElectrical && (
+                      <g>
+                        <circle cx="10" cy="5" r="2.5" fill="#64748b" stroke="#0f172a" strokeWidth="0.8" />
+                        <line x1="8.5" y1="5" x2="11.5" y2="5" stroke="#cbd5e1" strokeWidth="0.6" />
+                        <circle cx={comp.width - 32} cy="5" r="2.5" fill="#64748b" stroke="#0f172a" strokeWidth="0.8" />
+                        <line x1={comp.width - 33.5} y1="5" x2={comp.width - 30.5} y2="5" stroke="#cbd5e1" strokeWidth="0.6" />
+                        <circle cx="10" cy={comp.height - 6} r="2.5" fill="#64748b" stroke="#0f172a" strokeWidth="0.8" />
+                        <line x1="8.5" y1={comp.height - 6} x2="11.5" y2={comp.height - 6} stroke="#cbd5e1" strokeWidth="0.6" />
+                        <circle cx={comp.width - 10} cy={comp.height - 6} r="2.5" fill="#64748b" stroke="#0f172a" strokeWidth="0.8" />
+                        <line x1={comp.width - 11.5} y1={comp.height - 6} x2={comp.width - 8.5} y2={comp.height - 6} stroke="#cbd5e1" strokeWidth="0.6" />
+                      </g>
+                    )}
+
+                    {/* Quick-Clamping Support Bracket for Slotted Aluminum Profile (Componentes pneumáticos) */}
+                    {!isElectrical && (
+                      <g>
+                        <rect x={comp.width / 2 - 16} y={comp.height - 2} width="32" height="5" rx="2" fill="#0284c7" stroke="#0369a1" strokeWidth="0.8" />
+                        <circle cx={comp.width / 2} cy={comp.height + 0.5} r="1.5" fill="#ffffff" />
+                      </g>
+                    )}
 
                     {/* Top Anodized Header Bar */}
                     <rect
@@ -646,7 +640,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       y="0"
                       width={comp.width}
                       height="28"
-                      rx="10"
+                      rx="8"
                       fill="#0f172a"
                     />
                     <rect
@@ -686,8 +680,23 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       fontSize="11"
                       fontWeight="600"
                     >
-                      {comp.type === 'power_supply_24v' ? 'Fonte' : (comp.name.length > 20 ? comp.name.substring(0, 19) + '…' : comp.name)}
+                      {comp.type === 'power_supply_24v' ? 'Fonte 24V' : (comp.name.length > 18 ? comp.name.substring(0, 17) + '…' : comp.name)}
                     </text>
+
+                    {/* Festo Didactic brand badge for electrical rack modules */}
+                    {isElectrical && (
+                      <text
+                        x={comp.width - 50}
+                        y="17"
+                        fill="#38bdf8"
+                        fontSize="8"
+                        fontWeight="bold"
+                        letterSpacing="0.5"
+                        fontFamily="'JetBrains Mono', monospace"
+                      >
+                        FESTO
+                      </text>
+                    )}
 
                     {/* Delete Component icon button */}
                     <g
@@ -771,10 +780,16 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                     {/* 3. FRL UNIT */}
                     {comp.type === 'frl_unit' && (
-                      <g transform="translate(16, 38)">
+                      <g transform="translate(14, 34)">
+                        {/* Horizontal distribution block linking inlet and outlet */}
+                        <rect x="4" y="90" width="104" height="18" rx="3" fill="#1e293b" stroke="#475569" strokeWidth="1.2" />
+                        <line x1="8" y1="99" x2="104" y2="99" stroke="#38bdf8" strokeWidth="2.5" strokeDasharray="3 3" />
+
                         {/* Filter Bowl */}
-                        <rect x="10" y="55" width="36" height="60" rx="4" fill="#0f172a" stroke="#475569" strokeWidth="1.5" />
-                        <line x1="28" y1="58" x2="28" y2="105" stroke="#38bdf8" strokeWidth="2" />
+                        <rect x="12" y="45" width="36" height="52" rx="4" fill="#0f172a" stroke="#475569" strokeWidth="1.5" />
+                        <line x1="30" y1="48" x2="30" y2="90" stroke="#38bdf8" strokeWidth="2" />
+                        {/* Water level trap */}
+                        <path d="M 16 85 Q 30 80 44 85 L 44 95 L 16 95 Z" fill="#0284c7" opacity="0.6" />
                         
                         {/* Pressure Gauge Dial */}
                         <circle cx="70" cy="35" r="26" fill="#0f172a" stroke="#475569" strokeWidth="2" />
@@ -786,6 +801,45 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         </text>
                         {/* Dial Needle */}
                         <line x1="70" y1="35" x2="80" y2="24" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" />
+                      </g>
+                    )}
+
+                    {/* 3b. AIR MANIFOLD (BLOCO DISTRIBUIDOR 8 SAÍDAS FESTO) */}
+                    {comp.type === 'air_manifold' && (
+                      <g transform="translate(10, 26)">
+                        {/* Blue anodized Festo aluminum manifold body */}
+                        <rect x="2" y="4" width="146" height="52" rx="6" fill="#0369a1" stroke="#38bdf8" strokeWidth="1.5" />
+                        <rect x="6" y="8" width="138" height="44" rx="4" fill="#075985" />
+                        {/* Internal pressurized air chamber line */}
+                        <line x1="18" y1="30" x2="136" y2="30" stroke="#38bdf8" strokeWidth="3" opacity="0.8" />
+                        <line x1="18" y1="30" x2="136" y2="30" stroke="#bae6fd" strokeWidth="1.2" />
+                        {/* Festo Manifold identification */}
+                        <text x="75" y="24" fill="#bae6fd" fontSize="7.5" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                          DISTRIBUIDOR 8x
+                        </text>
+                        <text x="75" y="40" fill="#e0f2fe" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                          6.0 BAR MAX
+                        </text>
+                      </g>
+                    )}
+
+                    {/* 3c. FLOW CONTROL THROTTLE (VÁLVULA REGULADORA DE FLUXO) */}
+                    {comp.type === 'flow_control_throttle' && (
+                      <g transform="translate(10, 24)">
+                        {/* Valve metal body */}
+                        <rect x="12" y="8" width="86" height="46" rx="5" fill="#0f172a" stroke="#475569" strokeWidth="1.5" />
+                        {/* Micrometric rotary adjustment knob on top */}
+                        <rect x="44" y="0" width="22" height="10" rx="2" fill="#f59e0b" stroke="#d97706" strokeWidth="1" />
+                        <line x1="48" y1="2" x2="48" y2="8" stroke="#78350f" strokeWidth="1" />
+                        <line x1="55" y1="2" x2="55" y2="8" stroke="#78350f" strokeWidth="1" />
+                        <line x1="62" y1="2" x2="62" y2="8" stroke="#78350f" strokeWidth="1" />
+                        {/* Throttle symbol */}
+                        <path d="M 28 32 L 82 32" stroke="#38bdf8" strokeWidth="2" />
+                        <polygon points="50,24 60,32 50,40" fill="#38bdf8" />
+                        {/* Percent value */}
+                        <text x="55" y="48" fill="#f59e0b" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                          {comp.state.flowThrottlePercent || 40}%
+                        </text>
                       </g>
                     )}
 
@@ -923,18 +977,18 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                     {comp.type === 'power_supply_24v' && (() => {
                       const isPowered = comp.state.activated !== false;
                       return (
-                        <g transform="translate(8, 34)">
+                        <g transform="translate(8, 30)">
                           {/* Brushed metal interior chassis plate */}
-                          <rect x="0" y="0" width="194" height="168" rx="6" fill="#090d16" stroke="#334155" strokeWidth="1" />
+                          <rect x="0" y="0" width="194" height="144" rx="6" fill="#090d16" stroke="#334155" strokeWidth="1" />
 
                           {/* Section 1: Digital Voltmeter + Interactive Rocker Switch (Liga / Desliga) */}
                           {/* Voltmeter Display */}
-                          <rect x="6" y="6" width="92" height="44" rx="4" fill="#020617" stroke="#1e293b" strokeWidth="1.5" />
+                          <rect x="6" y="4" width="92" height="38" rx="4" fill="#020617" stroke="#1e293b" strokeWidth="1.5" />
                           <text
                             x="52"
-                            y="28"
+                            y="23"
                             fill={isPowered ? "#38bdf8" : "#475569"}
-                            fontSize="17"
+                            fontSize="15"
                             fontWeight="bold"
                             fontFamily="'JetBrains Mono', monospace"
                             textAnchor="middle"
@@ -942,10 +996,10 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           >
                             {isPowered ? "24.0 V" : "0.0 V"}
                           </text>
-                          <rect x="14" y="34" width="76" height="12" rx="2" fill={isPowered ? "#0369a1" : "#1e293b"} />
+                          <rect x="14" y="27" width="76" height="11" rx="2" fill={isPowered ? "#0369a1" : "#1e293b"} />
                           <text
                             x="52"
-                            y="43"
+                            y="35"
                             fill={isPowered ? "#ffffff" : "#64748b"}
                             fontSize="7"
                             fontWeight="bold"
@@ -962,9 +1016,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           >
                             <rect
                               x="104"
-                              y="6"
+                              y="4"
                               width="84"
-                              height="44"
+                              height="38"
                               rx="5"
                               fill="#0b1120"
                               stroke={isPowered ? "#10b981" : "#ef4444"}
@@ -972,63 +1026,63 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                               className="transition-colors group-hover/switch:stroke-sky-400"
                             />
                             {/* Rocker frame */}
-                            <rect x="108" y="10" width="76" height="24" rx="3" fill="#1e293b" />
+                            <rect x="108" y="7" width="76" height="20" rx="3" fill="#1e293b" />
                             
                             {isPowered ? (
                               <g>
                                 {/* Active I (Liga) */}
-                                <rect x="110" y="12" width="36" height="20" rx="2" fill="#10b981" />
-                                <text x="128" y="27" fill="#ffffff" fontSize="12" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">I</text>
-                                <text x="166" y="27" fill="#64748b" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">O</text>
+                                <rect x="110" y="8" width="36" height="18" rx="2" fill="#10b981" />
+                                <text x="128" y="21" fill="#ffffff" fontSize="11" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">I</text>
+                                <text x="166" y="21" fill="#64748b" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">O</text>
                                 {/* Status LED */}
-                                <circle cx="118" cy="42" r="3" fill="#10b981" />
-                                <circle cx="118" cy="42" r="5" fill="none" stroke="#10b981" strokeWidth="0.8" opacity="0.6" className="animate-pulse" />
-                                <text x="126" y="45" fill="#34d399" fontSize="8" fontWeight="bold" fontFamily="'JetBrains Mono'">LIGADA</text>
+                                <circle cx="118" cy="33" r="3" fill="#10b981" />
+                                <circle cx="118" cy="33" r="5" fill="none" stroke="#10b981" strokeWidth="0.8" opacity="0.6" className="animate-pulse" />
+                                <text x="126" y="36" fill="#34d399" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono'">LIGADA</text>
                               </g>
                             ) : (
                               <g>
                                 {/* Active O (Desliga) */}
-                                <rect x="146" y="12" width="36" height="20" rx="2" fill="#ef4444" />
-                                <text x="128" y="27" fill="#64748b" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">I</text>
-                                <text x="164" y="27" fill="#ffffff" fontSize="12" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">O</text>
+                                <rect x="146" y="8" width="36" height="18" rx="2" fill="#ef4444" />
+                                <text x="128" y="21" fill="#64748b" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">I</text>
+                                <text x="164" y="21" fill="#ffffff" fontSize="11" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">O</text>
                                 {/* Status LED */}
-                                <circle cx="118" cy="42" r="3" fill="#64748b" />
-                                <text x="126" y="45" fill="#94a3b8" fontSize="8" fontWeight="bold" fontFamily="'JetBrains Mono'">DESLIGADA</text>
+                                <circle cx="118" cy="33" r="3" fill="#64748b" />
+                                <text x="126" y="36" fill="#94a3b8" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono'">DESLIGADA</text>
                               </g>
                             )}
                           </g>
 
                           {/* Section 2: Barramento +24V (5 conexões elétricas com indicação 24V) */}
-                          <g transform="translate(6, 56)">
-                            <rect x="0" y="0" width="182" height="48" rx="4" fill="#1c1917" stroke="#7f1d1d" strokeWidth="1" />
-                            <rect x="0" y="0" width="182" height="13" rx="3" fill="#7f1d1d" />
-                            <text x="8" y="10" fill="#fecaca" fontSize="8" fontWeight="bold" fontFamily="'JetBrains Mono'">
+                          <g transform="translate(6, 44)">
+                            <rect x="0" y="0" width="182" height="44" rx="4" fill="#1c1917" stroke="#7f1d1d" strokeWidth="1" />
+                            <rect x="0" y="0" width="182" height="12" rx="3" fill="#7f1d1d" />
+                            <text x="8" y="9" fill="#fecaca" fontSize="7.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
                               5x SAÍDAS: 24V CC
                             </text>
-                            <text x="174" y="10" fill="#fca5a5" fontSize="7" fontWeight="bold" textAnchor="end" fontFamily="'JetBrains Mono'">
+                            <text x="174" y="9" fill="#fca5a5" fontSize="6.5" fontWeight="bold" textAnchor="end" fontFamily="'JetBrains Mono'">
                               ALIMENTAÇÃO [+]
                             </text>
                             {/* Visual guide labels under the 5 knobs */}
                             {[20, 58, 97, 136, 174].map((tx, idx) => (
-                              <text key={idx} x={tx} y="44" fill="#ef4444" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              <text key={idx} x={tx} y="41" fill="#ef4444" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
                                 24V
                               </text>
                             ))}
                           </g>
 
                           {/* Section 3: Barramento 0V (5 conexões elétricas com indicação 0V) */}
-                          <g transform="translate(6, 110)">
-                            <rect x="0" y="0" width="182" height="48" rx="4" fill="#082f49" stroke="#0369a1" strokeWidth="1" />
-                            <rect x="0" y="0" width="182" height="13" rx="3" fill="#075985" />
-                            <text x="8" y="10" fill="#bae6fd" fontSize="8" fontWeight="bold" fontFamily="'JetBrains Mono'">
+                          <g transform="translate(6, 92)">
+                            <rect x="0" y="0" width="182" height="44" rx="4" fill="#082f49" stroke="#0369a1" strokeWidth="1" />
+                            <rect x="0" y="0" width="182" height="12" rx="3" fill="#075985" />
+                            <text x="8" y="9" fill="#bae6fd" fontSize="7.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
                               5x RETORNOS: 0V GND
                             </text>
-                            <text x="174" y="10" fill="#93c5fd" fontSize="7" fontWeight="bold" textAnchor="end" fontFamily="'JetBrains Mono'">
+                            <text x="174" y="9" fill="#93c5fd" fontSize="6.5" fontWeight="bold" textAnchor="end" fontFamily="'JetBrains Mono'">
                               COMUM [-]
                             </text>
                             {/* Visual guide labels under the 5 knobs */}
                             {[20, 58, 97, 136, 174].map((tx, idx) => (
-                              <text key={idx} x={tx} y="44" fill="#38bdf8" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              <text key={idx} x={tx} y="41" fill="#38bdf8" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
                                 0V
                               </text>
                             ))}
@@ -1038,7 +1092,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                     })()}
 
                     {/* ------------------------------------------------ */}
-                    {/* PORTS RENDERING (Connection Knobs) */}
+                    {/* PORTS RENDERING (Connection Circles / Entradas e Saídas) */}
                     {/* ------------------------------------------------ */}
                     {comp.ports.map((port) => {
                       const px = (comp.width * port.x) / 100;
@@ -1046,6 +1100,17 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       const isPneumatic = port.type === 'pneumatic';
                       const isTarget = connectingStart && connectingStart.port.type === port.type;
                       const isGround = port.functionType === 'ground_0v' || port.name.includes('0V');
+
+                      // Check if port is connected
+                      const isConnected = connections.some(
+                        (c) =>
+                          (c.fromComponentId === comp.id && c.fromPortId === port.id) ||
+                          (c.toComponentId === comp.id && c.toPortId === port.id)
+                      );
+
+                      const labelText = port.name.split(' ')[0];
+                      const isBottom = py > comp.height / 2;
+                      const textY = isBottom ? -13 : 18;
 
                       return (
                         <g
@@ -1056,42 +1121,107 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           onMouseLeave={() => setHoveredPort(null)}
                           className="cursor-pointer group/port"
                         >
-                          {/* Hover highlight circle */}
+                          {/* Large interactive click target */}
                           <circle
-                            r="11"
+                            r="14"
                             fill="transparent"
-                            stroke={isTarget ? '#38bdf8' : '#ffffff'}
+                            stroke={isTarget ? (isPneumatic ? '#38bdf8' : '#f43f5e') : 'transparent'}
                             strokeWidth={isTarget ? 2 : 0}
-                            className="group-hover/port:stroke-white group-hover/port:stroke-1"
+                            strokeDasharray={isTarget ? '3 3' : undefined}
+                            className={isTarget ? 'animate-spin' : ''}
                           />
 
-                          {/* Outer Brass / Nylon Fitting / Banana Socket */}
-                          <circle
-                            r="6.5"
-                            fill="#0f172a"
-                            stroke={isPneumatic ? '#0284c7' : isGround ? '#2563eb' : '#e11d48'}
-                            strokeWidth="2.5"
-                          />
+                          {/* Target pulsing aura when connecting compatible wire/tube */}
+                          {isTarget && (
+                            <circle
+                              r="15"
+                              fill="none"
+                              stroke={isPneumatic ? '#38bdf8' : '#f43f5e'}
+                              strokeWidth="1.5"
+                              opacity="0.6"
+                              className="animate-pulse"
+                            />
+                          )}
 
-                          {/* Inner Hole */}
-                          <circle
-                            r="2.5"
-                            fill={isPneumatic ? '#38bdf8' : isGround ? '#60a5fa' : '#fda4af'}
-                          />
+                          {/* Outer Metallic / Plastic Ring (Orifício Circular de Entrada/Saída) */}
+                          {isPneumatic ? (
+                            // Engate Rápido Pneumático Festo QS
+                            <g>
+                              {/* Base metálica sextavada do engate rápido */}
+                              <circle
+                                r="8.5"
+                                fill="#1e293b"
+                                stroke="#94a3b8"
+                                strokeWidth="1.5"
+                                className="transition-colors group-hover/port:stroke-sky-400"
+                              />
+                              {/* Anilha de extração / colar azul Festo */}
+                              <circle
+                                r="6"
+                                fill="#0284c7"
+                                stroke="#0369a1"
+                                strokeWidth="0.8"
+                              />
+                              {/* Orifício central de inserção do tubo de 4mm/6mm */}
+                              <circle
+                                r="3.5"
+                                fill={isConnected ? '#38bdf8' : '#090d16'}
+                                stroke={isConnected ? '#0284c7' : '#1e293b'}
+                                strokeWidth="0.8"
+                              />
+                            </g>
+                          ) : (
+                            // Borne Banana Elétrico 4mm de Segurança
+                            <g>
+                              {/* Capa isolante circular colorida */}
+                              <circle
+                                r="8.5"
+                                fill="#0f172a"
+                                stroke={isGround ? '#2563eb' : '#ef4444'}
+                                strokeWidth="2.5"
+                                className="transition-colors group-hover/port:stroke-white"
+                              />
+                              {/* Bucha metálica niquelada de contato interno */}
+                              <circle
+                                r="5"
+                                fill="#090d16"
+                                stroke="#fbbf24"
+                                strokeWidth="1"
+                              />
+                              {/* Orifício central do borne 4mm */}
+                              <circle
+                                r="2.8"
+                                fill={isConnected ? (isGround ? '#3b82f6' : '#ef4444') : '#020617'}
+                              />
+                            </g>
+                          )}
 
-                          {/* Port Technical Label */}
-                          <text
-                            x="0"
-                            y={py > comp.height / 2 ? -10 : 16}
-                            fill={isGround ? '#93c5fd' : isPneumatic ? '#94a3b8' : '#fca5a5'}
-                            fontSize="8"
-                            fontWeight="700"
-                            fontFamily="'JetBrains Mono', monospace"
-                            textAnchor="middle"
-                            className="pointer-events-none"
-                          >
-                            {port.name.split(' ')[0]}
-                          </text>
+                          {/* Port Technical Label Badge */}
+                          <g transform={`translate(0, ${textY})`}>
+                            <rect
+                              x={-(labelText.length * 3.8 + 5)}
+                              y="-7"
+                              width={labelText.length * 7.6 + 10}
+                              height="13"
+                              rx="3"
+                              fill="#090f1d"
+                              stroke={isPneumatic ? '#0284c7' : isGround ? '#2563eb' : '#dc2626'}
+                              strokeWidth="0.8"
+                              opacity="0.9"
+                            />
+                            <text
+                              x="0"
+                              y="2.5"
+                              fill={isPneumatic ? '#38bdf8' : isGround ? '#93c5fd' : '#fca5a5'}
+                              fontSize="7.5"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono', monospace"
+                              textAnchor="middle"
+                              className="pointer-events-none"
+                            >
+                              {labelText}
+                            </text>
+                          </g>
                         </g>
                       );
                     })}
@@ -1107,6 +1237,201 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                   </g>
                 );
               })}
+            </g>
+
+            {/* ---------------------------------------------------- */}
+            {/* CONNECTIONS LAYER (Hoses & Wires ON TOP OF BENCH)   */}
+            {/* ---------------------------------------------------- */}
+            <g id="connections-layer">
+              {connections.map((conn) => {
+                const coords = getConnectionCoordinates(conn);
+                if (!coords) return null;
+                const { x1, y1, x2, y2 } = coords;
+
+                const isPneumatic = conn.type === 'pneumatic';
+                const isHovered = hoveredConnectionId === conn.id;
+
+                // Bezier curve calculations for natural hose gravity sag
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const sag = Math.min(105, Math.max(25, dist * 0.22));
+
+                const cx1 = x1 + dx * 0.3;
+                const cy1 = y1 + sag;
+                const cx2 = x2 - dx * 0.3;
+                const cy2 = y2 + sag;
+
+                const pathD = `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
+
+                // Color based on type and pressure/voltage
+                let strokeColor = '#0284c7'; // Festo Blue PU hose
+                let highlightColor = '#38bdf8';
+                let strokeWidth = isPneumatic ? 5.5 : 4;
+                let isGroundWire = false;
+
+                if (!isPneumatic) {
+                  isGroundWire = conn.fromPortId.includes('0V') || conn.toPortId.includes('0V');
+                  strokeColor = isGroundWire ? '#2563eb' : '#ef4444';
+                  highlightColor = isGroundWire ? '#60a5fa' : '#f87171';
+                }
+
+                return (
+                  <g
+                    key={conn.id}
+                    className="cursor-pointer group"
+                    onMouseEnter={() => setHoveredConnectionId(conn.id)}
+                    onMouseLeave={() => setHoveredConnectionId(null)}
+                  >
+                    {/* Outer glow / hit area for easy hover and click */}
+                    <path
+                      d={pathD}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth={18}
+                    />
+
+                    {/* Shadow underneath */}
+                    <path
+                      d={pathD}
+                      fill="none"
+                      stroke="#000000"
+                      strokeWidth={strokeWidth + 3}
+                      opacity={0.35}
+                      transform="translate(1.5, 3.5)"
+                    />
+
+                    {/* Main hose / wire body */}
+                    <path
+                      d={pathD}
+                      fill="none"
+                      stroke={strokeColor}
+                      strokeWidth={strokeWidth}
+                      strokeLinecap="round"
+                      filter={conn.active && isSimulating ? 'url(#hose-glow)' : undefined}
+                      className={isHovered ? 'brightness-125' : ''}
+                    />
+
+                    {/* Glossy highlight along tube / wire to simulate polyurethane sheen */}
+                    <path
+                      d={pathD}
+                      fill="none"
+                      stroke={highlightColor}
+                      strokeWidth={strokeWidth * 0.35}
+                      strokeLinecap="round"
+                      opacity={0.75}
+                    />
+
+                    {/* Animated flow dash if simulating */}
+                    {isSimulating && conn.active && (
+                      <path
+                        d={pathD}
+                        fill="none"
+                        stroke={isPneumatic ? '#bae6fd' : '#fef08a'}
+                        strokeWidth={strokeWidth * 0.5}
+                        strokeDasharray={isPneumatic ? '6 12' : '4 8'}
+                        strokeLinecap="round"
+                        className="animate-[dash_1s_linear_infinite]"
+                      />
+                    )}
+
+                    {/* ---------------------------------------------------- */}
+                    {/* PHYSICAL CONNECTORS AT THE CIRCULAR ENTRANCES / EXITS */}
+                    {/* ---------------------------------------------------- */}
+                    {/* Origin connector fitting (Entrada/Saída de origem) */}
+                    {isPneumatic ? (
+                      // Engate Rápido Pneumático Festo QS conectado no círculo de origem
+                      <g transform={`translate(${x1}, ${y1})`} className="pointer-events-none">
+                        <circle r="7.5" fill="#334155" stroke="#94a3b8" strokeWidth="1.2" />
+                        <circle r="5.2" fill="#0284c7" stroke="#0369a1" strokeWidth="0.8" />
+                        <circle r="3" fill="#38bdf8" />
+                        <circle r="1.5" fill="#0284c7" />
+                      </g>
+                    ) : (
+                      // Plugue Banana 4mm conectado no borne circular de origem
+                      <g transform={`translate(${x1}, ${y1})`} className="pointer-events-none">
+                        <circle r="7.5" fill={isGroundWire ? '#1d4ed8' : '#b91c1c'} stroke="#ffffff" strokeWidth="1.2" />
+                        <circle r="4.5" fill="#0f172a" stroke="#fbbf24" strokeWidth="1.2" />
+                        <circle r="2.5" fill={isGroundWire ? '#60a5fa' : '#f87171'} />
+                      </g>
+                    )}
+
+                    {/* Destination connector fitting (Entrada/Saída de destino) */}
+                    {isPneumatic ? (
+                      // Engate Rápido Pneumático Festo QS conectado no círculo de destino
+                      <g transform={`translate(${x2}, ${y2})`} className="pointer-events-none">
+                        <circle r="7.5" fill="#334155" stroke="#94a3b8" strokeWidth="1.2" />
+                        <circle r="5.2" fill="#0284c7" stroke="#0369a1" strokeWidth="0.8" />
+                        <circle r="3" fill="#38bdf8" />
+                        <circle r="1.5" fill="#0284c7" />
+                      </g>
+                    ) : (
+                      // Plugue Banana 4mm conectado no borne circular de destino
+                      <g transform={`translate(${x2}, ${y2})`} className="pointer-events-none">
+                        <circle r="7.5" fill={isGroundWire ? '#1d4ed8' : '#b91c1c'} stroke="#ffffff" strokeWidth="1.2" />
+                        <circle r="4.5" fill="#0f172a" stroke="#fbbf24" strokeWidth="1.2" />
+                        <circle r="2.5" fill={isGroundWire ? '#60a5fa' : '#f87171'} />
+                      </g>
+                    )}
+
+                    {/* Delete Connection Tooltip Button at midpoint */}
+                    {isHovered && (
+                      <g transform={`translate(${(x1 + x2) / 2}, ${(y1 + y2) / 2 + sag * 0.7})`}>
+                        <circle r="12" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                        <text
+                          x="0"
+                          y="4"
+                          fill="#ffffff"
+                          fontSize="12"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                          onClick={(e) => handleDeleteConnection(conn.id, e)}
+                          className="cursor-pointer"
+                        >
+                          ×
+                        </text>
+                      </g>
+                    )}
+                  </g>
+                );
+              })}
+
+              {/* Active temporary line while drawing connection */}
+              {connectingStart && (
+                (() => {
+                  const comp = components.find((c) => c.id === connectingStart.componentId);
+                  if (!comp) return null;
+                  const x1 = comp.x + (comp.width * connectingStart.port.x) / 100;
+                  const y1 = comp.y + (comp.height * connectingStart.port.y) / 100;
+                  const x2 = mousePos.x;
+                  const y2 = mousePos.y;
+
+                  const dx = x2 - x1;
+                  const sag = Math.min(80, Math.max(20, Math.abs(dx) * 0.2));
+                  const pathD = `M ${x1} ${y1} C ${x1 + dx * 0.3} ${y1 + sag}, ${x2 - dx * 0.3} ${y2 + sag}, ${x2} ${y2}`;
+
+                  const strokeColor = connectingStart.port.type === 'pneumatic' ? '#0ea5e9' : '#f43f5e';
+
+                  return (
+                    <g className="pointer-events-none">
+                      {/* Temporary line */}
+                      <path
+                        d={pathD}
+                        fill="none"
+                        stroke={strokeColor}
+                        strokeWidth={4.5}
+                        strokeDasharray="6 6"
+                        strokeLinecap="round"
+                        className="animate-pulse"
+                      />
+                      {/* Origin fitting */}
+                      <circle cx={x1} cy={y1} r="7" fill={connectingStart.port.type === 'pneumatic' ? '#0284c7' : '#ef4444'} />
+                      {/* Cursor tip ring */}
+                      <circle cx={x2} cy={y2} r="6" fill="none" stroke={strokeColor} strokeWidth="2" />
+                    </g>
+                  );
+                })()
+              )}
             </g>
           </svg>
         </div>
