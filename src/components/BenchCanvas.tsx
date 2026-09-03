@@ -16,7 +16,9 @@ import {
   Layers, 
   Info,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import { benchAudio } from '../utils/audioSynthesizer';
 
@@ -58,6 +60,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   const [hoveredPort, setHoveredPort] = useState<ComponentPort | null>(null);
   const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [isCatalogOpen, setIsCatalogOpen] = useState<boolean>(true);
   const [draggingCompId, setDraggingCompId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -227,102 +230,139 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   return (
     <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden bg-slate-950">
       {/* Left Sidebar: Component Catalog & Bench Palette */}
-      <aside className="w-full lg:w-72 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col shrink-0 z-10 max-h-60 lg:max-h-full">
-        {/* Palette Header */}
-        <div className="p-3 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-cyan-400" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-              Catálogo de Componentes
-            </h2>
-          </div>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
-            {filteredTemplates.length} itens
-          </span>
-        </div>
-
-        {/* Categories Bar */}
-        <div className="p-2 border-b border-slate-800 flex gap-1 overflow-x-auto text-[11px] no-scrollbar">
-          {[
-            { id: 'all', label: 'Todos' },
-            { id: 'supply', label: 'Alimentação' },
-            { id: 'actuators', label: 'Atuadores' },
-            { id: 'valves', label: 'Válvulas' },
-            { id: 'flow_logic', label: 'Fluxo/Lógica' },
-            { id: 'electrical', label: 'Elétrica' },
-            { id: 'sensors', label: 'Sensores' },
-          ].map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-2.5 py-1 rounded-md whitespace-nowrap transition ${
-                selectedCategory === cat.id
-                  ? 'bg-cyan-600 text-white font-semibold shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Templates List */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-2">
-          {filteredTemplates.map((tpl) => (
-            <div
-              key={tpl.type}
-              onClick={() => onAddComponent(tpl)}
-              className="group p-2.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 hover:border-cyan-500/50 cursor-pointer transition shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/80">
-                      {tpl.tagPrefix}
-                    </span>
-                    <h3 className="text-xs font-semibold text-slate-200 group-hover:text-cyan-300 transition">
-                      {tpl.name}
-                    </h3>
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                    {tpl.description}
-                  </p>
-                </div>
-                <button
-                  className="p-1.5 rounded-md bg-slate-700/80 group-hover:bg-cyan-600 text-slate-300 group-hover:text-white transition shrink-0"
-                  title="Adicionar à bancada"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Port count preview */}
-              <div className="mt-2 pt-2 border-t border-slate-700/40 flex items-center justify-between text-[10px] text-slate-500">
-                <span className="flex items-center gap-1">
-                  <Wind className="w-3 h-3 text-cyan-400" />
-                  {tpl.defaultPorts.filter((p) => p.type === 'pneumatic').length} vias
-                </span>
-                <span className="flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-amber-400" />
-                  {tpl.defaultPorts.filter((p) => p.type === 'electrical').length} bornes
-                </span>
-                <span className="text-slate-400 capitalize">{tpl.category}</span>
-              </div>
+      {isCatalogOpen && (
+        <aside className="w-full lg:w-72 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col shrink-0 z-10 max-h-60 lg:max-h-full transition-all">
+          {/* Palette Header */}
+          <div className="p-3 border-b border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-cyan-400" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                Catálogo de Componentes
+              </h2>
             </div>
-          ))}
-        </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+                {filteredTemplates.length} itens
+              </span>
+              <button
+                onClick={() => setIsCatalogOpen(false)}
+                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+                title="Ocultar catálogo de componentes"
+                aria-label="Ocultar catálogo"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
 
-        {/* Quick Help Banner */}
-        <div className="p-2.5 bg-slate-950/60 border-t border-slate-800 text-[11px] text-slate-400 flex items-center gap-2">
-          <Info className="w-4 h-4 text-cyan-400 shrink-0" />
-          <span>Clique em um orifício e arraste até outro para conectar mangueiras ou fios.</span>
-        </div>
-      </aside>
+          {/* Categories Bar */}
+          <div className="p-2 border-b border-slate-800 flex gap-1 overflow-x-auto text-[11px] no-scrollbar">
+            {[
+              { id: 'all', label: 'Todos' },
+              { id: 'supply', label: 'Alimentação' },
+              { id: 'actuators', label: 'Atuadores' },
+              { id: 'valves', label: 'Válvulas' },
+              { id: 'flow_logic', label: 'Fluxo/Lógica' },
+              { id: 'electrical', label: 'Elétrica' },
+              { id: 'sensors', label: 'Sensores' },
+            ].map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`px-2.5 py-1 rounded-md whitespace-nowrap transition cursor-pointer ${
+                  selectedCategory === cat.id
+                    ? 'bg-cyan-600 text-white font-semibold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Templates List */}
+          <div className="flex-1 overflow-y-auto p-2 space-y-2">
+            {filteredTemplates.map((tpl) => (
+              <div
+                key={tpl.type}
+                onClick={() => onAddComponent(tpl)}
+                className="group p-2.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 hover:border-cyan-500/50 cursor-pointer transition shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/80">
+                        {tpl.tagPrefix}
+                      </span>
+                      <h3 className="text-xs font-semibold text-slate-200 group-hover:text-cyan-300 transition">
+                        {tpl.name}
+                      </h3>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                      {tpl.description}
+                    </p>
+                  </div>
+                  <button
+                    className="p-1.5 rounded-md bg-slate-700/80 group-hover:bg-cyan-600 text-slate-300 group-hover:text-white transition shrink-0 cursor-pointer"
+                    title="Adicionar à bancada"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Port count preview */}
+                <div className="mt-2 pt-2 border-t border-slate-700/40 flex items-center justify-between text-[10px] text-slate-500">
+                  <span className="flex items-center gap-1">
+                    <Wind className="w-3 h-3 text-cyan-400" />
+                    {tpl.defaultPorts.filter((p) => p.type === 'pneumatic').length} vias
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-amber-400" />
+                    {tpl.defaultPorts.filter((p) => p.type === 'electrical').length} bornes
+                  </span>
+                  <span className="text-slate-400 capitalize">{tpl.category}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Quick Help Banner */}
+          <div className="p-2.5 bg-slate-950/60 border-t border-slate-800 text-[11px] text-slate-400 flex items-center gap-2">
+            <Info className="w-4 h-4 text-cyan-400 shrink-0" />
+            <span>Clique em um orifício e arraste até outro para conectar mangueiras ou fios.</span>
+          </div>
+        </aside>
+      )}
 
       {/* Center: Aluminum Workbench Canvas */}
       <main className="flex-1 relative flex flex-col bg-[#0b101b] overflow-hidden">
         {/* Canvas Toolbar overlay */}
         <div className="absolute top-3 left-4 z-20 flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-xs shadow-lg">
+          {/* Botão para ocultar/mostrar catálogo */}
+          <button
+            onClick={() => setIsCatalogOpen((prev) => !prev)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition shadow-sm cursor-pointer ${
+              isCatalogOpen
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-950/60 border border-cyan-400'
+            }`}
+            title={isCatalogOpen ? 'Ocultar catálogo de componentes' : 'Mostrar catálogo de componentes'}
+          >
+            {isCatalogOpen ? (
+              <>
+                <PanelLeftClose className="w-3.5 h-3.5 text-slate-400" />
+                <span>Ocultar Catálogo</span>
+              </>
+            ) : (
+              <>
+                <PanelLeftOpen className="w-3.5 h-3.5 text-white" />
+                <span>Mostrar Catálogo</span>
+              </>
+            )}
+          </button>
+
+          <span className="text-slate-600">|</span>
+
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
             <span className="font-semibold text-slate-200">Bancada Didática DIN 35</span>
@@ -347,6 +387,18 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             </div>
           )}
         </div>
+
+        {/* Floating Quick Open Button when Catalog is Hidden */}
+        {!isCatalogOpen && (
+          <button
+            onClick={() => setIsCatalogOpen(true)}
+            className="absolute top-14 left-4 z-20 flex items-center gap-2 bg-slate-900/95 hover:bg-slate-800 text-slate-200 hover:text-cyan-300 px-3 py-1.5 rounded-xl border border-slate-700/80 hover:border-cyan-500/50 shadow-xl transition text-xs font-semibold group cursor-pointer"
+            title="Reabrir catálogo de componentes"
+          >
+            <Layers className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-12 transition-transform" />
+            <span>+ Catálogo de Componentes</span>
+          </button>
+        )}
 
         {/* Active Connection Legend */}
         <div className="absolute bottom-3 left-4 z-20 flex items-center gap-3 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-[11px] shadow-lg">
