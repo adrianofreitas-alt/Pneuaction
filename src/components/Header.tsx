@@ -57,12 +57,20 @@ export const Header: React.FC<HeaderProps> = ({
             <Cpu className="w-6 h-6 text-white" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
                 Simulador de Eletropneumática Didática
               </h1>
-              <span className="text-[11px] font-mono uppercase px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/80 font-semibold">
+              <span className="text-[11px] font-mono uppercase px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/80 font-semibold whitespace-nowrap">
                 ISO 1219 • NR-12
+              </span>
+              <span
+                id="badge-workbench-din35"
+                className="text-[11px] font-mono uppercase px-2 py-0.5 rounded bg-slate-800/90 text-cyan-300 border border-slate-700 font-semibold flex items-center gap-1.5 whitespace-nowrap shadow-xs"
+                title="Bancada Didática DIN 35 com perfil de alumínio ranhurado"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                Bancada didática DIN 35
               </span>
             </div>
             <p className="text-xs text-slate-400 hidden sm:block">
@@ -201,7 +209,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             id="btn-open-report"
             onClick={onOpenReportModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-sm transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-sm transition cursor-pointer"
             title="Exportar relatório detalhado dos testes realizados"
           >
             <FileText className="w-3.5 h-3.5" />

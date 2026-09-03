@@ -367,8 +367,8 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
         {/* Canvas Toolbar overlay */}
         <div className="absolute top-3 left-4 z-20 flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-xs shadow-lg">
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
-            <span className="font-semibold text-slate-200">Bancada Didática DIN 35</span>
+            <span className="w-2 h-2 rounded-full bg-cyan-400" />
+            <span className="font-semibold text-slate-200">Painel de Alumínio Ranhurado</span>
           </div>
           <span className="text-slate-600">|</span>
           <span className="text-slate-400">
