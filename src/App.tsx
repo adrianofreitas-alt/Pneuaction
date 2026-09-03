@@ -102,6 +102,11 @@ export default function App() {
           const hasStuck = cyl.faults?.isStuck;
           const hasCoilBurn = valve.faults?.isCoilBurned;
 
+          // Check if circuit has electrical power
+          const powerSupplyComp = nextComps.find(c => c.type === 'power_supply_24v');
+          const isPowerSupplyOn = powerSupplyComp ? powerSupplyComp.state.activated !== false : true;
+          const hasElectricalPower = !isEmergencyActive && isPowerSupplyOn;
+
           // Check if valve has power or manual override
           let valvePos = valve.state.valvePosition || 'left';
           let pos = cyl.state.position || 0;
@@ -118,8 +123,8 @@ export default function App() {
                 if (sensor2Index !== -1) {
                   nextComps[sensor2Index].state.sensorDetected = true;
                 }
-                // If bi-stable automatic cycle, switch spool to return
-                if (valve.type === 'valve_5_2_double_solenoid' && !hasCoilBurn) {
+                // If bi-stable automatic cycle, switch spool to return (requires electrical power)
+                if (valve.type === 'valve_5_2_double_solenoid' && !hasCoilBurn && hasElectricalPower) {
                   valvePos = 'right';
                   benchAudio.playExhaust(0.18, 0.25);
                 }
@@ -133,8 +138,8 @@ export default function App() {
                 if (sensor1Index !== -1) {
                   nextComps[sensor1Index].state.sensorDetected = true;
                 }
-                // Switch spool back to advance
-                if (valve.type === 'valve_5_2_double_solenoid' && !hasCoilBurn) {
+                // Switch spool back to advance (requires electrical power)
+                if (valve.type === 'valve_5_2_double_solenoid' && !hasCoilBurn && hasElectricalPower) {
                   valvePos = 'left';
                   benchAudio.playExhaust(0.18, 0.25);
                   // Increment full cycle
@@ -166,8 +171,8 @@ export default function App() {
             state: {
               ...valve.state,
               valvePosition: valvePos,
-              solenoidLeftActive: valvePos === 'left' && !hasCoilBurn,
-              solenoidRightActive: valvePos === 'right' && !hasCoilBurn
+              solenoidLeftActive: hasElectricalPower && valvePos === 'left' && !hasCoilBurn,
+              solenoidRightActive: hasElectricalPower && valvePos === 'right' && !hasCoilBurn
             }
           };
         }
@@ -181,7 +186,9 @@ export default function App() {
         const effectivePressure = hasLeak ? 2.8 : 6.0;
         const currentFlow = Math.max(10, Math.min(340, Math.round(150 + Math.sin(Date.now() / 600) * 80)));
         const isPowerLost = faults.some(f => f.id.includes('power'));
-        const voltage = isEmergencyActive || isPowerLost ? 0.0 : 24.0;
+        const powerSupplyComp = components.find(c => c.type === 'power_supply_24v');
+        const isPowerSupplyOff = powerSupplyComp ? powerSupplyComp.state.activated === false : false;
+        const voltage = isEmergencyActive || isPowerLost || isPowerSupplyOff ? 0.0 : 24.0;
         const current = voltage === 0 ? 0.0 : 0.25 + (Math.random() * 0.02);
 
         return {

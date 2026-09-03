@@ -160,7 +160,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         id: 'conn_e5',
         type: 'electrical',
         fromComponentId: ps.id,
-        fromPortId: ps.ports[2].id, // 0V
+        fromPortId: ps.ports[5].id, // 0V (1)
         toComponentId: valve.id,
         toPortId: valve.ports[6].id, // Y1 (-) A2
         voltageV: 0,
@@ -171,7 +171,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         id: 'conn_e6',
         type: 'electrical',
         fromComponentId: ps.id,
-        fromPortId: ps.ports[3].id, // 0V
+        fromPortId: ps.ports[6].id, // 0V (2)
         toComponentId: valve.id,
         toPortId: valve.ports[8].id, // Y2 (-) A2
         voltageV: 0,
@@ -333,7 +333,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         id: 'c_e4',
         type: 'electrical',
         fromComponentId: ps.id,
-        fromPortId: ps.ports[2].id, // 0V
+        fromPortId: ps.ports[5].id, // 0V (1)
         toComponentId: relay.id,
         toPortId: relay.ports[1].id, // A2
         voltageV: 0,
@@ -356,7 +356,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         id: 'c_e6',
         type: 'electrical',
         fromComponentId: ps.id,
-        fromPortId: ps.ports[3].id, // 0V
+        fromPortId: ps.ports[6].id, // 0V (2)
         toComponentId: valve.id,
         toPortId: valve.ports[6].id, // Y1 (-) A2
         voltageV: 0,

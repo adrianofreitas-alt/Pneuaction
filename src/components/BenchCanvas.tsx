@@ -160,6 +160,32 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
     benchAudio.playExhaust(0.1, 0.15);
   };
 
+  // Toggle Power Supply ON/OFF (Chave Liga / Desliga)
+  const handleTogglePowerSupply = (componentId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    benchAudio.playRelayClick();
+    onUpdateComponents(
+      components.map((c) => {
+        if (c.id === componentId) {
+          const nextActivated = c.state.activated === false ? true : false;
+          const updated = {
+            ...c,
+            state: {
+              ...c.state,
+              activated: nextActivated,
+              voltageV: nextActivated ? 24.0 : 0.0,
+            },
+          };
+          if (selectedComponent?.id === componentId) {
+            onSelectComponent(updated);
+          }
+          return updated;
+        }
+        return c;
+      })
+    );
+  };
+
   // Start dragging component
   const handleComponentMouseDown = (comp: BenchComponent, e: React.MouseEvent) => {
     if ((e.target as HTMLElement).tagName.toLowerCase() === 'button') return;
@@ -608,7 +634,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       fontSize="11"
                       fontWeight="600"
                     >
-                      {comp.name.length > 20 ? comp.name.substring(0, 19) + '…' : comp.name}
+                      {comp.type === 'power_supply_24v' ? 'Fonte' : (comp.name.length > 20 ? comp.name.substring(0, 19) + '…' : comp.name)}
                     </text>
 
                     {/* Delete Component icon button */}
@@ -841,60 +867,123 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       </g>
                     )}
 
-                    {/* 8. POWER SUPPLY 24V (STRICTLY FIXED 24V DC / PELV) */}
-                    {comp.type === 'power_supply_24v' && (
-                      <g transform="translate(10, 36)">
-                        {/* Brushed metal interior plate */}
-                        <rect x="0" y="0" width="130" height="114" rx="6" fill="#090d16" stroke="#334155" strokeWidth="1" />
-                        
-                        {/* Heat dissipation grill lines at top */}
-                        <line x1="10" y1="8" x2="120" y2="8" stroke="#1e293b" strokeWidth="1.5" strokeDasharray="4 3" />
-                        <line x1="10" y1="12" x2="120" y2="12" stroke="#1e293b" strokeWidth="1.5" strokeDasharray="4 3" />
+                    {/* 8. POWER SUPPLY 24V (FONTE COM CHAVE LIGA/DESLIGA, 5x 24V E 5x 0V) */}
+                    {comp.type === 'power_supply_24v' && (() => {
+                      const isPowered = comp.state.activated !== false;
+                      return (
+                        <g transform="translate(8, 34)">
+                          {/* Brushed metal interior chassis plate */}
+                          <rect x="0" y="0" width="194" height="168" rx="6" fill="#090d16" stroke="#334155" strokeWidth="1" />
 
-                        {/* Digital Voltmeter Bezel */}
-                        <rect x="15" y="18" width="100" height="34" rx="4" fill="#020617" stroke="#1e293b" strokeWidth="1.5" />
-                        
-                        {/* 7-Segment Digital Display strictly showing 24.0 V */}
-                        <text
-                          x="65"
-                          y="42"
-                          fill="#38bdf8"
-                          fontSize="20"
-                          fontWeight="bold"
-                          fontFamily="'JetBrains Mono', monospace"
-                          textAnchor="middle"
-                          letterSpacing="1"
-                        >
-                          24.0 V
-                        </text>
+                          {/* Section 1: Digital Voltmeter + Interactive Rocker Switch (Liga / Desliga) */}
+                          {/* Voltmeter Display */}
+                          <rect x="6" y="6" width="92" height="44" rx="4" fill="#020617" stroke="#1e293b" strokeWidth="1.5" />
+                          <text
+                            x="52"
+                            y="28"
+                            fill={isPowered ? "#38bdf8" : "#475569"}
+                            fontSize="17"
+                            fontWeight="bold"
+                            fontFamily="'JetBrains Mono', monospace"
+                            textAnchor="middle"
+                            letterSpacing="0.5"
+                          >
+                            {isPowered ? "24.0 V" : "0.0 V"}
+                          </text>
+                          <rect x="14" y="34" width="76" height="12" rx="2" fill={isPowered ? "#0369a1" : "#1e293b"} />
+                          <text
+                            x="52"
+                            y="43"
+                            fill={isPowered ? "#ffffff" : "#64748b"}
+                            fontSize="7"
+                            fontWeight="bold"
+                            fontFamily="'JetBrains Mono', monospace"
+                            textAnchor="middle"
+                          >
+                            {isPowered ? "ESTABILIZADA" : "DESLIGADA"}
+                          </text>
 
-                        {/* Voltage Fixed Tag */}
-                        <rect x="25" y="58" width="80" height="14" rx="3" fill="#0369a1" />
-                        <text
-                          x="65"
-                          y="68"
-                          fill="#ffffff"
-                          fontSize="8"
-                          fontWeight="bold"
-                          fontFamily="'JetBrains Mono', monospace"
-                          textAnchor="middle"
-                        >
-                          FIXA: 24V CC
-                        </text>
+                          {/* Botão Liga / Desliga (Interactive Rocker Switch) */}
+                          <g
+                            onClick={(e) => handleTogglePowerSupply(comp.id, e)}
+                            className="cursor-pointer group/switch"
+                          >
+                            <rect
+                              x="104"
+                              y="6"
+                              width="84"
+                              height="44"
+                              rx="5"
+                              fill="#0b1120"
+                              stroke={isPowered ? "#10b981" : "#ef4444"}
+                              strokeWidth="1.5"
+                              className="transition-colors group-hover/switch:stroke-sky-400"
+                            />
+                            {/* Rocker frame */}
+                            <rect x="108" y="10" width="76" height="24" rx="3" fill="#1e293b" />
+                            
+                            {isPowered ? (
+                              <g>
+                                {/* Active I (Liga) */}
+                                <rect x="110" y="12" width="36" height="20" rx="2" fill="#10b981" />
+                                <text x="128" y="27" fill="#ffffff" fontSize="12" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">I</text>
+                                <text x="166" y="27" fill="#64748b" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">O</text>
+                                {/* Status LED */}
+                                <circle cx="118" cy="42" r="3" fill="#10b981" />
+                                <circle cx="118" cy="42" r="5" fill="none" stroke="#10b981" strokeWidth="0.8" opacity="0.6" className="animate-pulse" />
+                                <text x="126" y="45" fill="#34d399" fontSize="8" fontWeight="bold" fontFamily="'JetBrains Mono'">LIGADA</text>
+                              </g>
+                            ) : (
+                              <g>
+                                {/* Active O (Desliga) */}
+                                <rect x="146" y="12" width="36" height="20" rx="2" fill="#ef4444" />
+                                <text x="128" y="27" fill="#64748b" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">I</text>
+                                <text x="164" y="27" fill="#ffffff" fontSize="12" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">O</text>
+                                {/* Status LED */}
+                                <circle cx="118" cy="42" r="3" fill="#64748b" />
+                                <text x="126" y="45" fill="#94a3b8" fontSize="8" fontWeight="bold" fontFamily="'JetBrains Mono'">DESLIGADA</text>
+                              </g>
+                            )}
+                          </g>
 
-                        {/* Green LED "24V OK" status indicator */}
-                        <circle cx="24" cy="85" r="4" fill="#10b981" />
-                        <circle cx="24" cy="85" r="6" fill="none" stroke="#10b981" strokeWidth="1" opacity="0.6" className="animate-pulse" />
-                        <text x="34" y="88" fill="#94a3b8" fontSize="8" fontWeight="600">
-                          24V CC OK
-                        </text>
+                          {/* Section 2: Barramento +24V (5 conexões elétricas com indicação 24V) */}
+                          <g transform="translate(6, 56)">
+                            <rect x="0" y="0" width="182" height="48" rx="4" fill="#1c1917" stroke="#7f1d1d" strokeWidth="1" />
+                            <rect x="0" y="0" width="182" height="13" rx="3" fill="#7f1d1d" />
+                            <text x="8" y="10" fill="#fecaca" fontSize="8" fontWeight="bold" fontFamily="'JetBrains Mono'">
+                              5x SAÍDAS: 24V CC
+                            </text>
+                            <text x="174" y="10" fill="#fca5a5" fontSize="7" fontWeight="bold" textAnchor="end" fontFamily="'JetBrains Mono'">
+                              ALIMENTAÇÃO [+]
+                            </text>
+                            {/* Visual guide labels under the 5 knobs */}
+                            {[20, 58, 97, 136, 174].map((tx, idx) => (
+                              <text key={idx} x={tx} y="44" fill="#ef4444" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                                24V
+                              </text>
+                            ))}
+                          </g>
 
-                        {/* Standard rating label */}
-                        <text x="65" y="104" fill="#64748b" fontSize="7" textAnchor="middle" fontFamily="'JetBrains Mono'">
-                          PELV • IEC 60204-1 (5A)
-                        </text>
-                      </g>
-                    )}
+                          {/* Section 3: Barramento 0V (5 conexões elétricas com indicação 0V) */}
+                          <g transform="translate(6, 110)">
+                            <rect x="0" y="0" width="182" height="48" rx="4" fill="#082f49" stroke="#0369a1" strokeWidth="1" />
+                            <rect x="0" y="0" width="182" height="13" rx="3" fill="#075985" />
+                            <text x="8" y="10" fill="#bae6fd" fontSize="8" fontWeight="bold" fontFamily="'JetBrains Mono'">
+                              5x RETORNOS: 0V GND
+                            </text>
+                            <text x="174" y="10" fill="#93c5fd" fontSize="7" fontWeight="bold" textAnchor="end" fontFamily="'JetBrains Mono'">
+                              COMUM [-]
+                            </text>
+                            {/* Visual guide labels under the 5 knobs */}
+                            {[20, 58, 97, 136, 174].map((tx, idx) => (
+                              <text key={idx} x={tx} y="44" fill="#38bdf8" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                                0V
+                              </text>
+                            ))}
+                          </g>
+                        </g>
+                      );
+                    })()}
 
                     {/* ------------------------------------------------ */}
                     {/* PORTS RENDERING (Connection Knobs) */}
@@ -904,6 +993,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       const py = (comp.height * port.y) / 100;
                       const isPneumatic = port.type === 'pneumatic';
                       const isTarget = connectingStart && connectingStart.port.type === port.type;
+                      const isGround = port.functionType === 'ground_0v' || port.name.includes('0V');
 
                       return (
                         <g
@@ -923,27 +1013,27 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             className="group-hover/port:stroke-white group-hover/port:stroke-1"
                           />
 
-                          {/* Outer Brass / Nylon Fitting */}
+                          {/* Outer Brass / Nylon Fitting / Banana Socket */}
                           <circle
                             r="6.5"
                             fill="#0f172a"
-                            stroke={isPneumatic ? '#0284c7' : '#e11d48'}
+                            stroke={isPneumatic ? '#0284c7' : isGround ? '#2563eb' : '#e11d48'}
                             strokeWidth="2.5"
                           />
 
                           {/* Inner Hole */}
                           <circle
                             r="2.5"
-                            fill={isPneumatic ? '#38bdf8' : '#fda4af'}
+                            fill={isPneumatic ? '#38bdf8' : isGround ? '#60a5fa' : '#fda4af'}
                           />
 
                           {/* Port Technical Label */}
                           <text
                             x="0"
                             y={py > comp.height / 2 ? -10 : 16}
-                            fill="#94a3b8"
+                            fill={isGround ? '#93c5fd' : isPneumatic ? '#94a3b8' : '#fca5a5'}
                             fontSize="8"
-                            fontWeight="600"
+                            fontWeight="700"
                             fontFamily="'JetBrains Mono', monospace"
                             textAnchor="middle"
                             className="pointer-events-none"
@@ -994,7 +1084,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             <div className="mt-4 space-y-4 text-xs">
               <div>
                 <label className="text-slate-400 font-medium">Nome do Módulo</label>
-                <p className="text-slate-200 font-semibold mt-0.5">{selectedComponent.name}</p>
+                <p className="text-slate-200 font-semibold mt-0.5">
+                  {selectedComponent.type === 'power_supply_24v' ? 'Fonte' : selectedComponent.name}
+                </p>
               </div>
 
               {/* Dynamic properties for Actuator (Bore, Stroke, Load) */}
@@ -1143,51 +1235,86 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                 </div>
               )}
 
-              {/* Power Supply 24V (Strictly Fixed 24V DC / PELV) */}
-              {selectedComponent.type === 'power_supply_24v' && (
-                <div className="space-y-3 bg-slate-950/60 p-3 rounded-xl border border-sky-900/50">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                    <span className="text-[11px] font-semibold text-slate-300">Tensão Regulada de Saída</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-950 text-sky-400 border border-sky-800 font-mono">
-                      EXCLUSIVO 24V CC
-                    </span>
-                  </div>
+              {/* Power Supply 24V (Fonte com Chave Liga/Desliga, 5x 24V e 5x 0V) */}
+              {selectedComponent.type === 'power_supply_24v' && (() => {
+                const isPowered = selectedComponent.state.activated !== false;
+                return (
+                  <div className="space-y-3 bg-slate-950/60 p-3 rounded-xl border border-sky-900/50">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                      <span className="text-[11px] font-semibold text-slate-300">Interruptor Geral</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono border ${
+                        isPowered 
+                          ? 'bg-emerald-950 text-emerald-400 border-emerald-800' 
+                          : 'bg-rose-950 text-rose-400 border-rose-800'
+                      }`}>
+                        {isPowered ? 'LIGADA' : 'DESLIGADA'}
+                      </span>
+                    </div>
 
-                  <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 text-center">
-                    <span className="text-[10px] text-slate-400 font-mono">VALOR NOMINAL FIXO</span>
-                    <p className="text-2xl font-mono font-black text-sky-400 tracking-wider mt-0.5">
-                      24.0 V <span className="text-xs text-slate-400 font-normal">CC</span>
-                    </p>
-                    <p className="text-[10px] text-emerald-400 font-medium mt-1 flex items-center justify-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
-                      Tensão Estabilizada e Travada
-                    </p>
-                  </div>
+                    {/* Botão de Liga e Desliga */}
+                    <button
+                      onClick={() => handleTogglePowerSupply(selectedComponent.id)}
+                      className={`w-full py-2.5 px-3 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer ${
+                        isPowered
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/50'
+                          : 'bg-slate-800 hover:bg-slate-700 text-slate-300 shadow-slate-950/50 border border-slate-700'
+                      }`}
+                    >
+                      <span className={`w-2.5 h-2.5 rounded-full ${isPowered ? 'bg-white animate-pulse' : 'bg-slate-500'}`} />
+                      {isPowered ? 'Chave Liga / Desliga: LIGADA (24V)' : 'Chave Liga / Desliga: DESLIGADA (0V)'}
+                    </button>
 
-                  <div className="space-y-1.5 text-[11px]">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Padrão de Segurança:</span>
-                      <span className="font-mono text-slate-200 font-semibold">PELV / SELV</span>
+                    <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 text-center">
+                      <span className="text-[10px] text-slate-400 font-mono">TENSÃO REGULADA DE SAÍDA</span>
+                      <p className={`text-2xl font-mono font-black tracking-wider mt-0.5 ${isPowered ? 'text-sky-400' : 'text-slate-500'}`}>
+                        {isPowered ? '24.0 V' : '0.0 V'} <span className="text-xs text-slate-400 font-normal">CC</span>
+                      </p>
+                      <p className="text-[10px] text-emerald-400 font-medium mt-1 flex items-center justify-center gap-1">
+                        <span className={`w-1.5 h-1.5 rounded-full ${isPowered ? 'bg-emerald-400' : 'bg-slate-500'} inline-block`}></span>
+                        {isPowered ? 'Tensão Estabilizada e Travada' : 'Alimentação Desconectada'}
+                      </p>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Norma Aplicável:</span>
-                      <span className="font-mono text-cyan-400 font-semibold">IEC 60204-1 / NR-12</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Capacidade Máxima:</span>
-                      <span className="font-mono text-slate-200">5.0 A (120 W)</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Proteção de Sobrecarga:</span>
-                      <span className="font-mono text-emerald-400">Hiccup Automático</span>
-                    </div>
-                  </div>
 
-                  <div className="p-2 rounded bg-amber-950/30 border border-amber-800/40 text-[10px] text-amber-300/90 leading-relaxed">
-                    A fonte é travada estritamente em 24V CC para prevenir sobretensão em bobinas de solenoides e garantir conformidade obrigatória com as diretrizes de segurança NR-12.
+                    {/* Conexões Elétricas: 5x 24V e 5x 0V */}
+                    <div className="space-y-1.5 text-[11px] p-2 rounded bg-slate-900/50 border border-slate-800">
+                      <div className="flex justify-between items-center text-red-300">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+                          Conexões 24V (+):
+                        </span>
+                        <span className="font-mono font-bold bg-red-950/80 px-1.5 py-0.5 rounded border border-red-800 text-red-200">
+                          5 Bornes
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-blue-300">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                          Conexões 0V (GND):
+                        </span>
+                        <span className="font-mono font-bold bg-blue-950/80 px-1.5 py-0.5 rounded border border-blue-800 text-blue-200">
+                          5 Bornes
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-slate-400 pt-1 border-t border-slate-800/80">
+                        <span>Padrão de Segurança:</span>
+                        <span className="font-mono text-slate-200 font-semibold">PELV / SELV</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>Norma Aplicável:</span>
+                        <span className="font-mono text-cyan-400 font-semibold">IEC 60204-1 / NR-12</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>Capacidade Máxima:</span>
+                        <span className="font-mono text-slate-200">5.0 A (120 W)</span>
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded bg-amber-950/30 border border-amber-800/40 text-[10px] text-amber-300/90 leading-relaxed">
+                      Fonte estritamente travada em 24V CC com barramento duplo de 5 saídas 24V e 5 retornos 0V para conexão didática rápida.
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Health and Cycles Info */}
               <div className="p-2.5 rounded-lg bg-slate-950/40 border border-slate-800/80 flex items-center justify-between">
