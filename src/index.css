@@ -1,1 +1,7 @@
 @import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 font-['Plus_Jakarta_Sans',sans-serif] antialiased overflow-x-hidden selection:bg-cyan-500/30 selection:text-cyan-200;
+  }
+}
