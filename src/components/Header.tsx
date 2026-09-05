@@ -3,6 +3,7 @@ import {
   Play, 
   Square, 
   RotateCcw, 
+  RotateCw,
   AlertOctagon, 
   Activity, 
   FileText, 
@@ -13,6 +14,7 @@ import {
   Bell
 } from 'lucide-react';
 import { PRESET_CIRCUITS } from '../data/presets';
+import { BenchComponent } from '../types';
 
 interface HeaderProps {
   currentTab: 'workbench' | 'physics' | 'telemetry';
@@ -29,6 +31,8 @@ interface HeaderProps {
   unreadNotifications: number;
   isCatalogOpen: boolean;
   onToggleCatalog: () => void;
+  selectedComponent?: BenchComponent | null;
+  onRotateComponent?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -45,7 +49,9 @@ export const Header: React.FC<HeaderProps> = ({
   activeFaultsCount,
   unreadNotifications,
   isCatalogOpen,
-  onToggleCatalog
+  onToggleCatalog,
+  selectedComponent,
+  onRotateComponent
 }) => {
   return (
     <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 text-slate-100">
@@ -130,6 +136,31 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <AlertOctagon className="w-4 h-4 fill-red-500 text-red-950" />
             <span>{isEmergencyActive ? 'EMERGÊNCIA TRAVADA' : 'EMERGÊNCIA'}</span>
+          </button>
+
+          {/* Botão Girar Componente (Posicionado ao lado direito do botão de emergência) */}
+          <button
+            id="btn-rotate-component"
+            onClick={onRotateComponent}
+            disabled={!selectedComponent}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+              selectedComponent
+                ? 'bg-cyan-950/90 hover:bg-cyan-900 text-cyan-300 border-cyan-700 shadow-md shadow-cyan-950/50 cursor-pointer active:scale-95'
+                : 'bg-slate-800/60 text-slate-500 border-slate-700/60 cursor-not-allowed opacity-60'
+            }`}
+            title={
+              selectedComponent
+                ? `Girar ${selectedComponent.name} (${selectedComponent.tag}) a 90°`
+                : 'Selecione um componente no painel para girá-lo a 90°'
+            }
+          >
+            <RotateCw className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Girar Componente</span>
+            {selectedComponent && (
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-900/90 text-cyan-200 border border-cyan-700/80">
+                {selectedComponent.tag} ({(selectedComponent.rotation || 0)}°)
+              </span>
+            )}
           </button>
         </div>
 

@@ -20,6 +20,7 @@ import { TestReportModal } from './components/TestReportModal';
 import { PushNotificationToast } from './components/PushNotificationToast';
 import { generateAutoCAD_DXF, generateTechnicalSVG, downloadFile } from './utils/cadExporter';
 import { benchAudio } from './utils/audioSynthesizer';
+import { evaluateCircuitElectricalState } from './utils/circuitSimulator';
 
 export default function App() {
   // Navigation tab
@@ -108,36 +109,124 @@ export default function App() {
           let pos = cyl.state.position || 0;
           const speed = (cyl.state.flowThrottlePercent || 40) * 0.08;
 
-          // Simulation of automatic continuous oscillation or button-driven
+          // Real-time calculation of cylinder rod tip sphere position (with 0°, 90°, 180°, 270° rotation)
+          const cylRot = cyl.rotation || 0;
+          const strokeTravel = cyl.type === 'single_acting_cylinder' ? 150 : 200;
+          const strokeOffset = cyl.type === 'single_acting_cylinder' ? 20 : 25;
+          const rawSphereX = cyl.width + strokeOffset + (pos / 100) * strokeTravel;
+          const rawSphereY = cyl.type === 'single_acting_cylinder' ? 50 : 60;
+          let sphereX = cyl.x + rawSphereX;
+          let sphereY = cyl.y + rawSphereY;
+
+          if (cylRot) {
+            const cx = cyl.width / 2;
+            const cy = cyl.height / 2;
+            const dx = rawSphereX - cx;
+            const dy = rawSphereY - cy;
+            const rad = (cylRot * Math.PI) / 180;
+            sphereX = cyl.x + cx + (dx * Math.cos(rad) - dy * Math.sin(rad));
+            sphereY = cyl.y + cy + (dx * Math.sin(rad) + dy * Math.cos(rad));
+          }
+
+          // 1. Update physical proximity detection for all sensors
+          nextComps.forEach(comp => {
+            if (comp.type === 'reed_switch_sensor') {
+              const sRot = comp.rotation || 0;
+              // Centro exato da face sensora colorida na lateral esquerda do corpo M18 (x=13, y=50)
+              const rawFaceX = 13;
+              const rawFaceY = 50;
+              let sensorFaceX = comp.x + rawFaceX;
+              let sensorFaceY = comp.y + rawFaceY;
+
+              if (sRot) {
+                const cx = comp.width / 2;
+                const cy = comp.height / 2;
+                const dx = rawFaceX - cx;
+                const dy = rawFaceY - cy;
+                const rad = (sRot * Math.PI) / 180;
+                sensorFaceX = comp.x + cx + (dx * Math.cos(rad) - dy * Math.sin(rad));
+                sensorFaceY = comp.y + cy + (dx * Math.sin(rad) + dy * Math.cos(rad));
+              }
+
+              const distToSphere = Math.hypot(sphereX - sensorFaceX, sphereY - sensorFaceY);
+              
+              // Requisito estrito: o sensor só atua quando a esfera da haste estiver muito próxima da tampa,
+              // com alinhamento centro a centro da esfera com o centro da tampa do sensor (<= 26px)
+              comp.state.sensorDetected = distToSphere <= 26;
+            }
+          });
+
+          // 2. Perform graph electrical circuit evaluation (IEC 60947-5-2)
+          // Verifies correct power supply to sensors (BN: 24V, BU: 0V) and signal propagation to solenoids
+          const circuitEval = evaluateCircuitElectricalState(nextComps, connections, isEmergencyActive);
+
+          // 3. Update sensor power validation and diagnostics
+          nextComps.forEach(comp => {
+            if (comp.type === 'reed_switch_sensor') {
+              const status = circuitEval.sensorStatuses.get(comp.id);
+              if (status) {
+                comp.state.isPowerCorrect = status.isPowerCorrect;
+                comp.state.powerErrorDetail = status.errorDetail;
+              }
+            }
+          });
+
+          // 4. Relay module evaluation (Preset 3 retention / comando)
+          const btnComp = nextComps.find(c => c.type === 'push_button_station');
+          const relayComp = nextComps.find(c => c.type === 'industrial_relay');
+          if (relayComp) {
+            let isRelayActive = relayComp.state.activated || false;
+            if (!hasElectricalPower) {
+              isRelayActive = false;
+            } else if (btnComp) {
+              if (btnComp.state.buttonNApressed) {
+                isRelayActive = true;
+              }
+              if (btnComp.state.buttonNFpressed) {
+                isRelayActive = false;
+              }
+            }
+            relayComp.state.activated = isRelayActive;
+            if (valve.type === 'valve_5_2_single_solenoid') {
+              valvePos = isRelayActive ? 'left' : 'right';
+            }
+          }
+
+          // 5. Valve solenoids electrical actuation
+          const y1Active = circuitEval.solenoidY1Active && !hasCoilBurn;
+          const y2Active = circuitEval.solenoidY2Active && !hasCoilBurn;
+
+          if (valve.type === 'valve_5_2_double_solenoid') {
+            // Bistable valve spool memory:
+            // Y1 energization drives spool to 'left' (Advance)
+            // Y2 energization drives spool to 'right' (Retract)
+            if (y1Active && !y2Active && valvePos !== 'left') {
+              valvePos = 'left';
+              benchAudio.playExhaust(0.18, 0.25);
+            } else if (y2Active && !y1Active && valvePos !== 'right') {
+              valvePos = 'right';
+              benchAudio.playExhaust(0.18, 0.25);
+            }
+          } else if (valve.type === 'valve_5_2_single_solenoid') {
+            if (y1Active) {
+              valvePos = 'left';
+            } else if (!relayComp) {
+              valvePos = 'right';
+            }
+          }
+
+          // 6. Cylinder physical displacement based on valve position
           if (!hasStuck) {
             if (valvePos === 'left') {
               // Chamber 4 pressurized -> Advance towards 100%
               if (pos < 100) {
                 pos = Math.min(100, pos + speed);
-              } else {
-                // Reached end of stroke (100%)
-                if (sensor2Index !== -1) {
-                  nextComps[sensor2Index].state.sensorDetected = true;
-                }
-                // If bi-stable automatic cycle, switch spool to return (requires electrical power)
-                if (valve.type === 'valve_5_2_double_solenoid' && !hasCoilBurn && hasElectricalPower) {
-                  valvePos = 'right';
-                  benchAudio.playExhaust(0.18, 0.25);
-                }
               }
             } else {
               // Chamber 2 pressurized -> Return towards 0%
               if (pos > 0) {
                 pos = Math.max(0, pos - speed);
-              } else {
-                // Reached home position (0%)
-                if (sensor1Index !== -1) {
-                  nextComps[sensor1Index].state.sensorDetected = true;
-                }
-                // Switch spool back to advance (requires electrical power)
-                if (valve.type === 'valve_5_2_double_solenoid' && !hasCoilBurn && hasElectricalPower) {
-                  valvePos = 'left';
-                  benchAudio.playExhaust(0.18, 0.25);
+                if (pos === 0) {
                   // Increment full cycle
                   setMetrics(m => ({
                     ...m,
@@ -147,14 +236,6 @@ export default function App() {
                 }
               }
             }
-          }
-
-          // Update sensors
-          if (sensor1Index !== -1) {
-            nextComps[sensor1Index].state.sensorDetected = pos <= 5;
-          }
-          if (sensor2Index !== -1) {
-            nextComps[sensor2Index].state.sensorDetected = pos >= 95;
           }
 
           nextComps[cylIndex] = {
@@ -167,8 +248,8 @@ export default function App() {
             state: {
               ...valve.state,
               valvePosition: valvePos,
-              solenoidLeftActive: hasElectricalPower && valvePos === 'left' && !hasCoilBurn,
-              solenoidRightActive: hasElectricalPower && valvePos === 'right' && !hasCoilBurn
+              solenoidLeftActive: y1Active,
+              solenoidRightActive: y2Active
             }
           };
         }
@@ -201,7 +282,7 @@ export default function App() {
     }, 100);
 
     return () => clearInterval(interval);
-  }, [isSimulating, isEmergencyActive, components]);
+  }, [isSimulating, isEmergencyActive, components, connections]);
 
   // --------------------------------------------------------------------------
   // ACTIONS & HANDLERS
@@ -308,6 +389,42 @@ export default function App() {
       setSelectedComponent(null);
     }
   };
+
+  // Rotate selected component by 90 degrees clockwise (0° -> 90° -> 180° -> 270° -> 0°)
+  const handleRotateSelectedComponent = () => {
+    if (!selectedComponent) return;
+    const currentRot = selectedComponent.rotation || 0;
+    const nextRot = (currentRot + 90) % 360;
+
+    const updated = {
+      ...selectedComponent,
+      rotation: nextRot,
+    };
+
+    setSelectedComponent(updated);
+    setComponents(prev =>
+      prev.map(c => (c.id === selectedComponent.id ? { ...c, rotation: nextRot } : c))
+    );
+    benchAudio.playRelayClick();
+  };
+
+  // Keyboard shortcut: Press 'R' to rotate selected component 90 degrees, 'Esc' to clear selection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName?.toLowerCase() || '';
+      if (['input', 'textarea', 'select'].includes(tag)) return;
+
+      if ((e.key === 'r' || e.key === 'R') && selectedComponent) {
+        e.preventDefault();
+        handleRotateSelectedComponent();
+      } else if (e.key === 'Escape') {
+        setSelectedComponent(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedComponent]);
 
   // Manual valve spool override
   const handleTriggerManualOverride = (componentId: string) => {
@@ -484,6 +601,10 @@ export default function App() {
     }
   };
 
+  const currentSelectedComp = selectedComponent
+    ? components.find(c => c.id === selectedComponent.id) || selectedComponent
+    : null;
+
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-950 font-sans text-slate-100 overflow-hidden">
       {/* Header Navigation */}
@@ -502,6 +623,8 @@ export default function App() {
         unreadNotifications={faults.filter(f => f.severity === 'critical').length}
         isCatalogOpen={isCatalogOpen}
         onToggleCatalog={handleToggleCatalog}
+        selectedComponent={currentSelectedComp}
+        onRotateComponent={handleRotateSelectedComponent}
       />
 
       {/* Main Viewport Content based on active tab */}
@@ -515,13 +638,14 @@ export default function App() {
             isSimulating={isSimulating && !isEmergencyActive}
             onAddComponent={handleAddComponent}
             onDeleteComponent={handleDeleteComponent}
-            selectedComponent={selectedComponent}
+            selectedComponent={currentSelectedComp}
             onSelectComponent={setSelectedComponent}
             onTriggerManualOverride={handleTriggerManualOverride}
             onPressButton={handlePressButton}
             onReleaseButton={handleReleaseButton}
             isCatalogOpen={isCatalogOpen}
             onToggleCatalog={handleToggleCatalog}
+            onRotateComponent={handleRotateSelectedComponent}
           />
         )}
 

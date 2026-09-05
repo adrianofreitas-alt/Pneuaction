@@ -14,7 +14,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
     id: 'preset_auto_cycle',
     name: 'Ciclo Automático Contínuo A+ A- (Biestável 5/2 com Sensores Reed)',
     category: 'Eletropneumática Industrial',
-    description: 'Circuito industrial clássico com Cilindro Dupla Ação 1A, Válvula 5/2 biestável (Y1/Y2), Sensores magnéticos de fim de curso 1S1 (recuado) e 1S2 (avançado) e Botão de Emergência NR-12.',
+    description: 'Circuito industrial clássico com Cilindro Dupla Ação 1A (curso 200mm com haste estendida), Válvula 5/2 biestável (Y1/Y2), Sensores magnéticos de fim de curso 1S1 (recuado 0mm) e 1S2 (avançado 200mm) e Botão de Emergência NR-12.',
     build: () => {
       const frlTpl = COMPONENT_TEMPLATES.find(t => t.type === 'frl_unit')!;
       const manifoldTpl = COMPONENT_TEMPLATES.find(t => t.type === 'air_manifold')!;
@@ -39,13 +39,18 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       const throttle = createComponentFromTemplate(throttleTpl, 630, 290, 1);
       const cyl = createComponentFromTemplate(cylTpl, 780, 270, 1);
 
-      const sensor1 = createComponentFromTemplate(sensorTpl, 780, 420, 1);
+      // Sensores posicionados com a face sensora (tampa) alinhada centro a centro com a esfera da haste (0mm e 200mm)
+      const sensor1 = createComponentFromTemplate(sensorTpl, 1042, 280, 1);
       sensor1.tag = '1S1';
-      sensor1.state.detectionPosition = 0; // recuado
+      sensor1.state.detectionPosition = 0; // recuado (0mm)
+      sensor1.state.sensorTech = 'magnetic';
+      sensor1.state.sensorWires = '3_wires';
 
-      const sensor2 = createComponentFromTemplate(sensorTpl, 950, 420, 2);
+      const sensor2 = createComponentFromTemplate(sensorTpl, 1242, 280, 2);
       sensor2.tag = '1S2';
-      sensor2.state.detectionPosition = 100; // avançado
+      sensor2.state.detectionPosition = 100; // avançado (200mm)
+      sensor2.state.sensorTech = 'magnetic';
+      sensor2.state.sensorWires = '3_wires';
 
       const components: BenchComponent[] = [ps, emerg, btn, frl, manifold, valve, throttle, cyl, sensor1, sensor2];
 
@@ -181,9 +186,56 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         active: true
       };
 
+      // Alimentação obrigatória dos sensores conforme norma IEC 60947-5-2:
+      // Sensor 1S1: BN (+24V) e BU (0V)
+      const c12: VirtualConnection = {
+        id: 'conn_e7_s1_24v',
+        type: 'electrical',
+        fromComponentId: ps.id,
+        fromPortId: ps.ports[1].id, // +24V (2)
+        toComponentId: sensor1.id,
+        toPortId: sensor1.ports[0].id, // BN (+24V)
+        voltageV: 24,
+        active: true
+      };
+
+      const c13: VirtualConnection = {
+        id: 'conn_e8_s1_0v',
+        type: 'electrical',
+        fromComponentId: ps.id,
+        fromPortId: ps.ports[7].id, // 0V (3)
+        toComponentId: sensor1.id,
+        toPortId: sensor1.ports[1].id, // BU (0V)
+        voltageV: 0,
+        active: true
+      };
+
+      // Sensor 1S2: BN (+24V) e BU (0V)
+      const c14: VirtualConnection = {
+        id: 'conn_e9_s2_24v',
+        type: 'electrical',
+        fromComponentId: ps.id,
+        fromPortId: ps.ports[2].id, // +24V (3)
+        toComponentId: sensor2.id,
+        toPortId: sensor2.ports[0].id, // BN (+24V)
+        voltageV: 24,
+        active: true
+      };
+
+      const c15: VirtualConnection = {
+        id: 'conn_e10_s2_0v',
+        type: 'electrical',
+        fromComponentId: ps.id,
+        fromPortId: ps.ports[8].id, // 0V (4)
+        toComponentId: sensor2.id,
+        toPortId: sensor2.ports[1].id, // BU (0V)
+        voltageV: 0,
+        active: true
+      };
+
       return {
         components,
-        connections: [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11]
+        connections: [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15]
       };
     }
   },

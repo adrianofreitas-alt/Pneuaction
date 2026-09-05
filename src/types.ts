@@ -36,6 +36,9 @@ export type ComponentCategory =
   | 'electrical'  // Botões, Relés, Sensores, Sinalizadores
   | 'sensors';    // Sensores de fim de curso
 
+export type SensorTechnology = 'magnetic' | 'inductive' | 'capacitive' | 'optical';
+export type SensorWireCount = '2_wires' | '3_wires' | '4_wires';
+
 export interface BenchComponent {
   id: string;
   type: string;
@@ -46,6 +49,7 @@ export interface BenchComponent {
   y: number; // position on bench canvas (px)
   width: number;
   height: number;
+  rotation?: number; // 0, 90, 180, 270 degrees
   ports: ComponentPort[];
   state: {
     activated?: boolean;
@@ -59,6 +63,7 @@ export interface BenchComponent {
     solenoidLeftActive?: boolean;
     solenoidRightActive?: boolean;
     manualOverride?: boolean;
+    transparentGlassMode?: boolean;
     isEmergencyTriggered?: boolean;
     isLocked?: boolean;
     flowThrottlePercent?: number; // 1 to 100%
@@ -72,6 +77,13 @@ export interface BenchComponent {
     voltageV?: number;
     fixedVoltageOnly?: boolean;
     currentAmperes?: number;
+    // Sensor parameters and diagnostics
+    sensorTech?: SensorTechnology;
+    sensorWires?: SensorWireCount;
+    isPowerCorrect?: boolean;
+    powerErrorDetail?: string;
+    outputNAactive?: boolean;
+    outputNFactive?: boolean;
     // Physical parameters
     boreDiameterMm?: number; // Diâmetro do êmbolo (ex: 32mm)
     rodDiameterMm?: number;  // Diâmetro da haste (ex: 12mm)

@@ -64,12 +64,12 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   },
   {
     type: 'power_supply_24v',
-    name: 'Fonte',
-    category: 'supply',
+    name: 'Módulo Fonte de Alimentação 24V CC',
+    category: 'electrical',
     width: 210,
     height: 180,
     tagPrefix: '0G',
-    description: 'Fonte de alimentação 24V CC com chave liga/desliga e barramento de distribuição (5 bornes de 24V e 5 bornes de 0V).',
+    description: 'Fonte industrial estabilizada 24V CC com chave geral Liga/Desliga, voltímetro digital e barramento de distribuição quíntuplo (5x bornes +24V e 5x bornes 0V GND).',
     defaultPorts: [
       { name: '+24V (1)', type: 'electrical', functionType: 'power_24v', x: 16.2, y: 53.0 },
       { name: '+24V (2)', type: 'electrical', functionType: 'power_24v', x: 34.3, y: 53.0 },
@@ -99,7 +99,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     width: 250,
     height: 120,
     tagPrefix: '1A',
-    description: 'Cilindro Ø32mm, curso 100mm, com êmbolo magnético para sensores de proximidade.',
+    description: 'Cilindro Ø32mm, curso 200mm, com haste estendida (dobro do comprimento) e trilho ampliado para facilitar o posicionamento dos sensores, com esfera metálica atuadora na ponta.',
     defaultPorts: [
       { name: '1 (Avanço)', type: 'pneumatic', functionType: 'work_a', x: 22, y: 88 },
       { name: '2 (Recuo)', type: 'pneumatic', functionType: 'work_b', x: 78, y: 88 },
@@ -110,7 +110,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
       speed: 150, // mm/s
       boreDiameterMm: 32,
       rodDiameterMm: 12,
-      strokeLengthMm: 100,
+      strokeLengthMm: 200,
       appliedLoadN: 120,
       pressureA: 0,
       pressureB: 0,
@@ -125,7 +125,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     width: 210,
     height: 100,
     tagPrefix: '2A',
-    description: 'Cilindro Ø20mm, curso 50mm com mola interna de retorno.',
+    description: 'Cilindro Ø20mm, curso 100mm com mola interna, haste estendida (dobro do comprimento) e esfera metálica atuadora na ponta.',
     defaultPorts: [
       { name: '1 (Avanço)', type: 'pneumatic', functionType: 'work_a', x: 25, y: 85 },
     ],
@@ -135,7 +135,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
       speed: 180,
       boreDiameterMm: 20,
       rodDiameterMm: 8,
-      strokeLengthMm: 50,
+      strokeLengthMm: 100,
       appliedLoadN: 40,
       pressureA: 0,
       cyclesTotal: 18,
@@ -168,29 +168,30 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   // DIRECTIONAL VALVES
   {
     type: 'valve_5_2_double_solenoid',
-    name: 'Válvula 5/2 Vias Duplo Solenoide (Biestável)',
+    name: 'Eletroválvula 5/2 Vias Duplo Solenoide Biestável (4V220-06)',
     category: 'valves',
-    width: 220,
-    height: 150,
+    width: 250,
+    height: 160,
     tagPrefix: '1V',
-    description: 'Válvula direcional pilotada eletricamente por solenoides Y1 (14) e Y2 (12) 24VDC com acionamento manual auxiliar.',
+    description: 'Eletroválvula direcional industrial 5/2 vias duplo solenoide 24VDC com corpo em vidro transparente para visualização interna do carretel usinado deslizante, anéis O-ring, fluxo de ar dinâmico, bobinas com conector DIN transparente, LED e botoeira manual azul.',
     defaultPorts: [
       { name: '1 (P)', type: 'pneumatic', functionType: 'pressure', x: 50, y: 88 },
-      { name: '2 (B)', type: 'pneumatic', functionType: 'work_b', x: 32, y: 15 },
-      { name: '4 (A)', type: 'pneumatic', functionType: 'work_a', x: 68, y: 15 },
-      { name: '3 (R)', type: 'pneumatic', functionType: 'exhaust_r', x: 26, y: 88 },
-      { name: '5 (S)', type: 'pneumatic', functionType: 'exhaust_s', x: 74, y: 88 },
+      { name: '2 (B)', type: 'pneumatic', functionType: 'work_b', x: 62, y: 19 },
+      { name: '4 (A)', type: 'pneumatic', functionType: 'work_a', x: 38, y: 19 },
+      { name: '3 (R)', type: 'pneumatic', functionType: 'exhaust_r', x: 70, y: 88 },
+      { name: '5 (S)', type: 'pneumatic', functionType: 'exhaust_s', x: 30, y: 88 },
       // Electrical coils
-      { name: 'Y1 (+) A1', type: 'electrical', functionType: 'signal_in', x: 12, y: 35 },
-      { name: 'Y1 (-) A2', type: 'electrical', functionType: 'ground_0v', x: 12, y: 65 },
-      { name: 'Y2 (+) A1', type: 'electrical', functionType: 'signal_in', x: 88, y: 35 },
-      { name: 'Y2 (-) A2', type: 'electrical', functionType: 'ground_0v', x: 88, y: 65 },
+      { name: 'Y1 (+) A1', type: 'electrical', functionType: 'signal_in', x: 9, y: 19 },
+      { name: 'Y1 (-) A2', type: 'electrical', functionType: 'ground_0v', x: 9, y: 31 },
+      { name: 'Y2 (+) A1', type: 'electrical', functionType: 'signal_in', x: 91, y: 19 },
+      { name: 'Y2 (-) A2', type: 'electrical', functionType: 'ground_0v', x: 91, y: 31 },
     ],
     defaultState: {
       valvePosition: 'left', // 'left' = P->4 & 2->3 (avançado), 'right' = P->2 & 4->5 (recuado)
       solenoidLeftActive: false,
       solenoidRightActive: false,
       manualOverride: false,
+      transparentGlassMode: true,
       pressureP: 0,
       temperatureC: 24,
       healthPercent: 100
@@ -198,24 +199,25 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   },
   {
     type: 'valve_5_2_single_solenoid',
-    name: 'Válvula 5/2 Vias Simples Solenoide / Mola (Monoestável)',
+    name: 'Eletroválvula 5/2 Vias Simples Solenoide / Mola Monoestável (4V210-06)',
     category: 'valves',
-    width: 200,
-    height: 150,
+    width: 235,
+    height: 160,
     tagPrefix: '2V',
-    description: 'Válvula 5/2 vias acionada por solenoide Y1 e retorno mecânico por mola.',
+    description: 'Eletroválvula 5/2 vias acionada por solenoide Y1 e retorno por mola helicoidal visível, com carcaça em vidro transparente mostrando o deslocamento do carretel usinado e anéis de vedação.',
     defaultPorts: [
-      { name: '1 (P)', type: 'pneumatic', functionType: 'pressure', x: 50, y: 88 },
-      { name: '2 (B)', type: 'pneumatic', functionType: 'work_b', x: 35, y: 15 },
-      { name: '4 (A)', type: 'pneumatic', functionType: 'work_a', x: 65, y: 15 },
-      { name: '3 (R)', type: 'pneumatic', functionType: 'exhaust_r', x: 28, y: 88 },
-      { name: '5 (S)', type: 'pneumatic', functionType: 'exhaust_s', x: 72, y: 88 },
-      { name: 'Y1 (+) A1', type: 'electrical', functionType: 'signal_in', x: 12, y: 35 },
-      { name: 'Y1 (-) A2', type: 'electrical', functionType: 'ground_0v', x: 12, y: 65 },
+      { name: '1 (P)', type: 'pneumatic', functionType: 'pressure', x: 52, y: 88 },
+      { name: '2 (B)', type: 'pneumatic', functionType: 'work_b', x: 64, y: 19 },
+      { name: '4 (A)', type: 'pneumatic', functionType: 'work_a', x: 40, y: 19 },
+      { name: '3 (R)', type: 'pneumatic', functionType: 'exhaust_r', x: 72, y: 88 },
+      { name: '5 (S)', type: 'pneumatic', functionType: 'exhaust_s', x: 32, y: 88 },
+      { name: 'Y1 (+) A1', type: 'electrical', functionType: 'signal_in', x: 10, y: 19 },
+      { name: 'Y1 (-) A2', type: 'electrical', functionType: 'ground_0v', x: 10, y: 31 },
     ],
     defaultState: {
       valvePosition: 'right', // Normal por mola: P->2, 4->5
       solenoidLeftActive: false,
+      transparentGlassMode: true,
       pressureP: 0,
       temperatureC: 23,
       healthPercent: 100
@@ -307,12 +309,12 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   // ELECTRICAL CONTROLS
   {
     type: 'push_button_station',
-    name: 'Estação de Botões de Comando (NA Verde / NF Vermelho)',
+    name: 'Módulo Botões de Acionamento (NA Liga / NF Desliga)',
     category: 'electrical',
     width: 160,
     height: 180,
     tagPrefix: '1S',
-    description: 'Botão pulsador verde normalmente aberto (13-14) e botão vermelho normalmente fechado (11-12).',
+    description: 'Estação industrial com botão pulsador verde normalmente aberto (NA 13-14 para pulso de partida/liga) e botão vermelho normalmente fechado (NF 11-12 para parada/desliga).',
     defaultPorts: [
       { name: 'NA (13)', type: 'electrical', functionType: 'signal_in', x: 25, y: 35 },
       { name: 'NA (14)', type: 'electrical', functionType: 'signal_out', x: 75, y: 35 },
@@ -326,12 +328,12 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   },
   {
     type: 'emergency_stop_button',
-    name: 'Botão Cogumelo de Parada de Emergência (Conforme NR-12)',
+    name: 'Módulo Botão de Emergência (Cogumelo com Trava NR-12)',
     category: 'electrical',
     width: 140,
     height: 180,
     tagPrefix: '0S',
-    description: 'Botão de emergência com trava mecânica, ação positiva de ruptura e rearme por giro.',
+    description: 'Botão de parada de emergência tipo cogumelo com trava mecânica, ruptura positiva (contato NF 21-22) e rearme por giro conforme norma regulamentadora NR-12.',
     defaultPorts: [
       { name: 'NF (21)', type: 'electrical', functionType: 'signal_in', x: 30, y: 80 },
       { name: 'NF (22)', type: 'electrical', functionType: 'signal_out', x: 70, y: 80 },
@@ -342,12 +344,12 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   },
   {
     type: 'industrial_relay',
-    name: 'Módulo Relé Eletromecânico Industrial (Bobina + 2 Contatos Reversíveis)',
+    name: 'Módulo Relé Industrial Auxiliar (Bobina 24V + 2 Contatos)',
     category: 'electrical',
     width: 160,
     height: 180,
     tagPrefix: 'K1',
-    description: 'Relé de acoplamento 24VDC com bobina A1/A2, contato NA (13-14) para autorretenção e NF (21-22).',
+    description: 'Relé de acoplamento eletromecânico 24V CC com bobina A1/A2, LED indicador de comutação, contato NA (13-14) para autorretenção e contato NF (21-22).',
     defaultPorts: [
       { name: 'A1 (+24V)', type: 'electrical', functionType: 'signal_in', x: 25, y: 25 },
       { name: 'A2 (0V)', type: 'electrical', functionType: 'ground_0v', x: 75, y: 25 },
@@ -363,21 +365,24 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   },
   {
     type: 'reed_switch_sensor',
-    name: 'Sensor Magnético de Proximidade Reed Switch (Fim de Curso)',
+    name: 'Sensor Industrial de Proximidade (Tubular M18)',
     category: 'sensors',
-    width: 140,
-    height: 90,
+    width: 220,
+    height: 100,
     tagPrefix: '1S_RS',
-    description: 'Sensor montado na camisa do cilindro para detecção de posição avançado/recuado por ímã.',
+    description: 'Sensor industrial cilíndrico tradicional (Magnético, Indutivo, Capacitivo, Óptico) com corpo roscado, porcas de fixação, face sensora colorida na lateral e chicote flexível com bornes circulares identificados pelo fio.',
     defaultPorts: [
-      { name: 'BN (+24V)', type: 'electrical', functionType: 'power_24v', x: 20, y: 35 },
-      { name: 'BU (0V)', type: 'electrical', functionType: 'ground_0v', x: 20, y: 70 },
-      { name: 'BK (Sinal)', type: 'electrical', functionType: 'sensor_sig', x: 80, y: 50 },
+      { name: 'BN (+24V)', type: 'electrical', functionType: 'power_24v', x: 88, y: 24 },
+      { name: 'BU (0V)', type: 'electrical', functionType: 'ground_0v', x: 88, y: 76 },
+      { name: 'BK (Sinal)', type: 'electrical', functionType: 'sensor_sig', x: 88, y: 50 },
     ],
     defaultState: {
       sensorDetected: false,
       targetCylinderTag: '1A',
-      detectionPosition: 100 // 100% = avançado, 0% = recuado
+      detectionPosition: 100, // 100% = avançado, 0% = recuado
+      sensorTech: 'magnetic',
+      sensorWires: '3_wires',
+      isPowerCorrect: false
     }
   },
   {
