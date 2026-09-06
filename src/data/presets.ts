@@ -36,12 +36,12 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       const frl = createComponentFromTemplate(frlTpl, 30, 250, 1);
       const manifold = createComponentFromTemplate(manifoldTpl, 185, 260, 1);
       const valve = createComponentFromTemplate(valve52Tpl, 380, 270, 1);
-      const throttle = createComponentFromTemplate(throttleTpl, 630, 290, 1);
-      const cyl = createComponentFromTemplate(cylTpl, 780, 270, 1);
+      const throttle = createComponentFromTemplate(throttleTpl, 610, 290, 1);
+      const cyl = createComponentFromTemplate(cylTpl, 750, 270, 1);
 
-      // Sensores posicionados a 90° em relação ao cilindro no trilho guia (0mm e 200mm)
-      // Centro horizontal alinhado verticalmente com a esfera da haste em 0mm e 200mm
-      const sensor1 = createComponentFromTemplate(sensorTpl, 1000, 323, 1);
+      // Sensores posicionados a 90° em relação ao cilindro no trilho guia ampliado (0mm e 200mm)
+      // Trilho afastado da haste com entreferro livre de ar: centro da tampa alinhado com o centro da esfera sem sobreposição nem contato
+      const sensor1 = createComponentFromTemplate(sensorTpl, 970, 358, 1);
       sensor1.tag = '1S1';
       sensor1.state.detectionPosition = 0; // recuado (0mm)
       sensor1.state.sensorTech = 'magnetic';
@@ -49,9 +49,9 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       sensor1.state.snappedToRail = true;
       sensor1.state.railCylinderId = cyl.id;
 
-      const sensor2 = createComponentFromTemplate(sensorTpl, 1200, 323, 2);
+      const sensor2 = createComponentFromTemplate(sensorTpl, 1270, 358, 2);
       sensor2.tag = '1S2';
-      sensor2.state.detectionPosition = 100; // avançado (200mm)
+      sensor2.state.detectionPosition = 100; // avançado (300mm)
       sensor2.state.sensorTech = 'magnetic';
       sensor2.state.sensorWires = '3_wires';
       sensor2.state.snappedToRail = true;

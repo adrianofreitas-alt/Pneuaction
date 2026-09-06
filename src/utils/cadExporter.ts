@@ -1,4 +1,5 @@
 import { BenchComponent, VirtualConnection } from '../types';
+import { calculateRoutedConnections } from './cableRouter';
 
 /**
  * CAD Integration Utilities
@@ -319,24 +320,21 @@ ${port.name}
     });
   });
 
-  // Draw Connections (Lines)
-  connections.forEach((conn) => {
-    const sourceComp = components.find(c => c.id === conn.fromComponentId);
-    const targetComp = components.find(c => c.id === conn.toComponentId);
-    if (!sourceComp || !targetComp) return;
+  // Draw Connections (Routed Lines)
+  const routedConns = calculateRoutedConnections(connections, components);
+  routedConns.forEach((routed) => {
+    const layer = routed.isPneumatic ? 'PNEUMATIC_LINES' : 'ELECTRICAL_WIRES';
+    const pts = routed.waypoints;
 
-    const sourcePort = sourceComp.ports.find(p => p.id === conn.fromPortId);
-    const targetPort = targetComp.ports.find(p => p.id === conn.toPortId);
-    if (!sourcePort || !targetPort) return;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const sx = p1.x;
+      const sy = 800 - p1.y;
+      const tx = p2.x;
+      const ty = 800 - p2.y;
 
-    const sx = sourceComp.x + (sourceComp.width * sourcePort.x) / 100;
-    const sy = 800 - (sourceComp.y + (sourceComp.height * sourcePort.y) / 100);
-    const tx = targetComp.x + (targetComp.width * targetPort.x) / 100;
-    const ty = 800 - (targetComp.y + (targetComp.height * targetPort.y) / 100);
-
-    const layer = conn.type === 'pneumatic' ? 'PNEUMATIC_LINES' : 'ELECTRICAL_WIRES';
-
-    dxf += `0
+      dxf += `0
 LINE
 8
 ${layer}
@@ -353,6 +351,7 @@ ${ty}
 31
 0.0
 `;
+    }
   });
 
   dxf += `0
@@ -403,34 +402,14 @@ export function generateTechnicalSVG(
   <g id="connections-layer">
 `;
 
-  connections.forEach((conn) => {
-    const sourceComp = components.find(c => c.id === conn.fromComponentId);
-    const targetComp = components.find(c => c.id === conn.toComponentId);
-    if (!sourceComp || !targetComp) return;
-
-    const sourcePort = sourceComp.ports.find(p => p.id === conn.fromPortId);
-    const targetPort = targetComp.ports.find(p => p.id === conn.toPortId);
-    if (!sourcePort || !targetPort) return;
-
-    const sx = sourceComp.x + (sourceComp.width * sourcePort.x) / 100;
-    const sy = sourceComp.y + (sourceComp.height * sourcePort.y) / 100;
-    const tx = targetComp.x + (targetComp.width * targetPort.x) / 100;
-    const ty = targetComp.y + (targetComp.height * targetPort.y) / 100;
-
-    const isPneumatic = conn.type === 'pneumatic';
-    const strokeColor = isPneumatic ? '#0284c7' : '#e11d48';
+  const routedConnsSVG = calculateRoutedConnections(connections, components);
+  routedConnsSVG.forEach((routed) => {
+    const isPneumatic = routed.isPneumatic;
+    const strokeColor = isPneumatic ? '#0284c7' : routed.isGroundWire ? '#1e3a8a' : '#e11d48';
     const strokeDash = isPneumatic ? 'none' : '6 3';
     const strokeWidth = isPneumatic ? '3.5' : '2.5';
 
-    // Curvature calculation
-    const dx = tx - sx;
-    const dy = ty - sy;
-    const cx1 = sx + dx * 0.25;
-    const cy1 = sy + Math.abs(dx) * 0.3 + 30;
-    const cx2 = tx - dx * 0.25;
-    const cy2 = ty + Math.abs(dx) * 0.3 + 30;
-
-    svg += `    <path d="M ${sx} ${sy} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tx} ${ty}" 
+    svg += `    <path d="${routed.pathD}" 
       fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-dasharray="${strokeDash}" stroke-linecap="round" />
 `;
   });

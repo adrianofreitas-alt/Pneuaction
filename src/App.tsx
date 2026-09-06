@@ -111,7 +111,7 @@ export default function App() {
 
           // Real-time calculation of cylinder rod tip sphere position (with 0°, 90°, 180°, 270° rotation)
           const cylRot = cyl.rotation || 0;
-          const strokeTravel = cyl.type === 'single_acting_cylinder' ? 150 : 200;
+          const strokeTravel = cyl.type === 'single_acting_cylinder' ? 200 : 300;
           const strokeOffset = cyl.type === 'single_acting_cylinder' ? 20 : 25;
           const rawSphereX = cyl.width + strokeOffset + (pos / 100) * strokeTravel;
           const rawSphereY = cyl.type === 'single_acting_cylinder' ? 50 : 60;
@@ -129,15 +129,27 @@ export default function App() {
           }
 
           // 1. Update physical proximity detection for all sensors
-          // Como o sensor é de proximidade e não de contato e fica a 90° em relação ao cilindro,
-          // o sensor é ativado quando a esfera da haste ficar alinhada verticalmente com o sensor.
+          // A atuação dos sensores ocorre quando a esfera da haste do cilindro estiver próxima do sensor
+          // e alinhada pelo centro da tampa do sensor e o alinhamento vertical do centro da esfera.
+          // Sem precisar haver contato físico (com entreferro livre de ar na escala industrial).
+          const sphereRadius = cyl.type === 'single_acting_cylinder' ? 9 : 10;
+          const sphereBottomY = sphereY + sphereRadius;
+
           nextComps.forEach(comp => {
             if (comp.type === 'reed_switch_sensor') {
-              const sensorCenterX = comp.x + comp.width / 2;
-              const sensorFaceY = comp.y + 14; // Face sensora ativa no topo do sensor a 90°
-              const isHorizontallyAligned = Math.abs(sphereX - sensorCenterX) <= 18;
-              const isVerticalInRange = Math.abs(sphereY - sensorFaceY) <= 55;
-              comp.state.sensorDetected = isHorizontallyAligned && isVerticalInRange;
+              const sensorCapCenterX = comp.x + comp.width / 2; // Centro horizontal da tampa (55)
+              const sensorCapCenterY = comp.y + 15; // Centro vertical da tampa
+              const sensorCapTopY = comp.y + 12; // Crista superior da tampa
+
+              // Alinhamento vertical do centro da esfera com o centro da tampa do sensor
+              const isVerticalAligned = Math.abs(sphereX - sensorCapCenterX) <= 16;
+
+              // Proximidade sem contato físico (haste/esfera passam próximas com entreferro livre sem sobreposição)
+              const verticalCenterDist = sensorCapCenterY - sphereY;
+              const airGap = sensorCapTopY - sphereBottomY;
+              const isNearWithoutContact = airGap >= 3 && verticalCenterDist >= 20 && verticalCenterDist <= 60;
+
+              comp.state.sensorDetected = isVerticalAligned && isNearWithoutContact;
             }
           });
 
@@ -185,12 +197,29 @@ export default function App() {
             // Bistable valve spool memory:
             // Y1 energization drives spool to 'left' (Advance)
             // Y2 energization drives spool to 'right' (Retract)
+            // Em conformidade com a dinâmica pneumática industrial e detecção de proximidade:
+            // O êmbolo completa o curso mecânico total (atingindo 100% no avanço ou 0% no recuo,
+            // ou alcançando o centro do sensor que comanda a reversão) antes da contrapressão atuar.
+            const activeY2Sensor = y2Active ? nextComps.find(c => c.type === 'reed_switch_sensor' && c.state.sensorDetected) : undefined;
+            const activeY1Sensor = y1Active ? nextComps.find(c => c.type === 'reed_switch_sensor' && c.state.sensorDetected) : undefined;
+            
+            const y2TargetX = activeY2Sensor ? activeY2Sensor.x + activeY2Sensor.width / 2 : undefined;
+            const y1TargetX = activeY1Sensor ? activeY1Sensor.x + activeY1Sensor.width / 2 : undefined;
+
             if (y1Active && !y2Active && valvePos !== 'left') {
-              valvePos = 'left';
-              benchAudio.playExhaust(0.18, 0.25);
+              // Garante que o recuo atinja o início de curso (pos = 0% ou centro do sensor recuado 1S1)
+              const readyToAdvance = y1TargetX !== undefined ? (sphereX <= y1TargetX || pos <= 0) : true;
+              if (readyToAdvance) {
+                valvePos = 'left';
+                benchAudio.playExhaust(0.18, 0.25);
+              }
             } else if (y2Active && !y1Active && valvePos !== 'right') {
-              valvePos = 'right';
-              benchAudio.playExhaust(0.18, 0.25);
+              // Garante que o avanço atinja o fim de curso (pos = 100% ou centro do sensor avançado 1S2)
+              const readyToRetract = y2TargetX !== undefined ? (sphereX >= y2TargetX || pos >= 100) : true;
+              if (readyToRetract) {
+                valvePos = 'right';
+                benchAudio.playExhaust(0.18, 0.25);
+              }
             }
           } else if (valve.type === 'valve_5_2_single_solenoid') {
             if (y1Active) {

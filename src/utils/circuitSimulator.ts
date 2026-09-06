@@ -295,7 +295,7 @@ export function evaluateCircuitElectricalState(
   const cyl = components.find(c => c.category === 'actuators');
   const cylPos = cyl?.state.position || 0;
   const cylRot = cyl?.rotation || 0;
-  const strokeTravel = cyl?.type === 'single_acting_cylinder' ? 150 : 200;
+  const strokeTravel = cyl?.type === 'single_acting_cylinder' ? 200 : 300;
   const strokeOffset = cyl?.type === 'single_acting_cylinder' ? 20 : 25;
   const rawSphereX = (cyl?.width || 250) + strokeOffset + (cylPos / 100) * strokeTravel;
   const rawSphereY = cyl?.type === 'single_acting_cylinder' ? 50 : 60;
@@ -317,13 +317,26 @@ export function evaluateCircuitElectricalState(
   sensorComps.forEach(sensor => {
     const wires = sensor.state.sensorWires || '3_wires';
 
-    // Como o sensor é de proximidade e não de contato, e fica a 90° em relação ao cilindro,
-    // o sensor é ativado quando a esfera da haste ficar alinhada verticalmente com o sensor.
-    const sensorCenterX = sensor.x + sensor.width / 2;
-    const sensorFaceY = sensor.y + 14; // Face sensora ativa no topo do sensor a 90°
-    const isHorizontallyAligned = Math.abs(sphereX - sensorCenterX) <= 18;
-    const isVerticalInRange = Math.abs(sphereY - sensorFaceY) <= 55;
-    const isPhysicalMatch = isHorizontallyAligned && isVerticalInRange;
+    // Atuação de sensores industriais de proximidade (Indutivo, Magnético, Óptico, Capacitivo):
+    // A atuação ocorre quando a esfera da haste do cilindro estiver próxima do sensor e
+    // alinhada pelo centro da tampa do sensor e o alinhamento vertical do centro da esfera.
+    // Sem precisar haver contato físico (entreferro de ar visível dentro da faixa de detecção Sn).
+    const sensorCapCenterX = sensor.x + sensor.width / 2; // Centro da tampa (X = 55 no sensor)
+    const sensorCapCenterY = sensor.y + 15; // Centro da tampa do sensor
+    const sensorCapTopY = sensor.y + 12; // Face externa/topo da tampa do sensor
+    const sphereRadius = cyl?.type === 'single_acting_cylinder' ? 9 : 10;
+    const sphereBottomY = sphereY + sphereRadius;
+
+    // 1. Alinhamento vertical: centro da esfera alinhado com o centro da tampa do sensor
+    const isVerticalAligned = Math.abs(sphereX - sensorCapCenterX) <= 16;
+
+    // 2. Proximidade sem contato físico: esfera posicionada acima da tampa do sensor,
+    // com entreferro livre de ar (sem colisão mecânica nem sobreposição) e dentro do alcance útil
+    const verticalCenterDist = sensorCapCenterY - sphereY;
+    const airGap = sensorCapTopY - sphereBottomY;
+    const isNearWithoutContact = airGap >= 3 && verticalCenterDist >= 20 && verticalCenterDist <= 60;
+
+    const isPhysicalMatch = isVerticalAligned && isNearWithoutContact;
 
     const bnPort = sensor.ports.find(p => p.name.includes('BN'));
     const buPort = sensor.ports.find(p => p.name.includes('BU'));
