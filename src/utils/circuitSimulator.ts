@@ -20,16 +20,16 @@ export function getSensorPorts(
         name: 'BN (+24V / L+)',
         type: 'electrical',
         functionType: 'power_24v',
-        x: 88,
-        y: 34
+        x: 32,
+        y: 91
       },
       {
         id: findPortId('BU') || findPortId('Sinal'),
         name: 'BU (Sinal / Carga)',
         type: 'electrical',
         functionType: 'sensor_sig',
-        x: 88,
-        y: 66
+        x: 68,
+        y: 91
       }
     ];
   }
@@ -41,32 +41,32 @@ export function getSensorPorts(
         name: 'BN (+24V)',
         type: 'electrical',
         functionType: 'power_24v',
-        x: 88,
-        y: 18
+        x: 15,
+        y: 91
       },
       {
         id: findPortId('WH') || findPortId('NF'),
         name: 'WH (Sinal NF)',
         type: 'electrical',
         functionType: 'sensor_sig',
-        x: 88,
-        y: 39
+        x: 38,
+        y: 91
       },
       {
         id: findPortId('BK') || findPortId('NA') || findPortId('Sinal'),
         name: 'BK (Sinal NA)',
         type: 'electrical',
         functionType: 'sensor_sig',
-        x: 88,
-        y: 61
+        x: 62,
+        y: 91
       },
       {
         id: findPortId('BU'),
         name: 'BU (0V)',
         type: 'electrical',
         functionType: 'ground_0v',
-        x: 88,
-        y: 82
+        x: 85,
+        y: 91
       }
     ];
   }
@@ -78,24 +78,24 @@ export function getSensorPorts(
       name: 'BN (+24V)',
       type: 'electrical',
       functionType: 'power_24v',
-      x: 88,
-      y: 24
+      x: 18,
+      y: 91
     },
     {
       id: findPortId('BU'),
       name: 'BU (0V)',
       type: 'electrical',
       functionType: 'ground_0v',
-      x: 88,
-      y: 76
+      x: 82,
+      y: 91
     },
     {
       id: findPortId('BK') || findPortId('Sinal'),
       name: 'BK (Sinal)',
       type: 'electrical',
       functionType: 'sensor_sig',
-      x: 88,
-      y: 50
+      x: 50,
+      y: 91
     }
   ];
 }
@@ -317,26 +317,13 @@ export function evaluateCircuitElectricalState(
   sensorComps.forEach(sensor => {
     const wires = sensor.state.sensorWires || '3_wires';
 
-    // Physical position check: center of the sensing cap is at (13, 50)
-    const sRot = sensor.rotation || 0;
-    const rawFaceX = 13;
-    const rawFaceY = 50;
-    let sensorFaceX = sensor.x + rawFaceX;
-    let sensorFaceY = sensor.y + rawFaceY;
-    if (sRot) {
-      const cx = sensor.width / 2;
-      const cy = sensor.height / 2;
-      const dx = rawFaceX - cx;
-      const dy = rawFaceY - cy;
-      const rad = (sRot * Math.PI) / 180;
-      sensorFaceX = sensor.x + cx + (dx * Math.cos(rad) - dy * Math.sin(rad));
-      sensorFaceY = sensor.y + cy + (dx * Math.sin(rad) + dy * Math.cos(rad));
-    }
-
-    const distToSphere = Math.hypot(sphereX - sensorFaceX, sphereY - sensorFaceY);
-    // Requisito estrito: a ativação do sensor só ocorrerá quando a esfera da ponta do cilindro pneumático
-    // ficar alinhada centro da esfera com o centro do sensor (tolerância <= 16px)
-    const isPhysicalMatch = distToSphere <= 16;
+    // Como o sensor é de proximidade e não de contato, e fica a 90° em relação ao cilindro,
+    // o sensor é ativado quando a esfera da haste ficar alinhada verticalmente com o sensor.
+    const sensorCenterX = sensor.x + sensor.width / 2;
+    const sensorFaceY = sensor.y + 14; // Face sensora ativa no topo do sensor a 90°
+    const isHorizontallyAligned = Math.abs(sphereX - sensorCenterX) <= 18;
+    const isVerticalInRange = Math.abs(sphereY - sensorFaceY) <= 55;
+    const isPhysicalMatch = isHorizontallyAligned && isVerticalInRange;
 
     const bnPort = sensor.ports.find(p => p.name.includes('BN'));
     const buPort = sensor.ports.find(p => p.name.includes('BU'));

@@ -129,30 +129,15 @@ export default function App() {
           }
 
           // 1. Update physical proximity detection for all sensors
+          // Como o sensor é de proximidade e não de contato e fica a 90° em relação ao cilindro,
+          // o sensor é ativado quando a esfera da haste ficar alinhada verticalmente com o sensor.
           nextComps.forEach(comp => {
             if (comp.type === 'reed_switch_sensor') {
-              const sRot = comp.rotation || 0;
-              // Centro exato da face sensora colorida na lateral esquerda do corpo M18 (x=13, y=50)
-              const rawFaceX = 13;
-              const rawFaceY = 50;
-              let sensorFaceX = comp.x + rawFaceX;
-              let sensorFaceY = comp.y + rawFaceY;
-
-              if (sRot) {
-                const cx = comp.width / 2;
-                const cy = comp.height / 2;
-                const dx = rawFaceX - cx;
-                const dy = rawFaceY - cy;
-                const rad = (sRot * Math.PI) / 180;
-                sensorFaceX = comp.x + cx + (dx * Math.cos(rad) - dy * Math.sin(rad));
-                sensorFaceY = comp.y + cy + (dx * Math.sin(rad) + dy * Math.cos(rad));
-              }
-
-              const distToSphere = Math.hypot(sphereX - sensorFaceX, sphereY - sensorFaceY);
-              
-              // Requisito estrito: a ativação do sensor só ocorrerá quando a esfera da ponta do cilindro pneumático
-              // ficar alinhada centro da esfera com o centro do sensor (tolerância <= 16px)
-              comp.state.sensorDetected = distToSphere <= 16;
+              const sensorCenterX = comp.x + comp.width / 2;
+              const sensorFaceY = comp.y + 14; // Face sensora ativa no topo do sensor a 90°
+              const isHorizontallyAligned = Math.abs(sphereX - sensorCenterX) <= 18;
+              const isVerticalInRange = Math.abs(sphereY - sensorFaceY) <= 55;
+              comp.state.sensorDetected = isHorizontallyAligned && isVerticalInRange;
             }
           });
 

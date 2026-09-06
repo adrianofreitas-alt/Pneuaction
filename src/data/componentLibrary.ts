@@ -365,16 +365,16 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   },
   {
     type: 'reed_switch_sensor',
-    name: 'Sensor Industrial de Proximidade (Tubular M18)',
+    name: 'Sensor Industrial de Proximidade (Tubular M18 - 90°)',
     category: 'sensors',
-    width: 220,
-    height: 100,
+    width: 110,
+    height: 160,
     tagPrefix: '1S_RS',
-    description: 'Sensor industrial cilíndrico tradicional (Magnético, Indutivo, Capacitivo, Óptico) com corpo roscado, porcas de fixação, face sensora colorida na lateral e chicote flexível com bornes circulares identificados pelo fio.',
+    description: 'Sensor industrial de proximidade tubular M18 posicionado a 90° em relação ao cilindro (Magnético, Indutivo, Capacitivo, Óptico) com corpo roscado vertical, porcas de fixação, face sensora colorida no topo voltada para a trajetória da esfera da haste, suporte com fixação magnética no trilho guia e bornes inferiores identificados por fio.',
     defaultPorts: [
-      { name: 'BN (+24V)', type: 'electrical', functionType: 'power_24v', x: 88, y: 24 },
-      { name: 'BU (0V)', type: 'electrical', functionType: 'ground_0v', x: 88, y: 76 },
-      { name: 'BK (Sinal)', type: 'electrical', functionType: 'sensor_sig', x: 88, y: 50 },
+      { name: 'BN (+24V)', type: 'electrical', functionType: 'power_24v', x: 18, y: 91 },
+      { name: 'BU (0V)', type: 'electrical', functionType: 'ground_0v', x: 82, y: 91 },
+      { name: 'BK (Sinal)', type: 'electrical', functionType: 'sensor_sig', x: 50, y: 91 },
     ],
     defaultState: {
       sensorDetected: false,

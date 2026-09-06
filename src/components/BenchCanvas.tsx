@@ -172,26 +172,27 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
         for (const cyl of cylinders) {
           const isSingle = cyl.type === 'single_acting_cylinder';
-          // Trilho estende-se a partir do final do corpo do cilindro
-          // Dupla ação: comp.width = 250, trilho com comprimento útil ~255mm
-          // Simples ação: comp.width = 200, trilho com comprimento útil ~190mm
-          const railStartX = cyl.x + cyl.width;
-          const railLength = isSingle ? 190 : 255;
-          const rMin = railStartX - 10;
-          const rMax = railStartX + railLength - 20;
+          // O sensor fica a 90° em relação ao cilindro (vertical, com a face sensora no topo apontando para a haste)
+          // Suporte de fixação mecânica fica no corpo superior do sensor (y = 42)
+          // Altura da ranhura T do trilho guia do cilindro:
+          // Dupla ação: cyl.y + 95. Com suporte em y = 42 => snapRailY = cyl.y + 53
+          // Simples ação: cyl.y + 80. Com suporte em y = 42 => snapRailY = cyl.y + 38
+          const targetRailY = isSingle ? cyl.y + 38 : cyl.y + 53;
 
-          // Alinhamento exato na altura do trilho e centro da esfera da haste:
-          // Esfera dupla ação: cyl.y + 60. Centro da tampa sensora: y + 50. => y = cyl.y + 10
-          // Esfera simples ação: cyl.y + 50. Centro da tampa sensora: y + 50. => y = cyl.y
-          const targetRailY = cyl.y + (isSingle ? 0 : 10);
+          // Faixa horizontal do curso do cilindro onde o sensor desliza sobre o trilho:
+          // Dupla ação: centro do sensor (finalX + 55) alinha de 0mm (x=275) a 200mm (x=475)
+          // Logo finalX vai de cyl.x + 220 até cyl.x + 420
+          // Simples ação: centro do sensor alinha de 0mm (x=220) a 100mm (x=370)
+          // Logo finalX vai de cyl.x + 165 até cyl.x + 315
+          const rMin = isSingle ? cyl.x + 150 : cyl.x + 205;
+          const rMax = isSingle ? cyl.x + 330 : cyl.x + 435;
 
           // Zona de atração magnética do trilho:
-          // Faixa horizontal com margem de tolerância de entrada
           const inHorizontalRange = rawX >= rMin - 60 && rawX <= rMax + 60;
           const verticalDist = Math.abs(rawY - targetRailY);
 
-          // Histerese magnética: se já estiver acoplado no trilho, requer puxar > 75px para desencaixar
-          const snapThreshold = (draggedComp.state.snappedToRail && draggedComp.state.railCylinderId === cyl.id) ? 75 : 60;
+          // Histerese magnética: se já estiver acoplado no trilho, requer puxar > 80px para desencaixar
+          const snapThreshold = (draggedComp.state.snappedToRail && draggedComp.state.railCylinderId === cyl.id) ? 80 : 65;
 
           if (inHorizontalRange && verticalDist <= snapThreshold) {
             snapCyl = cyl;
@@ -960,15 +961,15 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         c => c.type === 'reed_switch_sensor' && c.state.railCylinderId === comp.id && c.state.snappedToRail
                       );
 
-                      // Requisito estrito: a esfera só atua quando o centro da esfera estiver estritamente alinhado
-                      // com o centro da face do sensor (<= 16px)
+                      // Como o sensor é de proximidade e não de contato, o sensor é ativado quando a esfera da haste
+                      // ficar alinhada verticalmente com o sensor (sensor a 90° em relação ao cilindro).
                       const sphereWorldX = comp.x + rodTipX;
                       const sphereWorldY = comp.y + centerY;
                       const actuatedSensor = components.find(c => {
                         if (c.type !== 'reed_switch_sensor' || !c.state.sensorDetected) return false;
-                        const sensorFaceX = c.x + 13;
-                        const sensorFaceY = c.y + 50;
-                        return Math.hypot(sphereWorldX - sensorFaceX, sphereWorldY - sensorFaceY) <= 16;
+                        const sensorCenterX = c.x + c.width / 2;
+                        const sensorFaceY = c.y + 14;
+                        return Math.abs(sphereWorldX - sensorCenterX) <= 18 && Math.abs(sphereWorldY - sensorFaceY) <= 55;
                       });
                       const isNearSensor = Boolean(actuatedSensor);
 
@@ -1114,13 +1115,24 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           {/* Threaded Rod Stud */}
                           <rect x={rodTipX - 8} y={centerY - 4} width="8" height="8" fill="#94a3b8" stroke="#64748b" strokeWidth="0.5" />
 
-                          {/* Magnetic Induction Halo when sphere actuates proximity sensors */}
-                          {isNearSensor && (
+                          {/* Magnetic Induction Halo and Vertical Alignment Beam when sphere actuates proximity sensor */}
+                          {isNearSensor && actuatedSensor && (
                             <g>
+                              {/* Feixe de Alinhamento Vertical por Proximidade (sem contato) */}
+                              <line
+                                x1={rodTipX}
+                                y1={centerY + 10}
+                                x2={rodTipX}
+                                y2={actuatedSensor.y + 14 - comp.y}
+                                stroke="#34d399"
+                                strokeWidth="2.5"
+                                strokeDasharray="3 2"
+                                opacity="0.9"
+                              />
                               <circle cx={rodTipX} cy={centerY} r="18" fill="none" stroke="#34d399" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.9" />
                               <circle cx={rodTipX} cy={centerY} r="25" fill="url(#actuator-sphere-glow)" opacity="0.8" />
                               <circle cx={rodTipX} cy={centerY} r="32" fill="none" stroke="#059669" strokeWidth="0.8" strokeDasharray="2 4" opacity="0.5" />
-                              {/* Mira de Alinhamento de Centro a Centro */}
+                              {/* Mira de Alinhamento Vertical de Proximidade */}
                               <line x1={rodTipX - 14} y1={centerY} x2={rodTipX + 14} y2={centerY} stroke="#34d399" strokeWidth="1.2" />
                               <line x1={rodTipX} y1={centerY - 14} x2={rodTipX} y2={centerY + 14} stroke="#34d399" strokeWidth="1.2" />
                             </g>
@@ -1143,7 +1155,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                               fontFamily="'JetBrains Mono'"
                               textAnchor="middle"
                             >
-                              {isNearSensor ? "⌖ ALINHADA (ATUADA)" : "ESFERA Ø20"}
+                              {isNearSensor ? "⌖ ALINHAMENTO VERTICAL (90° ATIVO)" : "ESFERA Ø20"}
                             </text>
                           </g>
 
@@ -1176,9 +1188,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       const sphereWorldY = comp.y + centerY;
                       const actuatedSensor = components.find(c => {
                         if (c.type !== 'reed_switch_sensor' || !c.state.sensorDetected) return false;
-                        const sensorFaceX = c.x + 13;
-                        const sensorFaceY = c.y + 50;
-                        return Math.hypot(sphereWorldX - sensorFaceX, sphereWorldY - sensorFaceY) <= 16;
+                        const sensorCenterX = c.x + c.width / 2;
+                        const sensorFaceY = c.y + 14;
+                        return Math.abs(sphereWorldX - sensorCenterX) <= 18 && Math.abs(sphereWorldY - sensorFaceY) <= 55;
                       });
                       const isNearSensor = Boolean(actuatedSensor);
 
@@ -1259,8 +1271,19 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                           {/* Esfera Atuadora Metálica na ponta da haste */}
                           <rect x={rodTipX - 12} y={centerY - 6} width="5" height="12" rx="1" fill="#475569" stroke="#94a3b8" strokeWidth="0.8" />
-                          {isNearSensor && (
+                          {isNearSensor && actuatedSensor && (
                             <g>
+                              {/* Feixe Vertical de Indução de Proximidade (sem contato) */}
+                              <line
+                                x1={rodTipX}
+                                y1={centerY + 9}
+                                x2={rodTipX}
+                                y2={actuatedSensor.y + 14 - comp.y}
+                                stroke="#34d399"
+                                strokeWidth="2.5"
+                                strokeDasharray="3 2"
+                                opacity="0.9"
+                              />
                               <circle cx={rodTipX} cy={centerY} r="16" fill="none" stroke="#34d399" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.9" />
                               <circle cx={rodTipX} cy={centerY} r="22" fill="url(#actuator-sphere-glow)" opacity="0.8" />
                               <line x1={rodTipX - 12} y1={centerY} x2={rodTipX + 12} y2={centerY} stroke="#34d399" strokeWidth="1.2" />
@@ -1270,7 +1293,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           <circle cx={rodTipX} cy={centerY} r="9" fill="url(#actuator-sphere-grad)" stroke={isNearSensor ? "#34d399" : "#94a3b8"} strokeWidth="1.2" />
                           <circle cx={rodTipX - 2.5} cy={centerY - 2.5} r="2.5" fill="#ffffff" opacity="0.85" />
                           <text x={rodTipX} y={centerY - 14} fill={isNearSensor ? "#34d399" : "#94a3b8"} fontSize="6" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
-                            {isNearSensor ? "⌖ ALINHADA" : "ESFERA Ø18"}
+                            {isNearSensor ? "⌖ ALINHAMENTO VERTICAL (90°)" : "ESFERA Ø18"}
                           </text>
 
                           <text x="60" y="20" fill="#38bdf8" fontSize="8.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
@@ -1518,185 +1541,185 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                       return (
                         <g>
-                          {/* SENSOR CILÍNDRICO METÁLICO (M18) CONFORME FOTO */}
+                          {/* SENSOR INDUSTRIAL DE PROXIMIDADE (TUBULAR M18) A 90° EM RELAÇÃO AO CILINDRO */}
 
-                          {/* Faixa de Fixação Magnética ao Trilho */}
-                          {isSnapped && (
-                            <g transform="translate(6, 6)">
-                              <rect x="0" y="0" width="140" height="15" rx="3" fill="#0369a1" fillOpacity="0.3" stroke="#38bdf8" strokeWidth="0.8" />
-                              <circle cx="8" cy="7.5" r="2.5" fill="#38bdf8" className="animate-pulse" />
-                              <text x="16" y="10.5" fill="#38bdf8" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
-                                🧲 FIXADO NO TRILHO (DESLIZE ◄►)
-                              </text>
-                            </g>
-                          )}
-
-                          {/* Badge de Alinhamento de Centro com a Esfera */}
-                          {isActuated && (
-                            <g transform="translate(6, 22)">
-                              <rect x="0" y="0" width="140" height="12" rx="3" fill="#065f46" fillOpacity="0.85" stroke="#34d399" strokeWidth="0.8" />
-                              <circle cx="7" cy="6" r="2" fill="#34d399" />
-                              <text x="14" y="9" fill="#a7f3d0" fontSize="5.8" fontWeight="bold" fontFamily="'JetBrains Mono'">
-                                ⌖ CENTRO ALINHADO C/ ESFERA
-                              </text>
-                            </g>
-                          )}
-
-                          {/* 1. Face Sensora Ativa na Lateral Esquerda com a cor selecionada */}
-                          <g id="sensor-sensing-face">
-                            {/* Protruding Plastic Sensing Head */}
-                            <rect
-                              x="4"
-                              y="36"
-                              width="16"
-                              height="28"
-                              rx="3"
+                          {/* 1. Face Sensora Ativa no Topo (apontando verticalmente a 90° para a trajetória da esfera da haste) */}
+                          <g id="sensor-sensing-face-90deg">
+                            {/* Protruding Plastic Sensing Head (Face convexa no topo) */}
+                            <path
+                              d="M 41 24 C 41 12, 69 12, 69 24 Z"
                               fill={techConfig.faceColor}
                               stroke={techConfig.faceStroke}
                               strokeWidth="1.2"
                             />
-                            {/* Front face rim chamfer */}
-                            <rect
-                              x="3"
-                              y="38"
-                              width="4"
-                              height="24"
-                              rx="2"
+                            {/* Face rim chamfer superior */}
+                            <ellipse
+                              cx="55"
+                              cy="15"
+                              rx="10"
+                              ry="4"
                               fill={isActuated ? '#ffffff' : techConfig.faceColor}
-                              opacity={isActuated ? 0.95 : 0.7}
+                              opacity={isActuated ? 0.95 : 0.75}
                             />
 
-                            {/* Marcação Exata do CENTRO DA FACE INDICADA (Ponto de Atuação) */}
-                            <g transform="translate(13, 50)">
+                            {/* Marcação Exata do CENTRO DA FACE SENSORA ATIVA (55, 14) */}
+                            <g transform="translate(55, 14)">
                               {/* Alvo concêntrico de centro */}
                               <circle
                                 cx="0"
                                 cy="0"
-                                r="5.5"
+                                r="5"
                                 fill="none"
                                 stroke="#ffffff"
-                                strokeWidth="1"
+                                strokeWidth="0.9"
                                 strokeDasharray={isActuated ? undefined : "2 2"}
                                 opacity="0.9"
                               />
-                              <line x1="-7" y1="0" x2="7" y2="0" stroke={isActuated ? "#fbbf24" : "#ffffff"} strokeWidth="0.8" />
-                              <line x1="0" y1="-7" x2="0" y2="7" stroke={isActuated ? "#fbbf24" : "#ffffff"} strokeWidth="0.8" />
-                              <circle
-                                cx="0"
-                                cy="0"
-                                r="2"
-                                fill={isActuated ? "#fbbf24" : "#ffffff"}
-                              />
+                              <line x1="-6" y1="0" x2="6" y2="0" stroke={isActuated ? "#fbbf24" : "#ffffff"} strokeWidth="0.8" />
+                              <line x1="0" y1="-6" x2="0" y2="6" stroke={isActuated ? "#fbbf24" : "#ffffff"} strokeWidth="0.8" />
+                              <circle cx="0" cy="0" r="1.8" fill={isActuated ? "#fbbf24" : "#ffffff"} />
 
-                              {/* Atuação e irradiação no centro da face indicada */}
+                              {/* Indução por Proximidade e feixe vertical para cima em direção à esfera */}
                               {isActuated && (
                                 <g>
-                                  <circle cx="0" cy="0" r="14" fill="none" stroke={techConfig.faceColor} strokeWidth="1.5" className="animate-ping" opacity="0.8" />
-                                  <circle cx="0" cy="0" r="20" fill={techConfig.glowColor} />
-                                  <line x1="-5" y1="0" x2="-26" y2="0" stroke={techConfig.faceColor} strokeWidth="2.5" strokeDasharray="3 2" />
-                                  <circle cx="-26" cy="0" r="3.5" fill="#34d399" />
+                                  <circle cx="0" cy="0" r="12" fill="none" stroke={techConfig.faceColor} strokeWidth="1.5" className="animate-ping" opacity="0.85" />
+                                  <circle cx="0" cy="0" r="18" fill={techConfig.glowColor} />
+                                  {/* Feixe vertical de detecção sem contato subindo até a esfera */}
+                                  <line x1="0" y1="-4" x2="0" y2="-24" stroke="#34d399" strokeWidth="2.5" strokeDasharray="3 2" />
+                                  <circle cx="0" cy="-24" r="3.5" fill="#34d399" />
                                 </g>
                               )}
                             </g>
 
-                            {/* Indicador visual de Face Ativa */}
+                            {/* Indicador de 90° e Face Ativa */}
                             <text
-                              x="13"
-                              y="31"
-                              fill={techConfig.accent}
-                              fontSize="6"
+                              x="55"
+                              y="8"
+                              fill={isActuated ? "#34d399" : techConfig.accent}
+                              fontSize="5.8"
                               fontWeight="900"
                               fontFamily="'JetBrains Mono'"
                               textAnchor="middle"
                             >
-                              FACE ATIVA
+                              {isActuated ? "⌖ ALINHADO (90°)" : "FACE ATIVA 90°"}
                             </text>
                           </g>
 
-                          {/* Suporte Metálico de Fixação no Trilho */}
-                          <g id="sensor-rail-bracket" transform="translate(32, 68)">
-                            <rect x="0" y="0" width="30" height="18" rx="2" fill="#334155" stroke="#64748b" strokeWidth="1" />
-                            <rect x="5" y="10" width="20" height="8" rx="1" fill="#090f1d" stroke={isSnapped ? "#38bdf8" : "#475569"} strokeWidth="0.8" />
-                            <circle cx="15" cy="5" r="3" fill="#1e293b" stroke="#cbd5e1" strokeWidth="0.8" />
-                            <circle cx="15" cy="5" r="1.5" fill={isSnapped ? "#38bdf8" : "#94a3b8"} />
-                            <text x="15" y="24" fill={isSnapped ? "#38bdf8" : "#64748b"} fontSize="5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
-                              {isSnapped ? "TRILHO 🧲" : "SUPORTE"}
-                            </text>
-                          </g>
-
-                          {/* 2. Corpo Cilíndrico Metálico Roscado (M18 Barrel) */}
-                          <g id="sensor-threaded-barrel">
-                            {/* Base metálica com gradiente niquelado */}
+                          {/* 2. Suporte Metálico de Fixação no Trilho Guia do Cilindro */}
+                          <g id="sensor-rail-bracket" transform="translate(18, 32)">
+                            {/* Chapa base do suporte acoplado ao trilho ranhurado */}
                             <rect
-                              x="20"
-                              y="38"
-                              width="92"
-                              height="24"
+                              x="0"
+                              y="0"
+                              width="74"
+                              height="20"
+                              rx="2.5"
+                              fill="#1e293b"
+                              stroke={isSnapped ? "#38bdf8" : "#475569"}
+                              strokeWidth={isSnapped ? "1.5" : "1"}
+                            />
+                            {/* Encaixe guia magnético central que trava no perfil do trilho */}
+                            <rect
+                              x="4"
+                              y="3"
+                              width="66"
+                              height="14"
+                              rx="1.5"
+                              fill="#090f1d"
+                              stroke={isSnapped ? "#38bdf8" : "#334155"}
+                              strokeWidth="0.8"
+                            />
+                            {/* Parafusos de retenção e fixação */}
+                            <circle cx="8" cy="10" r="2.5" fill="#334155" stroke="#94a3b8" strokeWidth="0.6" />
+                            <circle cx="66" cy="10" r="2.5" fill="#334155" stroke="#94a3b8" strokeWidth="0.6" />
+
+                            {/* Status de Fixação Magnética ao Trilho */}
+                            <text
+                              x="37"
+                              y="12.5"
+                              fill={isSnapped ? "#38bdf8" : "#64748b"}
+                              fontSize="5.2"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono'"
+                              textAnchor="middle"
+                            >
+                              {isSnapped ? "🧲 FIXADO NO TRILHO ◄►" : "GUIA DO TRILHO"}
+                            </text>
+                          </g>
+
+                          {/* 3. Corpo Cilíndrico Metálico Roscado Vertical (M18 Barrel) */}
+                          <g id="sensor-threaded-barrel-vertical">
+                            {/* Base metálica vertical roscada M18 */}
+                            <rect
+                              x="43"
+                              y="24"
+                              width="24"
+                              height="65"
                               rx="2"
                               fill="#64748b"
                               stroke="#475569"
                               strokeWidth="1"
                             />
-                            {/* Linhas de rosca fina milimétrica (M18) */}
-                            {[23, 27, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108].map(rx => (
+                            {/* Linhas de rosca fina milimétrica horizontais (M18x1) */}
+                            {[26, 29, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85].map(ry => (
                               <line
-                                key={rx}
-                                x1={rx}
-                                y1="38.5"
-                                x2={rx}
-                                y2="61.5"
+                                key={ry}
+                                x1="43.5"
+                                y1={ry}
+                                x2="66.5"
+                                y2={ry}
                                 stroke="#94a3b8"
-                                strokeWidth="1"
-                                opacity="0.75"
+                                strokeWidth="0.9"
+                                opacity="0.8"
                               />
                             ))}
 
-                            {/* Porca Sextavada Dianteira (Hex Lock Nut 1) */}
+                            {/* Porca Sextavada Superior (Hex Lock Nut 1) */}
                             <rect
-                              x="31"
-                              y="31"
-                              width="12"
-                              height="38"
-                              rx="2"
+                              x="35"
+                              y="34"
+                              width="40"
+                              height="10"
+                              rx="1.5"
                               fill="#94a3b8"
                               stroke="#475569"
-                              strokeWidth="1.2"
+                              strokeWidth="1"
                             />
-                            <line x1="37" y1="31" x2="37" y2="69" stroke="#cbd5e1" strokeWidth="1" />
-                            
+                            <line x1="35" y1="39" x2="75" y2="39" stroke="#cbd5e1" strokeWidth="0.8" />
+
                             {/* Arruela de pressão metálica (Washer) */}
                             <rect
-                              x="43"
-                              y="30"
-                              width="3.5"
-                              height="40"
-                              rx="1"
+                              x="34"
+                              y="44"
+                              width="42"
+                              height="3"
+                              rx="0.8"
                               fill="#64748b"
                               stroke="#334155"
-                              strokeWidth="0.8"
+                              strokeWidth="0.7"
                             />
 
-                            {/* Porca Sextavada Traseira (Hex Lock Nut 2) */}
+                            {/* Porca Sextavada Inferior (Hex Lock Nut 2) */}
                             <rect
-                              x="46.5"
-                              y="31"
-                              width="12"
-                              height="38"
-                              rx="2"
+                              x="35"
+                              y="47"
+                              width="40"
+                              height="10"
+                              rx="1.5"
                               fill="#94a3b8"
                               stroke="#475569"
-                              strokeWidth="1.2"
+                              strokeWidth="1"
                             />
-                            <line x1="52.5" y1="31" x2="52.5" y2="69" stroke="#cbd5e1" strokeWidth="1" />
+                            <line x1="35" y1="52" x2="75" y2="52" stroke="#cbd5e1" strokeWidth="0.8" />
 
                             {/* Etiqueta Técnica Gravada no Corpo do Sensor */}
                             {/* Requisito: Escrito Indutivo, Capacitivo, Magnético e Óptico em seu corpo */}
                             {/* e sua identificação deverá continuar sendo exemplo 1S1, 1S2... */}
                             <rect
-                              x="62"
-                              y="40"
-                              width="42"
-                              height="20"
+                              x="37"
+                              y="60"
+                              width="36"
+                              height="19"
                               rx="2"
                               fill="#f8fafc"
                               stroke="#94a3b8"
@@ -1704,22 +1727,22 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             />
                             {/* Identificação (ex: 1S1, 1S2) */}
                             <text
-                              x="83"
-                              y="48.5"
+                              x="55"
+                              y="68"
                               fill="#0f172a"
-                              fontSize="8"
+                              fontSize="7.5"
                               fontWeight="900"
                               fontFamily="'JetBrains Mono'"
                               textAnchor="middle"
                             >
                               {comp.tag}
                             </text>
-                            {/* Tipo por extenso escrito no corpo: Indutivo / Capacitivo / Magnético / Óptico */}
+                            {/* Tipo por extenso gravado no corpo */}
                             <text
-                              x="83"
-                              y="56.5"
+                              x="55"
+                              y="75.5"
                               fill={techConfig.faceStroke}
-                              fontSize="6.5"
+                              fontSize="5.8"
                               fontWeight="bold"
                               fontFamily="'JetBrains Mono'"
                               textAnchor="middle"
@@ -1727,139 +1750,136 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                               {techConfig.name}
                             </text>
 
-                            {/* LED de Atuação Traseiro (Amarelo Âmbar industrial) */}
+                            {/* LEDs Indicadores Industriais */}
+                            {/* LED Amarelo Âmbar de Atuação / Comutação */}
                             <circle
-                              cx="107"
-                              cy="43"
-                              r="3"
+                              cx="48"
+                              cy="83"
+                              r="2.8"
                               fill={isActuated ? '#f59e0b' : '#334155'}
                               stroke={isActuated ? '#fbbf24' : '#1e293b'}
                               strokeWidth="0.8"
                             />
                             {isActuated && (
-                              <circle cx="107" cy="43" r="6" fill="#f59e0b" opacity="0.6" className="animate-pulse" />
+                              <circle cx="48" cy="83" r="5.5" fill="#f59e0b" opacity="0.6" className="animate-pulse" />
                             )}
 
-                            {/* LED de Alimentação (PWR OK / SEM PWR) */}
+                            {/* LED Verde de Alimentação (PWR OK) */}
                             <circle
-                              cx="107"
-                              cy="57"
-                              r="2.5"
+                              cx="62"
+                              cy="83"
+                              r="2.4"
                               fill={isPowerOk ? '#10b981' : '#ef4444'}
                             />
                             <text
-                              x="107"
-                              y="69"
+                              x="55"
+                              y="88.5"
                               fill={isPowerOk ? '#34d399' : '#f87171'}
-                              fontSize="5.5"
+                              fontSize="4.8"
                               fontWeight="bold"
                               fontFamily="'JetBrains Mono'"
                               textAnchor="middle"
                             >
-                              {isPowerOk ? 'PWR' : '!PWR'}
+                              {isPowerOk ? 'PWR OK' : '!PWR'}
                             </text>
 
-                            {/* Prensa-cabo / Strain relief azul na saída traseira (igual à foto) */}
+                            {/* Prensa-cabo / Strain relief azul industrial na parte inferior */}
                             <rect
-                              x="112"
-                              y="44"
-                              width="10"
-                              height="12"
-                              rx="2"
+                              x="49"
+                              y="89"
+                              width="12"
+                              height="9"
+                              rx="1.5"
                               fill="#0284c7"
                               stroke="#0369a1"
                               strokeWidth="1"
                             />
                           </g>
 
-                          {/* 3. Pedaço de Cabo Preto Flexível saindo do sensor */}
-                          <g id="sensor-cable-grommet">
-                            {/* Cabo preto emborrachado curvando suavemente */}
+                          {/* 4. Cabo Preto Flexível saindo para baixo */}
+                          <g id="sensor-cable-grommet-vertical">
                             <path
-                              d="M 122 50 C 136 50, 144 50, 158 50"
+                              d="M 55 98 L 55 118"
                               fill="none"
                               stroke="#0f172a"
-                              strokeWidth="8"
+                              strokeWidth="7"
                               strokeLinecap="round"
                             />
                             <path
-                              d="M 122 50 C 136 50, 144 50, 158 50"
+                              d="M 55 98 L 55 118"
                               fill="none"
                               stroke="#334155"
-                              strokeWidth="2.5"
+                              strokeWidth="2.2"
                               strokeLinecap="round"
                             />
-                            {/* Luva termorretrátil de terminação do cabo principal */}
-                            <rect x="154" y="45" width="6" height="10" rx="1.5" fill="#1e293b" stroke="#475569" strokeWidth="0.8" />
+                            {/* Luva termorretrátil de terminação do chicote */}
+                            <rect x="50" y="114" width="10" height="5" rx="1" fill="#1e293b" stroke="#475569" strokeWidth="0.7" />
                           </g>
 
-                          {/* 4. Chicote de Fios Individuais Coloridos com Círculos de Conexão */}
-                          <g id="sensor-wire-leads">
+                          {/* 5. Chicote de Fios Individuais com Bornes Circulares Identificados */}
+                          <g id="sensor-wire-leads-vertical">
                             {wires === '3_wires' && (
                               <g>
-                                {/* Fio Marrom (BN: +24V) */}
+                                {/* Fio Marrom (BN: +24V) - Esquerda */}
                                 <path
-                                  d="M 158 50 C 170 50, 178 24, 194 24"
+                                  d="M 55 118 C 55 132, 20 132, 20 146"
                                   fill="none"
                                   stroke="#92400e"
-                                  strokeWidth="3.5"
+                                  strokeWidth="3"
                                   strokeLinecap="round"
                                 />
                                 <path
-                                  d="M 158 50 C 170 50, 178 24, 194 24"
+                                  d="M 55 118 C 55 132, 20 132, 20 146"
                                   fill="none"
                                   stroke="#b45309"
-                                  strokeWidth="1"
+                                  strokeWidth="0.9"
                                   strokeLinecap="round"
                                 />
-                                {/* Círculo identificado pelo fio: BN */}
-                                <circle cx="194" cy="24" r="8.5" fill="#451a03" stroke="#92400e" strokeWidth="2" />
-                                <circle cx="194" cy="24" r="4.5" fill="#78350f" />
-                                <text x="178" y="16" fill="#fbbf24" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono'">
+                                <circle cx="20" cy="146" r="8" fill="#451a03" stroke="#92400e" strokeWidth="1.8" />
+                                <circle cx="20" cy="146" r="4" fill="#78350f" />
+                                <text x="20" y="136" fill="#fbbf24" fontSize="5.8" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
                                   BN (+24V)
                                 </text>
 
-                                {/* Fio Preto (BK: Sinal NA) */}
+                                {/* Fio Preto (BK: Sinal NA) - Centro */}
                                 <path
-                                  d="M 158 50 L 194 50"
+                                  d="M 55 118 L 55 146"
                                   fill="none"
                                   stroke="#0f172a"
-                                  strokeWidth="4"
-                                  strokeLinecap="round"
-                                />
-                                <path
-                                  d="M 158 50 L 194 50"
-                                  fill="none"
-                                  stroke="#475569"
-                                  strokeWidth="1.2"
-                                  strokeLinecap="round"
-                                />
-                                {/* Círculo identificado pelo fio: BK */}
-                                <circle cx="194" cy="50" r="8.5" fill="#020617" stroke="#475569" strokeWidth="2" />
-                                <circle cx="194" cy="50" r="4.5" fill="#1e293b" />
-                                <text x="178" y="42" fill="#e2e8f0" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono'">
-                                  BK (Sinal)
-                                </text>
-
-                                {/* Fio Azul (BU: 0V) */}
-                                <path
-                                  d="M 158 50 C 170 50, 178 76, 194 76"
-                                  fill="none"
-                                  stroke="#1d4ed8"
                                   strokeWidth="3.5"
                                   strokeLinecap="round"
                                 />
                                 <path
-                                  d="M 158 50 C 170 50, 178 76, 194 76"
+                                  d="M 55 118 L 55 146"
                                   fill="none"
-                                  stroke="#3b82f6"
+                                  stroke="#475569"
                                   strokeWidth="1"
                                   strokeLinecap="round"
                                 />
-                                {/* Círculo identificado pelo fio: BU */}
-                                <circle cx="194" cy="76" r="8.5" fill="#172554" stroke="#2563eb" strokeWidth="2" />
-                                <circle cx="194" cy="76" r="4.5" fill="#1e40af" />
-                                <text x="178" y="93" fill="#93c5fd" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono'">
+                                <circle cx="55" cy="146" r="8" fill="#020617" stroke="#475569" strokeWidth="1.8" />
+                                <circle cx="55" cy="146" r="4" fill="#1e293b" />
+                                <text x="55" y="136" fill="#e2e8f0" fontSize="5.8" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                                  BK (Sinal)
+                                </text>
+
+                                {/* Fio Azul (BU: 0V) - Direita */}
+                                <path
+                                  d="M 55 118 C 55 132, 90 132, 90 146"
+                                  fill="none"
+                                  stroke="#1d4ed8"
+                                  strokeWidth="3"
+                                  strokeLinecap="round"
+                                />
+                                <path
+                                  d="M 55 118 C 55 132, 90 132, 90 146"
+                                  fill="none"
+                                  stroke="#3b82f6"
+                                  strokeWidth="0.9"
+                                  strokeLinecap="round"
+                                />
+                                <circle cx="90" cy="146" r="8" fill="#172554" stroke="#2563eb" strokeWidth="1.8" />
+                                <circle cx="90" cy="146" r="4" fill="#1e40af" />
+                                <text x="90" y="136" fill="#93c5fd" fontSize="5.8" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
                                   BU (0V)
                                 </text>
                               </g>
@@ -1868,47 +1888,47 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             {wires === '4_wires' && (
                               <g>
                                 {/* Fio Marrom (BN) */}
-                                <path d="M 158 50 C 170 50, 178 18, 194 18" fill="none" stroke="#92400e" strokeWidth="3" strokeLinecap="round" />
-                                <circle cx="194" cy="18" r="8" fill="#451a03" stroke="#92400e" strokeWidth="2" />
-                                <text x="176" y="11" fill="#fbbf24" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'">BN (+24V)</text>
+                                <path d="M 55 118 C 55 132, 16 132, 16 146" fill="none" stroke="#92400e" strokeWidth="2.5" strokeLinecap="round" />
+                                <circle cx="16" cy="146" r="7.5" fill="#451a03" stroke="#92400e" strokeWidth="1.6" />
+                                <text x="16" y="136" fill="#fbbf24" fontSize="5.2" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">BN (+24V)</text>
 
                                 {/* Fio Branco (WH - Sinal NF) */}
-                                <path d="M 158 50 C 172 50, 178 39, 194 39" fill="none" stroke="#e2e8f0" strokeWidth="3" strokeLinecap="round" />
-                                <circle cx="194" cy="39" r="8" fill="#334155" stroke="#f8fafc" strokeWidth="2" />
-                                <text x="176" y="32" fill="#ffffff" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'">WH (NF)</text>
+                                <path d="M 55 118 C 55 132, 42 132, 42 146" fill="none" stroke="#e2e8f0" strokeWidth="2.5" strokeLinecap="round" />
+                                <circle cx="42" cy="146" r="7.5" fill="#334155" stroke="#f8fafc" strokeWidth="1.6" />
+                                <text x="42" y="136" fill="#ffffff" fontSize="5.2" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">WH (NF)</text>
 
                                 {/* Fio Preto (BK - Sinal NA) */}
-                                <path d="M 158 50 C 172 50, 178 61, 194 61" fill="none" stroke="#0f172a" strokeWidth="3.5" strokeLinecap="round" />
-                                <circle cx="194" cy="61" r="8" fill="#020617" stroke="#475569" strokeWidth="2" />
-                                <text x="176" y="54" fill="#e2e8f0" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'">BK (NA)</text>
+                                <path d="M 55 118 C 55 132, 68 132, 68 146" fill="none" stroke="#0f172a" strokeWidth="3" strokeLinecap="round" />
+                                <circle cx="68" cy="146" r="7.5" fill="#020617" stroke="#475569" strokeWidth="1.6" />
+                                <text x="68" y="136" fill="#e2e8f0" fontSize="5.2" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">BK (NA)</text>
 
                                 {/* Fio Azul (BU - 0V) */}
-                                <path d="M 158 50 C 170 50, 178 82, 194 82" fill="none" stroke="#1d4ed8" strokeWidth="3" strokeLinecap="round" />
-                                <circle cx="194" cy="82" r="8" fill="#172554" stroke="#2563eb" strokeWidth="2" />
-                                <text x="176" y="97" fill="#93c5fd" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'">BU (0V)</text>
+                                <path d="M 55 118 C 55 132, 94 132, 94 146" fill="none" stroke="#1d4ed8" strokeWidth="2.5" strokeLinecap="round" />
+                                <circle cx="94" cy="146" r="7.5" fill="#172554" stroke="#2563eb" strokeWidth="1.6" />
+                                <text x="94" y="136" fill="#93c5fd" fontSize="5.2" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">BU (0V)</text>
                               </g>
                             )}
 
                             {wires === '2_wires' && (
                               <g>
                                 {/* Fio Marrom (BN - L+) */}
-                                <path d="M 158 50 C 170 50, 178 34, 194 34" fill="none" stroke="#92400e" strokeWidth="3.5" strokeLinecap="round" />
-                                <circle cx="194" cy="34" r="8.5" fill="#451a03" stroke="#92400e" strokeWidth="2" />
-                                <text x="176" y="25" fill="#fbbf24" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono'">BN (+24V)</text>
+                                <path d="M 55 118 C 55 132, 35 132, 35 146" fill="none" stroke="#92400e" strokeWidth="3" strokeLinecap="round" />
+                                <circle cx="35" cy="146" r="8" fill="#451a03" stroke="#92400e" strokeWidth="1.8" />
+                                <text x="35" y="136" fill="#fbbf24" fontSize="5.8" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">BN (+24V)</text>
 
                                 {/* Fio Azul (BU - Sinal/Carga) */}
-                                <path d="M 158 50 C 170 50, 178 66, 194 66" fill="none" stroke="#1d4ed8" strokeWidth="3.5" strokeLinecap="round" />
-                                <circle cx="194" cy="66" r="8.5" fill="#172554" stroke="#2563eb" strokeWidth="2" />
-                                <text x="176" y="82" fill="#93c5fd" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono'">BU (Sinal/0V)</text>
+                                <path d="M 55 118 C 55 132, 75 132, 75 146" fill="none" stroke="#1d4ed8" strokeWidth="3" strokeLinecap="round" />
+                                <circle cx="75" cy="146" r="8" fill="#172554" stroke="#2563eb" strokeWidth="1.8" />
+                                <text x="75" y="136" fill="#93c5fd" fontSize="5.8" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">BU (Sinal/0V)</text>
                               </g>
                             )}
                           </g>
 
                           {/* Aviso se desconectado da alimentação */}
                           {!isPowerOk && (
-                            <g transform="translate(60, 74)">
-                              <rect x="0" y="0" width="70" height="11" rx="2" fill="#7f1d1d" opacity="0.9" />
-                              <text x="35" y="8" fill="#fecaca" fontSize="5.8" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                            <g transform="translate(15, 99)">
+                              <rect x="0" y="0" width="80" height="11" rx="2" fill="#7f1d1d" opacity="0.92" />
+                              <text x="40" y="8" fill="#fecaca" fontSize="5.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
                                 ⚠️ SEM ALIMENTAÇÃO
                               </text>
                             </g>

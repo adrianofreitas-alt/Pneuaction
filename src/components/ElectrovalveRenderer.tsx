@@ -42,65 +42,95 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
       {/* SVG DEFINITIONS & GRADIENTS                                         */}
       {/* ------------------------------------------------------------------- */}
       <defs>
+        <style>{`
+          @keyframes airFlowDashPos2_${comp.id} {
+            from { stroke-dashoffset: 24; }
+            to { stroke-dashoffset: 0; }
+          }
+          @keyframes airFlowDashPos1_${comp.id} {
+            from { stroke-dashoffset: 0; }
+            to { stroke-dashoffset: 24; }
+          }
+          @keyframes ledPulse_${comp.id} {
+            0%, 100% { opacity: 0.88; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.08); }
+          }
+          .animate-flow-dash-2-${comp.id} {
+            animation: airFlowDashPos2_${comp.id} 0.65s linear infinite;
+          }
+          .animate-flow-dash-1-${comp.id} {
+            animation: airFlowDashPos1_${comp.id} 0.65s linear infinite;
+          }
+        `}</style>
+
         {/* Aluminum Machined Body Texture */}
         <linearGradient id={`alu-body-${comp.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#e2e8f0" />
-          <stop offset="25%" stopColor="#cbd5e1" />
+          <stop offset="0%" stopColor="#f1f5f9" />
+          <stop offset="20%" stopColor="#cbd5e1" />
           <stop offset="50%" stopColor="#94a3b8" />
-          <stop offset="75%" stopColor="#cbd5e1" />
-          <stop offset="100%" stopColor="#64748b" />
+          <stop offset="80%" stopColor="#cbd5e1" />
+          <stop offset="100%" stopColor="#475569" />
         </linearGradient>
 
         {/* Polished Chrome Spool */}
         <linearGradient id={`spool-metal-${comp.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#f8fafc" />
-          <stop offset="30%" stopColor="#94a3b8" />
-          <stop offset="50%" stopColor="#f1f5f9" />
-          <stop offset="85%" stopColor="#475569" />
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="25%" stopColor="#cbd5e1" />
+          <stop offset="50%" stopColor="#f8fafc" />
+          <stop offset="75%" stopColor="#64748b" />
           <stop offset="100%" stopColor="#1e293b" />
         </linearGradient>
 
-        {/* Glass Reflection Gradient */}
+        {/* Ultra-Clear Laboratory Borosilicate Glass Gradient */}
         <linearGradient id={`glass-shine-${comp.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.28" />
-          <stop offset="25%" stopColor="#bae6fd" stopOpacity="0.12" />
-          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.35" />
-          <stop offset="75%" stopColor="#0284c7" stopOpacity="0.10" />
-          <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.22" />
+          <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.22" />
+          <stop offset="20%" stopColor="#ffffff" stopOpacity="0.32" />
+          <stop offset="45%" stopColor="#38bdf8" stopOpacity="0.08" />
+          <stop offset="70%" stopColor="#ffffff" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="#0284c7" stopOpacity="0.18" />
+        </linearGradient>
+
+        {/* Internal Chamber Depth Gradient */}
+        <linearGradient id={`chamber-depth-${comp.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#050811" />
+          <stop offset="50%" stopColor="#0b1329" />
+          <stop offset="100%" stopColor="#030712" />
         </linearGradient>
 
         {/* High-Pressure Air Flow Gradient (P -> Red/Orange) */}
         <linearGradient id={`flow-pressure-${comp.id}`} x1="0%" y1="100%" x2="0%" y2="0%">
-          <stop offset="0%" stopColor="#ef4444" stopOpacity="0.85" />
-          <stop offset="50%" stopColor="#f97316" stopOpacity="0.8" />
-          <stop offset="100%" stopColor="#facc15" stopOpacity="0.9" />
+          <stop offset="0%" stopColor="#dc2626" stopOpacity="0.9" />
+          <stop offset="40%" stopColor="#ea580c" stopOpacity="0.88" />
+          <stop offset="80%" stopColor="#f59e0b" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#fef08a" stopOpacity="0.95" />
         </linearGradient>
 
         {/* Exhaust Air Flow Gradient (Exhaust -> Blue/Cyan) */}
         <linearGradient id={`flow-exhaust-${comp.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="#0284c7" stopOpacity="0.75" />
+          <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.9" />
+          <stop offset="60%" stopColor="#0284c7" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="#1e40af" stopOpacity="0.8" />
         </linearGradient>
 
         {/* Solenoid Coil Dark Resin Gradient */}
         <linearGradient id={`coil-resin-${comp.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#0f172a" />
-          <stop offset="20%" stopColor="#1e293b" />
-          <stop offset="60%" stopColor="#334155" />
+          <stop offset="0%" stopColor="#090d16" />
+          <stop offset="15%" stopColor="#1e293b" />
+          <stop offset="50%" stopColor="#334155" />
           <stop offset="85%" stopColor="#1e293b" />
-          <stop offset="100%" stopColor="#090d16" />
+          <stop offset="100%" stopColor="#050811" />
         </linearGradient>
 
         {/* Transparent Polycarbonate DIN Plug Glass */}
         <linearGradient id={`din-glass-${comp.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#f1f5f9" stopOpacity="0.5" />
-          <stop offset="40%" stopColor="#94a3b8" stopOpacity="0.25" />
-          <stop offset="70%" stopColor="#cbd5e1" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="#64748b" stopOpacity="0.3" />
+          <stop offset="0%" stopColor="#f8fafc" stopOpacity="0.6" />
+          <stop offset="35%" stopColor="#94a3b8" stopOpacity="0.25" />
+          <stop offset="70%" stopColor="#cbd5e1" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#475569" stopOpacity="0.35" />
         </linearGradient>
 
         {/* Glow filter for active solenoid & LED */}
-        <filter id={`led-glow-${comp.id}`} x="-30%" y="-30%" width="160%" height="160%">
+        <filter id={`led-glow-${comp.id}`} x="-40%" y="-40%" width="180%" height="180%">
           <feGaussianBlur stdDeviation="3.5" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
@@ -257,20 +287,19 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
       {/* ------------------------------------------------------------------- */}
       {showGlassCutaway ? (
         <g id="glass-cutaway-view">
-          {/* Glass Window Frame Chamfer */}
+          {/* Glass Chamber Deep Bore Cavity (Câmara Cilíndrica Retificada de Alta Precisão) */}
           <rect
             x="58"
             y="62"
             width="134"
             height="58"
             rx="5"
-            fill="#020617"
+            fill={`url(#chamber-depth-${comp.id})`}
             stroke="#38bdf8"
-            strokeWidth="1.5"
-            strokeDasharray="none"
+            strokeWidth="1.6"
           />
 
-          {/* Precision Machined Bore Background Corridor */}
+          {/* Internal Chamber Machined Bore Corridor */}
           <rect
             x="60"
             y="70"
@@ -278,93 +307,157 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
             height="42"
             rx="3"
             fill="#090d16"
+            stroke="#1e293b"
+            strokeWidth="0.8"
           />
 
-          {/* Vertical Gallery Ports connecting Bore to Exterior */}
-          {/* Port 4 Gallery (Top Left) */}
-          <rect x="91" y="62" width="8" height="12" fill={isLeftPos ? 'url(#flow-pressure-' + comp.id + ')' : 'url(#flow-exhaust-' + comp.id + ')'} opacity="0.85" />
-          {/* Port 2 Gallery (Top Right) */}
-          <rect x="151" y="62" width="8" height="12" fill={!isLeftPos ? 'url(#flow-pressure-' + comp.id + ')' : 'url(#flow-exhaust-' + comp.id + ')'} opacity="0.85" />
-          {/* Port 5 Gallery (Bottom Left) */}
-          <rect x="71" y="106" width="8" height="14" fill={!isLeftPos ? 'url(#flow-exhaust-' + comp.id + ')' : '#1e293b'} opacity={!isLeftPos ? 0.85 : 0.4} />
-          {/* Port 1 Gallery (Bottom Center) - Always supply */}
-          <rect x="121" y="106" width="8" height="14" fill={`url(#flow-pressure-${comp.id})`} opacity="0.9" />
-          {/* Port 3 Gallery (Bottom Right) */}
-          <rect x="171" y="106" width="8" height="14" fill={isLeftPos ? 'url(#flow-exhaust-' + comp.id + ')' : '#1e293b'} opacity={isLeftPos ? 0.85 : 0.4} />
+          {/* Machined Internal Annular Galleries (5 Galerias Anulares Usinadas) */}
+          {/* Gallery 4 (Top Left - Trabalho A) */}
+          <rect x="89" y="62" width="12" height="12" fill={isLeftPos ? `url(#flow-pressure-${comp.id})` : `url(#flow-exhaust-${comp.id})`} opacity="0.9" />
+          {/* Gallery 2 (Top Right - Trabalho B) */}
+          <rect x="149" y="62" width="12" height="12" fill={!isLeftPos ? `url(#flow-pressure-${comp.id})` : `url(#flow-exhaust-${comp.id})`} opacity="0.9" />
+          {/* Gallery 5 (Bottom Left - Escape S/EB) */}
+          <rect x="69" y="106" width="12" height="14" fill={!isLeftPos ? `url(#flow-exhaust-${comp.id})` : '#0f172a'} opacity={!isLeftPos ? 0.9 : 0.4} />
+          {/* Gallery 1 (Bottom Center - Alimentação P 6 bar) */}
+          <rect x="119" y="106" width="12" height="14" fill={`url(#flow-pressure-${comp.id})`} opacity="0.95" />
+          {/* Gallery 3 (Bottom Right - Escape R/EA) */}
+          <rect x="169" y="106" width="12" height="14" fill={isLeftPos ? `url(#flow-exhaust-${comp.id})` : '#0f172a'} opacity={isLeftPos ? 0.9 : 0.4} />
 
-          {/* DYNAMIC AIR FLOW PATHS INSIDE CHAMBER (Real-time dynamic fluidics) */}
+          {/* DYNAMIC AIR FLOW PATHS INSIDE CHAMBER (Real-time fluid dynamic streams) */}
           {isLeftPos ? (
-            // POSIÇÃO 2 (ENERGIZADA):
-            // 1 conecta em 4 (Pressão: vermelho / subindo)
-            // 2 conecta em 3 (Escape: azul / descendo)
-            // 5 está bloqueado
+            // POSIÇÃO 2 (ENERGIZADA): 1 -> 4 (Pressão) & 2 -> 3 (Escape)
             <g id="fluid-channels-pos2">
-              {/* Pressurized air from 1 (x=125, y=110) flowing into 4 (x=95, y=66) */}
+              {/* Pressurized air from 1 (P) flowing into 4 (A) */}
               <path
-                d="M 125 110 L 125 91 Q 125 78 110 78 L 100 78 Q 95 78 95 64"
+                d="M 125 110 L 125 90 Q 125 78 110 78 L 100 78 Q 95 78 95 64"
                 fill="none"
                 stroke={`url(#flow-pressure-${comp.id})`}
-                strokeWidth="7"
+                strokeWidth="8"
                 strokeLinecap="round"
-                opacity="0.85"
+                opacity="0.88"
               />
-              {/* Animated pressure arrows flowing 1 -> 4 */}
-              <circle cx="125" cy="100" r="2.5" fill="#ffffff" />
-              <polygon points="95,64 91,72 99,72" fill="#fef08a" />
+              {/* Animated high-speed dashed stream */}
+              <path
+                d="M 125 110 L 125 90 Q 125 78 110 78 L 100 78 Q 95 78 95 64"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeDasharray="6 4"
+                className={`animate-flow-dash-2-${comp.id}`}
+                opacity="0.9"
+              />
+              <polygon points="95,64 91,73 99,73" fill="#fef08a" />
 
-              {/* Exhaust air from 2 (x=155, y=64) flowing down into 3 (x=175, y=110) */}
+              {/* Exhaust air from 2 (B) flowing down into 3 (S) */}
               <path
                 d="M 155 64 L 155 82 Q 155 94 165 94 L 170 94 Q 175 94 175 110"
                 fill="none"
                 stroke={`url(#flow-exhaust-${comp.id})`}
-                strokeWidth="6"
-                strokeLinecap="round"
-                opacity="0.8"
-              />
-              <polygon points="175,110 171,102 179,102" fill="#38bdf8" />
-
-              {/* Port 5 Blocked indicator */}
-              <g transform="translate(75, 96)">
-                <circle cx="0" cy="0" r="4.5" fill="#7f1d1d" stroke="#ef4444" strokeWidth="1" />
-                <line x1="-2.5" y1="-2.5" x2="2.5" y2="2.5" stroke="#ffffff" strokeWidth="1" />
-                <line x1="2.5" y1="-2.5" x2="-2.5" y2="2.5" stroke="#ffffff" strokeWidth="1" />
-              </g>
-            </g>
-          ) : (
-            // POSIÇÃO 1 (DESENERGIZADA):
-            // 1 conecta em 2 (Pressão: vermelho / subindo)
-            // 4 conecta em 5 (Escape: azul / descendo)
-            // 3 está bloqueado
-            <g id="fluid-channels-pos1">
-              {/* Pressurized air from 1 (x=125, y=110) flowing into 2 (x=155, y=64) */}
-              <path
-                d="M 125 110 L 125 91 Q 125 78 140 78 L 150 78 Q 155 78 155 64"
-                fill="none"
-                stroke={`url(#flow-pressure-${comp.id})`}
                 strokeWidth="7"
                 strokeLinecap="round"
                 opacity="0.85"
               />
-              <circle cx="125" cy="100" r="2.5" fill="#ffffff" />
-              <polygon points="155,64 151,72 159,72" fill="#fef08a" />
+              <path
+                d="M 155 64 L 155 82 Q 155 94 165 94 L 170 94 Q 175 94 175 110"
+                fill="none"
+                stroke="#bae6fd"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeDasharray="5 4"
+                className={`animate-flow-dash-2-${comp.id}`}
+                opacity="0.9"
+              />
+              <polygon points="175,110 171,101 179,101" fill="#38bdf8" />
 
-              {/* Exhaust air from 4 (x=95, y=64) flowing down into 5 (x=75, y=110) */}
+              {/* Port 5 (S) Blocked seal indicator */}
+              <g transform="translate(75, 96)">
+                <circle cx="0" cy="0" r="5" fill="#7f1d1d" stroke="#ef4444" strokeWidth="1.2" />
+                <line x1="-3" y1="-3" x2="3" y2="3" stroke="#ffffff" strokeWidth="1.2" />
+                <line x1="3" y1="-3" x2="-3" y2="3" stroke="#ffffff" strokeWidth="1.2" />
+              </g>
+            </g>
+          ) : (
+            // POSIÇÃO 1 (DESENERGIZADA / MOLA): 1 -> 2 (Pressão) & 4 -> 5 (Escape)
+            <g id="fluid-channels-pos1">
+              {/* Pressurized air from 1 (P) flowing into 2 (B) */}
+              <path
+                d="M 125 110 L 125 90 Q 125 78 140 78 L 150 78 Q 155 78 155 64"
+                fill="none"
+                stroke={`url(#flow-pressure-${comp.id})`}
+                strokeWidth="8"
+                strokeLinecap="round"
+                opacity="0.88"
+              />
+              <path
+                d="M 125 110 L 125 90 Q 125 78 140 78 L 150 78 Q 155 78 155 64"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeDasharray="6 4"
+                className={`animate-flow-dash-1-${comp.id}`}
+                opacity="0.9"
+              />
+              <polygon points="155,64 151,73 159,73" fill="#fef08a" />
+
+              {/* Exhaust air from 4 (A) flowing down into 5 (R) */}
               <path
                 d="M 95 64 L 95 82 Q 95 94 85 94 L 80 94 Q 75 94 75 110"
                 fill="none"
                 stroke={`url(#flow-exhaust-${comp.id})`}
-                strokeWidth="6"
+                strokeWidth="7"
                 strokeLinecap="round"
-                opacity="0.8"
+                opacity="0.85"
               />
-              <polygon points="75,110 71,102 79,102" fill="#38bdf8" />
+              <path
+                d="M 95 64 L 95 82 Q 95 94 85 94 L 80 94 Q 75 94 75 110"
+                fill="none"
+                stroke="#bae6fd"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeDasharray="5 4"
+                className={`animate-flow-dash-1-${comp.id}`}
+                opacity="0.9"
+              />
+              <polygon points="75,110 71,101 79,101" fill="#38bdf8" />
 
-              {/* Port 3 Blocked indicator */}
+              {/* Port 3 (R) Blocked seal indicator */}
               <g transform="translate(175, 96)">
-                <circle cx="0" cy="0" r="4.5" fill="#7f1d1d" stroke="#ef4444" strokeWidth="1" />
-                <line x1="-2.5" y1="-2.5" x2="2.5" y2="2.5" stroke="#ffffff" strokeWidth="1" />
-                <line x1="2.5" y1="-2.5" x2="-2.5" y2="2.5" stroke="#ffffff" strokeWidth="1" />
+                <circle cx="0" cy="0" r="5" fill="#7f1d1d" stroke="#ef4444" strokeWidth="1.2" />
+                <line x1="-3" y1="-3" x2="3" y2="3" stroke="#ffffff" strokeWidth="1.2" />
+                <line x1="3" y1="-3" x2="-3" y2="3" stroke="#ffffff" strokeWidth="1.2" />
               </g>
+            </g>
+          )}
+
+          {/* --------------------------------------------------------------- */}
+          {/* PILOT ARMATURE MECHANISMS (INDUTO DO PILOTO DO SOLENOIDE)       */}
+          {/* --------------------------------------------------------------- */}
+          {/* Left Pilot Plunger (Y1) - Moves right when coil energizes */}
+          <g
+            id="pilot-plunger-left"
+            transform={`translate(${y1Active ? 6 : 0}, 0)`}
+            className="transition-transform duration-200"
+          >
+            {/* Plunger core steel pin */}
+            <rect x="46" y="87" width="10" height="8" rx="1.5" fill="#cbd5e1" stroke="#475569" strokeWidth="0.8" />
+            {/* Rubber sealing seat tip */}
+            <rect x="54" y="88.5" width="2.5" height="5" rx="1" fill={y1Active ? '#22c55e' : '#ef4444'} />
+            {/* Small pilot spring */}
+            <path d="M 46 91 L 43 89 L 41 93 L 39 89 L 37 91" fill="none" stroke="#94a3b8" strokeWidth="1" />
+          </g>
+
+          {/* Right Pilot Plunger (Y2) for Double Solenoid */}
+          {isDouble && (
+            <g
+              id="pilot-plunger-right"
+              transform={`translate(${y2Active ? -6 : 0}, 0)`}
+              className="transition-transform duration-200"
+            >
+              <rect x="194" y="87" width="10" height="8" rx="1.5" fill="#cbd5e1" stroke="#475569" strokeWidth="0.8" />
+              <rect x="193.5" y="88.5" width="2.5" height="5" rx="1" fill={y2Active ? '#22c55e' : '#ef4444'} />
+              <path d="M 204 91 L 207 89 L 209 93 L 211 89 L 213 91" fill="none" stroke="#94a3b8" strokeWidth="1" />
             </g>
           )}
 
@@ -378,9 +471,9 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           >
             {/* Polished Chrome Central Shaft */}
             <rect
-              x="62"
+              x="60"
               y="88"
-              width="126"
+              width="130"
               height="6"
               rx="2"
               fill={`url(#spool-metal-${comp.id})`}
@@ -389,56 +482,86 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
             />
 
             {/* Êmbolo 1 (Left Piston Land) */}
-            <g transform="translate(74, 72)">
-              <rect x="0" y="0" width="15" height="38" rx="2" fill={`url(#spool-metal-${comp.id})`} stroke="#1e293b" strokeWidth="1" />
-              {/* O-Ring Seals (Anéis de Vedação) */}
-              <rect x="2" y="0" width="3" height="38" rx="1" fill="#0f172a" />
-              <rect x="10" y="0" width="3" height="38" rx="1" fill="#0f172a" />
-              {/* Metallic highlight */}
-              <line x1="7.5" y1="2" x2="7.5" y2="36" stroke="#ffffff" strokeWidth="1" opacity="0.6" />
+            <g transform="translate(73, 71)">
+              <rect x="0" y="0" width="16" height="40" rx="2" fill={`url(#spool-metal-${comp.id})`} stroke="#1e293b" strokeWidth="1.2" />
+              {/* O-Ring Seals (Anéis de Vedação NBR Vulcanizados Pretos com Brilho) */}
+              <rect x="2" y="0" width="3.5" height="40" rx="1.2" fill="#090d16" stroke="#1e293b" strokeWidth="0.5" />
+              <rect x="10.5" y="0" width="3.5" height="40" rx="1.2" fill="#090d16" stroke="#1e293b" strokeWidth="0.5" />
+              <line x1="8" y1="2" x2="8" y2="38" stroke="#ffffff" strokeWidth="1" opacity="0.75" />
             </g>
 
             {/* Êmbolo 2 (Center Piston Land) */}
-            <g transform="translate(118, 72)">
-              <rect x="0" y="0" width="15" height="38" rx="2" fill={`url(#spool-metal-${comp.id})`} stroke="#1e293b" strokeWidth="1" />
-              <rect x="2" y="0" width="3" height="38" rx="1" fill="#0f172a" />
-              <rect x="10" y="0" width="3" height="38" rx="1" fill="#0f172a" />
-              <line x1="7.5" y1="2" x2="7.5" y2="36" stroke="#ffffff" strokeWidth="1" opacity="0.6" />
+            <g transform="translate(117, 71)">
+              <rect x="0" y="0" width="16" height="40" rx="2" fill={`url(#spool-metal-${comp.id})`} stroke="#1e293b" strokeWidth="1.2" />
+              <rect x="2" y="0" width="3.5" height="40" rx="1.2" fill="#090d16" stroke="#1e293b" strokeWidth="0.5" />
+              <rect x="10.5" y="0" width="3.5" height="40" rx="1.2" fill="#090d16" stroke="#1e293b" strokeWidth="0.5" />
+              <line x1="8" y1="2" x2="8" y2="38" stroke="#ffffff" strokeWidth="1" opacity="0.75" />
             </g>
 
             {/* Êmbolo 3 (Right Piston Land) */}
-            <g transform="translate(162, 72)">
-              <rect x="0" y="0" width="15" height="38" rx="2" fill={`url(#spool-metal-${comp.id})`} stroke="#1e293b" strokeWidth="1" />
-              <rect x="2" y="0" width="3" height="38" rx="1" fill="#0f172a" />
-              <rect x="10" y="0" width="3" height="38" rx="1" fill="#0f172a" />
-              <line x1="7.5" y1="2" x2="7.5" y2="36" stroke="#ffffff" strokeWidth="1" opacity="0.6" />
+            <g transform="translate(161, 71)">
+              <rect x="0" y="0" width="16" height="40" rx="2" fill={`url(#spool-metal-${comp.id})`} stroke="#1e293b" strokeWidth="1.2" />
+              <rect x="2" y="0" width="3.5" height="40" rx="1.2" fill="#090d16" stroke="#1e293b" strokeWidth="0.5" />
+              <rect x="10.5" y="0" width="3.5" height="40" rx="1.2" fill="#090d16" stroke="#1e293b" strokeWidth="0.5" />
+              <line x1="8" y1="2" x2="8" y2="38" stroke="#ffffff" strokeWidth="1" opacity="0.75" />
             </g>
 
             {/* Left Solenoid Push Rod (Induzido / Haste de contato Y1) */}
-            <rect x="52" y="89" width="12" height="4" rx="1" fill="#e2e8f0" stroke="#475569" strokeWidth="0.5" />
+            <rect x="50" y="89" width="12" height="4" rx="1" fill="#f1f5f9" stroke="#475569" strokeWidth="0.6" />
 
             {/* Right Actuator Push Rod / Spring guide */}
-            <rect x="186" y="89" width="10" height="4" rx="1" fill="#e2e8f0" stroke="#475569" strokeWidth="0.5" />
+            <rect x="187" y="89" width="11" height="4" rx="1" fill="#f1f5f9" stroke="#475569" strokeWidth="0.6" />
           </g>
 
-          {/* Mechanical Return Spring (for 5/2 Single Solenoid Monoestável) */}
+          {/* Mechanical Return Spring (for 5/2 Single Solenoid Monoestável 4V210) */}
           {!isDouble && (
             <g id="helical-return-spring" transform="translate(182, 91)">
-              {/* Helical wire coils that physically compress/expand */}
-              <path
-                d={
-                  isLeftPos
-                    ? "M 0 0 L 2 -10 L 5 10 L 8 -10 L 11 10 L 14 -10 L 16 0"
-                    : "M 0 0 L 5 -12 L 10 12 L 15 -12 L 20 12 L 25 -12 L 28 0"
-                }
-                fill="none"
-                stroke="#cbd5e1"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="transition-all duration-300"
-              />
-              <circle cx={isLeftPos ? 16 : 28} cy="0" r="3" fill="#64748b" />
+              {/* Helical wire coils with 3D depth and dynamic compression */}
+              {isLeftPos ? (
+                // COMPRESSED SPRING (Mola Comprimida - Pos 2 Energizada)
+                <g className="transition-all duration-300">
+                  <path
+                    d="M 0 0 L 2 -11 L 4 11 L 6 -11 L 8 11 L 10 -11 L 12 11 L 14 -11 L 16 0"
+                    fill="none"
+                    stroke="#cbd5e1"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M 0 0 L 2 -11 L 4 11 L 6 -11 L 8 11 L 10 -11 L 12 11 L 14 -11 L 16 0"
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth="0.9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    opacity="0.8"
+                  />
+                  <circle cx="16" cy="0" r="3.2" fill="#64748b" stroke="#334155" strokeWidth="0.8" />
+                </g>
+              ) : (
+                // RELAXED EXPANDED SPRING (Mola Distendida - Pos 1 Normal)
+                <g className="transition-all duration-300">
+                  <path
+                    d="M 0 0 L 4 -12 L 8 12 L 12 -12 L 16 12 L 20 -12 L 24 12 L 28 0"
+                    fill="none"
+                    stroke="#cbd5e1"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M 0 0 L 4 -12 L 8 12 L 12 -12 L 16 12 L 20 -12 L 24 12 L 28 0"
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth="0.9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    opacity="0.8"
+                  />
+                  <circle cx="28" cy="0" r="3.2" fill="#64748b" stroke="#334155" strokeWidth="0.8" />
+                </g>
+              )}
             </g>
           )}
 
@@ -452,6 +575,20 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
             fill={`url(#glass-shine-${comp.id})`}
             pointerEvents="none"
           />
+
+          {/* Glass Edges Bevel & Technical Refraction Highlights */}
+          <line x1="60" y1="64" x2="190" y2="64" stroke="#ffffff" strokeWidth="1.2" opacity="0.85" />
+          <line x1="60" y1="118" x2="190" y2="118" stroke="#38bdf8" strokeWidth="0.8" opacity="0.6" />
+          <line x1="60" y1="64" x2="60" y2="118" stroke="#ffffff" strokeWidth="0.8" opacity="0.4" />
+          <line x1="190" y1="64" x2="190" y2="118" stroke="#38bdf8" strokeWidth="0.8" opacity="0.4" />
+
+          {/* Laser-etched Micro-labels on Glass Surface */}
+          <text x="64" y="69" fill="#38bdf8" fontSize="5.2" fontWeight="bold" fontFamily="'JetBrains Mono'" opacity="0.75">
+            CORPO VIDRO ÓPTICO BOROSILICATO
+          </text>
+          <text x="186" y="69" fill="#94a3b8" fontSize="4.8" textAnchor="end" fontFamily="'JetBrains Mono'" opacity="0.75">
+            Ø CARRETEL 16mm
+          </text>
 
           {/* Top highlight line of the glass window */}
           <line x1="62" y1="64" x2="188" y2="64" stroke="#ffffff" strokeWidth="1.2" opacity="0.75" />
