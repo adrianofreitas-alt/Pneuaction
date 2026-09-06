@@ -109,6 +109,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   const [isParamsOpen, setIsParamsOpen] = useState<boolean>(false);
 
   const canvasRef = useRef<SVGSVGElement | null>(null);
+  const lastSnappedCompIdRef = useRef<string | null>(null);
 
   // Handle canvas mouse move for active drawing line
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -121,33 +122,161 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
     // Handle dragging component
     if (draggingCompId) {
       const draggedComp = components.find(c => c.id === draggingCompId);
-      const isElectrical = draggedComp?.category === 'electrical' || draggedComp?.type === 'power_supply_24v';
+      if (!draggedComp) return;
+
+      const rawX = x - dragOffset.x;
+      const rawY = y - dragOffset.y;
+
+      // 1. CASO ESPECIAL: CILINDRO PNEUMÁTICO SENDO ARRASTADO
+      // Move o cilindro e sincroniza todos os sensores fixados no seu trilho
+      if (draggedComp.type === 'double_acting_cylinder' || draggedComp.type === 'single_acting_cylinder') {
+        const finalCylX = Math.max(15, Math.min(1385 - draggedComp.width, Math.round(rawX / 10) * 10));
+        const clampedY = Math.max(238, Math.min(840 - draggedComp.height, rawY));
+        const grooveIndex = Math.round((clampedY - 240) / 48);
+        const finalCylY = Math.max(240, Math.min(840 - draggedComp.height, 240 + grooveIndex * 48));
+
+        const deltaX = finalCylX - draggedComp.x;
+        const deltaY = finalCylY - draggedComp.y;
+
+        onUpdateComponents(
+          components.map((c) => {
+            if (c.id === draggingCompId) {
+              return { ...c, x: finalCylX, y: finalCylY };
+            }
+            // Sensores fixados no trilho deste cilindro acompanham o deslocamento solidariamente
+            if (c.type === 'reed_switch_sensor' && c.state.railCylinderId === draggingCompId) {
+              return {
+                ...c,
+                x: c.x + deltaX,
+                y: c.y + deltaY,
+              };
+            }
+            return c;
+          })
+        );
+        return;
+      }
+
+      // 2. CASO ESPECIAL: SENSOR DE PROXIMIDADE (REED / INDUTIVO / CAPACITIVO / ÓPTICO)
+      // "quando aproximar os sensores do trilho para sensores, o sensor deverá ficar fixado neste trilho
+      // como fosse atraido magneticamente e impedindo o movimento vertical e só liberando o movimento horizontal."
+      if (draggedComp.type === 'reed_switch_sensor') {
+        const cylinders = components.filter(
+          item => item.type === 'double_acting_cylinder' || item.type === 'single_acting_cylinder'
+        );
+
+        let snapCyl: BenchComponent | null = null;
+        let snapRailY = 0;
+        let railMinX = 0;
+        let railMaxX = 0;
+
+        for (const cyl of cylinders) {
+          const isSingle = cyl.type === 'single_acting_cylinder';
+          // Trilho estende-se a partir do final do corpo do cilindro
+          // Dupla ação: comp.width = 250, trilho com comprimento útil ~255mm
+          // Simples ação: comp.width = 200, trilho com comprimento útil ~190mm
+          const railStartX = cyl.x + cyl.width;
+          const railLength = isSingle ? 190 : 255;
+          const rMin = railStartX - 10;
+          const rMax = railStartX + railLength - 20;
+
+          // Alinhamento exato na altura do trilho e centro da esfera da haste:
+          // Esfera dupla ação: cyl.y + 60. Centro da tampa sensora: y + 50. => y = cyl.y + 10
+          // Esfera simples ação: cyl.y + 50. Centro da tampa sensora: y + 50. => y = cyl.y
+          const targetRailY = cyl.y + (isSingle ? 0 : 10);
+
+          // Zona de atração magnética do trilho:
+          // Faixa horizontal com margem de tolerância de entrada
+          const inHorizontalRange = rawX >= rMin - 60 && rawX <= rMax + 60;
+          const verticalDist = Math.abs(rawY - targetRailY);
+
+          // Histerese magnética: se já estiver acoplado no trilho, requer puxar > 75px para desencaixar
+          const snapThreshold = (draggedComp.state.snappedToRail && draggedComp.state.railCylinderId === cyl.id) ? 75 : 60;
+
+          if (inHorizontalRange && verticalDist <= snapThreshold) {
+            snapCyl = cyl;
+            snapRailY = targetRailY;
+            railMinX = rMin;
+            railMaxX = rMax;
+            break;
+          }
+        }
+
+        let finalX: number;
+        let finalY: number;
+        let isSnapped = false;
+        let railCylinderId: string | undefined = undefined;
+
+        if (snapCyl) {
+          // ATRAÇÃO MAGNÉTICA ATIVA:
+          // 1. Bloqueia totalmente o movimento vertical: finalY permanece fixo no trilho
+          finalY = snapRailY;
+          // 2. Libera exclusivamente o movimento horizontal de deslizamento sobre o trilho
+          finalX = Math.max(railMinX, Math.min(railMaxX, rawX));
+          isSnapped = true;
+          railCylinderId = snapCyl.id;
+
+          // Efeito sonoro tátil de encaixe magnético ao engatar no trilho
+          if (lastSnappedCompIdRef.current !== draggedComp.id) {
+            benchAudio.playRelayClick();
+            lastSnappedCompIdRef.current = draggedComp.id;
+          }
+        } else {
+          // Fora do trilho: desengatado, livre para posicionamento no painel ranhurado
+          if (lastSnappedCompIdRef.current === draggedComp.id) {
+            lastSnappedCompIdRef.current = null;
+          }
+          finalX = Math.max(15, Math.min(1385 - draggedComp.width, Math.round(rawX / 10) * 10));
+          const clampedY = Math.max(238, Math.min(840 - draggedComp.height, rawY));
+          const grooveIndex = Math.round((clampedY - 240) / 48);
+          finalY = Math.max(240, Math.min(840 - draggedComp.height, 240 + grooveIndex * 48));
+          isSnapped = false;
+          railCylinderId = undefined;
+        }
+
+        // Atualiza a posição do sensor
+        onUpdateComponents(
+          components.map((c) => {
+            if (c.id === draggingCompId) {
+              return {
+                ...c,
+                x: finalX,
+                y: finalY,
+                state: {
+                  ...c.state,
+                  snappedToRail: isSnapped,
+                  railCylinderId: railCylinderId,
+                },
+              };
+            }
+            return c;
+          })
+        );
+        return;
+      }
+
+      // 3. CASO PADRÃO: DEMAIS COMPONENTES ELÉTRICOS OU PNEUMÁTICOS
+      const isElectrical = draggedComp.category === 'electrical' || draggedComp.type === 'power_supply_24v';
+      const finalX = Math.max(15, Math.min(1385 - draggedComp.width, Math.round(rawX / 10) * 10));
+      let finalY: number;
+
+      if (isElectrical) {
+        // Módulos elétricos fixam-se no Rack Superior (lado a lado, trilho Y=20)
+        if (rawY < 180) {
+          finalY = 20; // Alinhamento perfeito no trilho superior
+        } else {
+          finalY = Math.max(20, Math.min(220 - draggedComp.height, Math.round(rawY / 10) * 10));
+        }
+      } else {
+        // Componentes pneumáticos (válvulas, FRL, manifold, etc.) no perfil de alumínio ranhurado
+        const clampedY = Math.max(238, Math.min(840 - draggedComp.height, rawY));
+        const grooveIndex = Math.round((clampedY - 240) / 48);
+        finalY = Math.max(240, Math.min(840 - draggedComp.height, 240 + grooveIndex * 48));
+      }
 
       onUpdateComponents(
         components.map((c) => {
           if (c.id === draggingCompId) {
-            const rawX = x - dragOffset.x;
-            const rawY = y - dragOffset.y;
-
-            const finalX = Math.max(15, Math.min(1385 - c.width, Math.round(rawX / 10) * 10));
-            let finalY: number;
-
-            if (isElectrical) {
-              // Módulos elétricos fixam-se no Rack Superior (lado a lado, trilho Y=20)
-              if (rawY < 180) {
-                finalY = 20; // Alinhamento perfeito no trilho superior
-              } else {
-                finalY = Math.max(20, Math.min(220 - c.height, Math.round(rawY / 10) * 10));
-              }
-            } else {
-              // Componentes pneumáticos (válvulas, atuadores, sensores, FRL, manifold)
-              // Ficam no painel de perfil de alumínio ranhurado (Y >= 238)
-              const clampedY = Math.max(238, Math.min(840 - c.height, rawY));
-              // Encaixe suave nas ranhuras em T (perfil a cada 48px)
-              const grooveIndex = Math.round((clampedY - 240) / 48);
-              finalY = Math.max(240, Math.min(840 - c.height, 240 + grooveIndex * 48));
-            }
-
             return {
               ...c,
               x: finalX,
@@ -820,12 +949,28 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       
                       // External chrome rod extending OUTSIDE the cylinder rectangle (comp.width = 250)
                       // When stroke is 0%, rod tip sphere extends 25px outside comp.width (at X = 275)
-                      // When stroke is 100%, rod tip sphere extends 225px outside comp.width (at X = 475, 200mm stroke - Haste e curso dobrados para facilitar posicionamento dos sensores)
+                      // When stroke is 100%, rod tip sphere extends 225px outside comp.width (at X = 475, 200mm stroke)
                       const rodTipX = comp.width + 25 + (strokePct / 100) * 200;
                       const rodStartY = 53;
                       const rodHeight = 14;
                       const centerY = 60;
-                      const isNearSensor = comp.state.sensorDetected || (strokePct <= 6 || strokePct >= 94);
+
+                      // Identificar se há sensores fixados no trilho deste cilindro
+                      const hasSnappedSensors = components.some(
+                        c => c.type === 'reed_switch_sensor' && c.state.railCylinderId === comp.id && c.state.snappedToRail
+                      );
+
+                      // Requisito estrito: a esfera só atua quando o centro da esfera estiver estritamente alinhado
+                      // com o centro da face do sensor (<= 16px)
+                      const sphereWorldX = comp.x + rodTipX;
+                      const sphereWorldY = comp.y + centerY;
+                      const actuatedSensor = components.find(c => {
+                        if (c.type !== 'reed_switch_sensor' || !c.state.sensorDetected) return false;
+                        const sensorFaceX = c.x + 13;
+                        const sensorFaceY = c.y + 50;
+                        return Math.hypot(sphereWorldX - sensorFaceX, sphereWorldY - sensorFaceY) <= 16;
+                      });
+                      const isNearSensor = Boolean(actuatedSensor);
 
                       return (
                         <g>
@@ -883,24 +1028,78 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           {/* EXTERNAL SENSOR FIXATION RAIL & CALIBRATED STROKE RULER */}
                           {/* ------------------------------------------------------------- */}
                           <g transform={`translate(${comp.width}, 0)`}>
-                            {/* Slotted Aluminum Extension Profile Rail - Dobro do espaço para os sensores */}
-                            <rect x="0" y="88" width="255" height="14" rx="2" fill="#090f1d" stroke="#334155" strokeWidth="1" />
-                            <line x1="0" y1="95" x2="255" y2="95" stroke="#475569" strokeWidth="2" strokeDasharray="8 3" />
+                            {/* Perfil de Alumínio Ranhurado de Fixação dos Sensores */}
+                            <rect
+                              x="0"
+                              y="86"
+                              width="255"
+                              height="18"
+                              rx="3"
+                              fill="#1e293b"
+                              stroke={hasSnappedSensors ? "#38bdf8" : "#475569"}
+                              strokeWidth={hasSnappedSensors ? "1.5" : "1"}
+                            />
+                            {/* Ranhura em T Magnética Central */}
+                            <rect x="3" y="90" width="249" height="10" rx="1.5" fill="#090f1d" stroke="#334155" strokeWidth="0.8" />
+                            <line
+                              x1="6"
+                              y1="95"
+                              x2="249"
+                              y2="95"
+                              stroke={hasSnappedSensors ? "#38bdf8" : "#475569"}
+                              strokeWidth="1.5"
+                              strokeDasharray="6 3"
+                              opacity={hasSnappedSensors ? 0.9 : 0.6}
+                            />
                             
-                            {/* T-Slot Fixation markings for proximity sensors */}
-                            <text x="127" y="84" fill="#38bdf8" fontSize="7.5" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
-                              TRILHO PARA SENSORES (CURSO 200mm)
-                            </text>
-                            <line x1="25" y1="88" x2="25" y2="102" stroke="#38bdf8" strokeWidth="1.5" />
-                            <text x="25" y="112" fill="#94a3b8" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                            {/* Identificação do Trilho e Guia Magnética */}
+                            <g transform="translate(0, 71)">
+                              <rect
+                                x="35"
+                                y="0"
+                                width="185"
+                                height="13"
+                                rx="2"
+                                fill="#0f172a"
+                                stroke={hasSnappedSensors ? "#38bdf8" : "#334155"}
+                                strokeWidth="0.8"
+                              />
+                              <text
+                                x="127.5"
+                                y="9.5"
+                                fill={hasSnappedSensors ? "#38bdf8" : "#94a3b8"}
+                                fontSize="7"
+                                fontWeight="bold"
+                                fontFamily="'JetBrains Mono'"
+                                textAnchor="middle"
+                              >
+                                {hasSnappedSensors ? "🧲 TRILHO: GUIA MAGNÉTICA ATIVA" : "TRILHO PARA SENSORES (CURSO 200mm)"}
+                              </text>
+                            </g>
+
+                            {/* Marcações Calibradas de Fim de Curso */}
+                            <line x1="25" y1="86" x2="25" y2="104" stroke="#38bdf8" strokeWidth="1.5" />
+                            <text x="25" y="114" fill="#38bdf8" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
                               0mm (1S1)
                             </text>
-                            <line x1="125" y1="88" x2="125" y2="98" stroke="#475569" strokeWidth="1" strokeDasharray="2 2" />
-                            <text x="125" y="112" fill="#64748b" fontSize="6.5" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                            
+                            <line x1="75" y1="88" x2="75" y2="98" stroke="#475569" strokeWidth="1" strokeDasharray="2 2" />
+                            <text x="75" y="112" fill="#64748b" fontSize="6" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                              50mm
+                            </text>
+
+                            <line x1="125" y1="86" x2="125" y2="102" stroke="#64748b" strokeWidth="1.2" strokeDasharray="3 2" />
+                            <text x="125" y="114" fill="#94a3b8" fontSize="6.5" fontFamily="'JetBrains Mono'" textAnchor="middle">
                               100mm
                             </text>
-                            <line x1="225" y1="88" x2="225" y2="102" stroke="#38bdf8" strokeWidth="1.5" />
-                            <text x="225" y="112" fill="#38bdf8" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
+
+                            <line x1="175" y1="88" x2="175" y2="98" stroke="#475569" strokeWidth="1" strokeDasharray="2 2" />
+                            <text x="175" y="112" fill="#64748b" fontSize="6" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                              150mm
+                            </text>
+
+                            <line x1="225" y1="86" x2="225" y2="104" stroke="#38bdf8" strokeWidth="1.5" />
+                            <text x="225" y="114" fill="#38bdf8" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
                               200mm (1S2)
                             </text>
                           </g>
@@ -918,22 +1117,33 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           {/* Magnetic Induction Halo when sphere actuates proximity sensors */}
                           {isNearSensor && (
                             <g>
-                              <circle cx={rodTipX} cy={centerY} r="18" fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.9" />
+                              <circle cx={rodTipX} cy={centerY} r="18" fill="none" stroke="#34d399" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.9" />
                               <circle cx={rodTipX} cy={centerY} r="25" fill="url(#actuator-sphere-glow)" opacity="0.8" />
-                              <circle cx={rodTipX} cy={centerY} r="32" fill="none" stroke="#0284c7" strokeWidth="0.8" strokeDasharray="2 4" opacity="0.5" />
+                              <circle cx={rodTipX} cy={centerY} r="32" fill="none" stroke="#059669" strokeWidth="0.8" strokeDasharray="2 4" opacity="0.5" />
+                              {/* Mira de Alinhamento de Centro a Centro */}
+                              <line x1={rodTipX - 14} y1={centerY} x2={rodTipX + 14} y2={centerY} stroke="#34d399" strokeWidth="1.2" />
+                              <line x1={rodTipX} y1={centerY - 14} x2={rodTipX} y2={centerY + 14} stroke="#34d399" strokeWidth="1.2" />
                             </g>
                           )}
 
                           {/* The Precision Metallic Actuator Sphere (Esfera Atuadora Metálica Ø20mm) */}
-                          <circle cx={rodTipX} cy={centerY} r="10" fill="url(#actuator-sphere-grad)" stroke="#94a3b8" strokeWidth="1.2" />
+                          <circle cx={rodTipX} cy={centerY} r="10" fill="url(#actuator-sphere-grad)" stroke={isNearSensor ? "#34d399" : "#94a3b8"} strokeWidth="1.2" />
                           {/* Specular curved highlight */}
                           <circle cx={rodTipX - 3} cy={centerY - 3} r="3" fill="#ffffff" opacity="0.85" />
                           <ellipse cx={rodTipX + 2} cy={centerY + 5} rx="4" ry="1.5" fill="#334155" opacity="0.5" />
 
                           {/* Sphere Callout / Tag */}
                           <g transform={`translate(${rodTipX}, ${centerY - 16})`}>
-                            <text x="0" y="0" fill={isNearSensor ? "#38bdf8" : "#94a3b8"} fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
-                              ESFERA Ø20
+                            <text
+                              x="0"
+                              y="0"
+                              fill={isNearSensor ? "#34d399" : "#94a3b8"}
+                              fontSize="6.5"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono'"
+                              textAnchor="middle"
+                            >
+                              {isNearSensor ? "⌖ ALINHADA (ATUADA)" : "ESFERA Ø20"}
                             </text>
                           </g>
 
@@ -955,9 +1165,22 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       const centerY = 50;
                       const pistonX = barrelX + 14 + (strokePct / 100) * 80;
                       
-                      // External chrome rod extending OUTSIDE cylinder rectangle (dobrado de 75 para 150px)
+                      // External chrome rod extending OUTSIDE cylinder rectangle
                       const rodTipX = comp.width + 20 + (strokePct / 100) * 150;
-                      const isNearSensor = comp.state.sensorDetected || (strokePct <= 6 || strokePct >= 94);
+                      
+                      const hasSnappedSensors = components.some(
+                        c => c.type === 'reed_switch_sensor' && c.state.railCylinderId === comp.id && c.state.snappedToRail
+                      );
+
+                      const sphereWorldX = comp.x + rodTipX;
+                      const sphereWorldY = comp.y + centerY;
+                      const actuatedSensor = components.find(c => {
+                        if (c.type !== 'reed_switch_sensor' || !c.state.sensorDetected) return false;
+                        const sensorFaceX = c.x + 13;
+                        const sensorFaceY = c.y + 50;
+                        return Math.hypot(sphereWorldX - sensorFaceX, sphereWorldY - sensorFaceY) <= 16;
+                      });
+                      const isNearSensor = Boolean(actuatedSensor);
 
                       return (
                         <g>
@@ -995,28 +1218,59 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                           {/* External Sensor Fixation Rail */}
                           <g transform={`translate(${comp.width}, 0)`}>
-                            <rect x="0" y="74" width="190" height="12" rx="2" fill="#090f1d" stroke="#334155" strokeWidth="1" />
-                            <line x1="0" y1="80" x2="190" y2="80" stroke="#475569" strokeWidth="1.5" strokeDasharray="6 2" />
-                            <line x1="20" y1="74" x2="20" y2="86" stroke="#38bdf8" strokeWidth="1.2" />
-                            <text x="20" y="94" fill="#94a3b8" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">0mm</text>
-                            <line x1="95" y1="74" x2="95" y2="84" stroke="#475569" strokeWidth="1" strokeDasharray="2 2" />
-                            <text x="95" y="94" fill="#64748b" fontSize="6" fontFamily="'JetBrains Mono'" textAnchor="middle">50mm</text>
-                            <line x1="170" y1="74" x2="170" y2="86" stroke="#38bdf8" strokeWidth="1.2" />
-                            <text x="170" y="94" fill="#38bdf8" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">100mm</text>
+                            <rect
+                              x="0"
+                              y="72"
+                              width="190"
+                              height="16"
+                              rx="2"
+                              fill="#1e293b"
+                              stroke={hasSnappedSensors ? "#38bdf8" : "#475569"}
+                              strokeWidth={hasSnappedSensors ? "1.5" : "1"}
+                            />
+                            <rect x="2" y="76" width="186" height="8" rx="1" fill="#090f1d" stroke="#334155" strokeWidth="0.8" />
+                            <line
+                              x1="4"
+                              y1="80"
+                              x2="186"
+                              y2="80"
+                              stroke={hasSnappedSensors ? "#38bdf8" : "#475569"}
+                              strokeWidth="1.5"
+                              strokeDasharray="6 2"
+                            />
+                            <text
+                              x="95"
+                              y="66"
+                              fill={hasSnappedSensors ? "#38bdf8" : "#94a3b8"}
+                              fontSize="6.5"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono'"
+                              textAnchor="middle"
+                            >
+                              {hasSnappedSensors ? "🧲 TRILHO: GUIA MAGNÉTICA" : "TRILHO PARA SENSORES"}
+                            </text>
+                            <line x1="20" y1="72" x2="20" y2="88" stroke="#38bdf8" strokeWidth="1.2" />
+                            <text x="20" y="98" fill="#38bdf8" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">0mm</text>
+                            <line x1="95" y1="74" x2="95" y2="86" stroke="#475569" strokeWidth="1" strokeDasharray="2 2" />
+                            <text x="95" y="98" fill="#64748b" fontSize="6" fontFamily="'JetBrains Mono'" textAnchor="middle">50mm</text>
+                            <line x1="170" y1="72" x2="170" y2="88" stroke="#38bdf8" strokeWidth="1.2" />
+                            <text x="170" y="98" fill="#38bdf8" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">100mm</text>
                           </g>
 
                           {/* Esfera Atuadora Metálica na ponta da haste */}
                           <rect x={rodTipX - 12} y={centerY - 6} width="5" height="12" rx="1" fill="#475569" stroke="#94a3b8" strokeWidth="0.8" />
                           {isNearSensor && (
                             <g>
-                              <circle cx={rodTipX} cy={centerY} r="16" fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.9" />
+                              <circle cx={rodTipX} cy={centerY} r="16" fill="none" stroke="#34d399" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.9" />
                               <circle cx={rodTipX} cy={centerY} r="22" fill="url(#actuator-sphere-glow)" opacity="0.8" />
+                              <line x1={rodTipX - 12} y1={centerY} x2={rodTipX + 12} y2={centerY} stroke="#34d399" strokeWidth="1.2" />
+                              <line x1={rodTipX} y1={centerY - 12} x2={rodTipX} y2={centerY + 12} stroke="#34d399" strokeWidth="1.2" />
                             </g>
                           )}
-                          <circle cx={rodTipX} cy={centerY} r="9" fill="url(#actuator-sphere-grad)" stroke="#94a3b8" strokeWidth="1.2" />
+                          <circle cx={rodTipX} cy={centerY} r="9" fill="url(#actuator-sphere-grad)" stroke={isNearSensor ? "#34d399" : "#94a3b8"} strokeWidth="1.2" />
                           <circle cx={rodTipX - 2.5} cy={centerY - 2.5} r="2.5" fill="#ffffff" opacity="0.85" />
-                          <text x={rodTipX} y={centerY - 14} fill={isNearSensor ? "#38bdf8" : "#94a3b8"} fontSize="6" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
-                            ESFERA Ø18
+                          <text x={rodTipX} y={centerY - 14} fill={isNearSensor ? "#34d399" : "#94a3b8"} fontSize="6" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                            {isNearSensor ? "⌖ ALINHADA" : "ESFERA Ø18"}
                           </text>
 
                           <text x="60" y="20" fill="#38bdf8" fontSize="8.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
@@ -1224,6 +1478,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       const wires: SensorWireCount = comp.state.sensorWires || '3_wires';
                       const isPowerOk = comp.state.isPowerCorrect || false;
                       const isActuated = comp.state.sensorDetected && isPowerOk;
+                      const isSnapped = comp.state.snappedToRail;
 
                       // Cores exigidas pelo usuário:
                       // Magnético: vermelho
@@ -1265,6 +1520,28 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         <g>
                           {/* SENSOR CILÍNDRICO METÁLICO (M18) CONFORME FOTO */}
 
+                          {/* Faixa de Fixação Magnética ao Trilho */}
+                          {isSnapped && (
+                            <g transform="translate(6, 6)">
+                              <rect x="0" y="0" width="140" height="15" rx="3" fill="#0369a1" fillOpacity="0.3" stroke="#38bdf8" strokeWidth="0.8" />
+                              <circle cx="8" cy="7.5" r="2.5" fill="#38bdf8" className="animate-pulse" />
+                              <text x="16" y="10.5" fill="#38bdf8" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
+                                🧲 FIXADO NO TRILHO (DESLIZE ◄►)
+                              </text>
+                            </g>
+                          )}
+
+                          {/* Badge de Alinhamento de Centro com a Esfera */}
+                          {isActuated && (
+                            <g transform="translate(6, 22)">
+                              <rect x="0" y="0" width="140" height="12" rx="3" fill="#065f46" fillOpacity="0.85" stroke="#34d399" strokeWidth="0.8" />
+                              <circle cx="7" cy="6" r="2" fill="#34d399" />
+                              <text x="14" y="9" fill="#a7f3d0" fontSize="5.8" fontWeight="bold" fontFamily="'JetBrains Mono'">
+                                ⌖ CENTRO ALINHADO C/ ESFERA
+                              </text>
+                            </g>
+                          )}
+
                           {/* 1. Face Sensora Ativa na Lateral Esquerda com a cor selecionada */}
                           <g id="sensor-sensing-face">
                             {/* Protruding Plastic Sensing Head */}
@@ -1302,6 +1579,8 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                 strokeDasharray={isActuated ? undefined : "2 2"}
                                 opacity="0.9"
                               />
+                              <line x1="-7" y1="0" x2="7" y2="0" stroke={isActuated ? "#fbbf24" : "#ffffff"} strokeWidth="0.8" />
+                              <line x1="0" y1="-7" x2="0" y2="7" stroke={isActuated ? "#fbbf24" : "#ffffff"} strokeWidth="0.8" />
                               <circle
                                 cx="0"
                                 cy="0"
@@ -1314,8 +1593,8 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                 <g>
                                   <circle cx="0" cy="0" r="14" fill="none" stroke={techConfig.faceColor} strokeWidth="1.5" className="animate-ping" opacity="0.8" />
                                   <circle cx="0" cy="0" r="20" fill={techConfig.glowColor} />
-                                  <line x1="-5" y1="0" x2="-22" y2="0" stroke={techConfig.faceColor} strokeWidth="2" strokeDasharray="3 2" />
-                                  <circle cx="-22" cy="0" r="3" fill={techConfig.faceColor} />
+                                  <line x1="-5" y1="0" x2="-26" y2="0" stroke={techConfig.faceColor} strokeWidth="2.5" strokeDasharray="3 2" />
+                                  <circle cx="-26" cy="0" r="3.5" fill="#34d399" />
                                 </g>
                               )}
                             </g>
@@ -1323,7 +1602,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             {/* Indicador visual de Face Ativa */}
                             <text
                               x="13"
-                              y="29"
+                              y="31"
                               fill={techConfig.accent}
                               fontSize="6"
                               fontWeight="900"
@@ -1331,6 +1610,17 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                               textAnchor="middle"
                             >
                               FACE ATIVA
+                            </text>
+                          </g>
+
+                          {/* Suporte Metálico de Fixação no Trilho */}
+                          <g id="sensor-rail-bracket" transform="translate(32, 68)">
+                            <rect x="0" y="0" width="30" height="18" rx="2" fill="#334155" stroke="#64748b" strokeWidth="1" />
+                            <rect x="5" y="10" width="20" height="8" rx="1" fill="#090f1d" stroke={isSnapped ? "#38bdf8" : "#475569"} strokeWidth="0.8" />
+                            <circle cx="15" cy="5" r="3" fill="#1e293b" stroke="#cbd5e1" strokeWidth="0.8" />
+                            <circle cx="15" cy="5" r="1.5" fill={isSnapped ? "#38bdf8" : "#94a3b8"} />
+                            <text x="15" y="24" fill={isSnapped ? "#38bdf8" : "#64748b"} fontSize="5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              {isSnapped ? "TRILHO 🧲" : "SUPORTE"}
                             </text>
                           </g>
 

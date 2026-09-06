@@ -334,9 +334,9 @@ export function evaluateCircuitElectricalState(
     }
 
     const distToSphere = Math.hypot(sphereX - sensorFaceX, sphereY - sensorFaceY);
-    // Requisito estrito: o sensor só atua quando a esfera da haste estiver muito próxima da tampa,
-    // alinhada centro da esfera com o centro da tampa do sensor (raio de tolerância <= 26px)
-    const isPhysicalMatch = distToSphere <= 26;
+    // Requisito estrito: a ativação do sensor só ocorrerá quando a esfera da ponta do cilindro pneumático
+    // ficar alinhada centro da esfera com o centro do sensor (tolerância <= 16px)
+    const isPhysicalMatch = distToSphere <= 16;
 
     const bnPort = sensor.ports.find(p => p.name.includes('BN'));
     const buPort = sensor.ports.find(p => p.name.includes('BU'));

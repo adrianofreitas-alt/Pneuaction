@@ -45,12 +45,16 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       sensor1.state.detectionPosition = 0; // recuado (0mm)
       sensor1.state.sensorTech = 'magnetic';
       sensor1.state.sensorWires = '3_wires';
+      sensor1.state.snappedToRail = true;
+      sensor1.state.railCylinderId = cyl.id;
 
       const sensor2 = createComponentFromTemplate(sensorTpl, 1242, 280, 2);
       sensor2.tag = '1S2';
       sensor2.state.detectionPosition = 100; // avançado (200mm)
       sensor2.state.sensorTech = 'magnetic';
       sensor2.state.sensorWires = '3_wires';
+      sensor2.state.snappedToRail = true;
+      sensor2.state.railCylinderId = cyl.id;
 
       const components: BenchComponent[] = [ps, emerg, btn, frl, manifold, valve, throttle, cyl, sensor1, sensor2];
 

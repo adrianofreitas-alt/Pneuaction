@@ -80,6 +80,8 @@ export interface BenchComponent {
     // Sensor parameters and diagnostics
     sensorTech?: SensorTechnology;
     sensorWires?: SensorWireCount;
+    snappedToRail?: boolean;
+    railCylinderId?: string;
     isPowerCorrect?: boolean;
     powerErrorDetail?: string;
     outputNAactive?: boolean;

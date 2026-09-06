@@ -150,9 +150,9 @@ export default function App() {
 
               const distToSphere = Math.hypot(sphereX - sensorFaceX, sphereY - sensorFaceY);
               
-              // Requisito estrito: o sensor só atua quando a esfera da haste estiver muito próxima da tampa,
-              // com alinhamento centro a centro da esfera com o centro da tampa do sensor (<= 26px)
-              comp.state.sensorDetected = distToSphere <= 26;
+              // Requisito estrito: a ativação do sensor só ocorrerá quando a esfera da ponta do cilindro pneumático
+              // ficar alinhada centro da esfera com o centro do sensor (tolerância <= 16px)
+              comp.state.sensorDetected = distToSphere <= 16;
             }
           });
 
