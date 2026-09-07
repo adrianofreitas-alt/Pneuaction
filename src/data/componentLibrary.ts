@@ -24,13 +24,13 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     type: 'frl_unit',
     name: 'Unidade de Conservação FRL (Filtro-Regulador-Lubrificador)',
     category: 'supply',
-    width: 140,
-    height: 180,
+    width: 148,
+    height: 190,
     tagPrefix: '0Z',
-    description: 'Filtro centrífugo de 5µm, regulador com manômetro 0-10 bar e válvula de corte 3/2 com alívio.',
+    description: 'Unidade industrial de tratamento de ar comprimido modular (FRL) padrão Festo/SMC com regulador de pressão, anel de trava vermelho de segurança, manômetro analógico (MPa/bar), filtro centrífugo 5µm com elemento de bronze sinterizado e dreno manual, e lubrificador de ar com cúpula visor de gotejamento.',
     defaultPorts: [
-      { name: 'P (Entrada Rede)', type: 'pneumatic', functionType: 'pressure', x: 15, y: 75 },
-      { name: '1 (Saída Regulada)', type: 'pneumatic', functionType: 'pressure', x: 85, y: 75 },
+      { name: 'P (Entrada Rede)', type: 'pneumatic', functionType: 'pressure', x: 8, y: 39 },
+      { name: '1 (Saída Regulada)', type: 'pneumatic', functionType: 'pressure', x: 92, y: 39 },
     ],
     defaultState: {
       pressureP: 6.0, // 6 bar

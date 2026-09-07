@@ -56,6 +56,18 @@ export const getPortWorldCoordinates = (comp: BenchComponent, port: ComponentPor
     else if (port.name.includes('12')) portX = 84;
   }
 
+  // Auto-ajuste para Unidade de Conservação FRL (Filtro-Regulador-Lubrificador):
+  // Posiciona as conexões pneumáticas perfeitamente nos bocais de entrada (P) no regulador
+  // e saída regulada (1) no lubrificador no corpo metálico industrial
+  if (comp.type === 'frl_unit') {
+    portY = 39;
+    if (port.name.includes('P') || port.name.includes('Entrada')) {
+      portX = 8;
+    } else if (port.name.includes('1') || port.name.includes('Saída')) {
+      portX = 92;
+    }
+  }
+
   const rawX = (comp.width * portX) / 100;
   const rawY = (comp.height * portY) / 100;
 
@@ -129,9 +141,33 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   const [draggingCompId, setDraggingCompId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isParamsOpen, setIsParamsOpen] = useState<boolean>(false);
+  const [purgingFrlId, setPurgingFrlId] = useState<string | null>(null);
 
   const canvasRef = useRef<SVGSVGElement | null>(null);
   const lastSnappedCompIdRef = useRef<string | null>(null);
+
+  // Quick interactive pressure adjustment for FRL Unit
+  const handleAdjustFrlPressure = (comp: BenchComponent, e: React.MouseEvent) => {
+    e.stopPropagation();
+    benchAudio.playRelayClick();
+    const cur = comp.state.pressureP ?? 6.0;
+    const next = cur >= 10.0 ? 2.0 : Number((cur + 1.0).toFixed(1));
+    onUpdateComponents(
+      components.map((c) =>
+        c.id === comp.id ? { ...c, state: { ...c.state, pressureP: next } } : c
+      )
+    );
+  };
+
+  // Manual condensation purge valve click for FRL Unit
+  const handlePurgeFrl = (frlId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    benchAudio.playExhaust(0.18, 0.25);
+    setPurgingFrlId(frlId);
+    setTimeout(() => {
+      setPurgingFrlId((current) => (current === frlId ? null : current));
+    }, 600);
+  };
 
   // Handle canvas mouse move for active drawing line and dragging
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -879,6 +915,60 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                 <stop offset="50%" stopColor="#0284c7" stopOpacity="0.4" />
                 <stop offset="100%" stopColor="#0284c7" stopOpacity="0" />
               </radialGradient>
+
+              {/* FRL Unit Components Gradients & Materials */}
+              <linearGradient id="frl-knob-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#1e293b" />
+                <stop offset="25%" stopColor="#334155" />
+                <stop offset="55%" stopColor="#0f172a" />
+                <stop offset="85%" stopColor="#1e293b" />
+                <stop offset="100%" stopColor="#020617" />
+              </linearGradient>
+
+              <linearGradient id="frl-red-collar-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#f87171" />
+                <stop offset="25%" stopColor="#ef4444" />
+                <stop offset="70%" stopColor="#dc2626" />
+                <stop offset="100%" stopColor="#991b1b" />
+              </linearGradient>
+
+              <linearGradient id="frl-metal-body" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#242e42" />
+                <stop offset="35%" stopColor="#131b2e" />
+                <stop offset="80%" stopColor="#0a101d" />
+                <stop offset="100%" stopColor="#030712" />
+              </linearGradient>
+
+              <linearGradient id="frl-sintered-bronze" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#92400e" />
+                <stop offset="20%" stopColor="#f59e0b" />
+                <stop offset="50%" stopColor="#d97706" />
+                <stop offset="80%" stopColor="#fbbf24" />
+                <stop offset="100%" stopColor="#78350f" />
+              </linearGradient>
+
+              <linearGradient id="frl-polycarb-glass" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.32" />
+                <stop offset="12%" stopColor="#e2e8f0" stopOpacity="0.06" />
+                <stop offset="88%" stopColor="#e2e8f0" stopOpacity="0.06" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0.35" />
+              </linearGradient>
+
+              <linearGradient id="frl-water-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#0284c7" stopOpacity="0.65" />
+              </linearGradient>
+
+              <linearGradient id="frl-oil-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#d97706" stopOpacity="0.6" />
+              </linearGradient>
+
+              <linearGradient id="frl-gauge-shine" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.4" />
+                <stop offset="40%" stopColor="#ffffff" stopOpacity="0.1" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0.0" />
+              </linearGradient>
             </defs>
 
             {/* ==================================================== */}
@@ -1633,31 +1723,485 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       );
                     })()}
 
-                    {/* 3. FRL UNIT */}
-                    {comp.type === 'frl_unit' && (
-                      <g transform="translate(14, 34)">
-                        {/* Horizontal distribution block linking inlet and outlet */}
-                        <rect x="4" y="90" width="104" height="18" rx="3" fill="#1e293b" stroke="#475569" strokeWidth="1.2" />
-                        <line x1="8" y1="99" x2="104" y2="99" stroke="#38bdf8" strokeWidth="2.5" strokeDasharray="3 3" />
+                    {/* 3. FRL UNIT (UNIDADE DE CONSERVAÇÃO FRL: FILTRO-REGULADOR-LUBRIFICADOR) */}
+                    {comp.type === 'frl_unit' && (() => {
+                      const pressure = comp.state.pressureP ?? 6.0;
+                      // Pressure gauge calculations (0 to 1.0 MPa / 0 to 10 bar)
+                      const clampedP = Math.max(0, Math.min(10, pressure));
+                      // Needle sweep: 270 degrees total. 0 bar = -135° (down-left), 5 bar = 0° (up), 10 bar = +135° (down-right)
+                      const needleAngleDeg = -135 + (clampedP / 10) * 270;
+                      const needleAngleRad = ((needleAngleDeg - 90) * Math.PI) / 180;
+                      const gaugeCx = 44;
+                      const gaugeCy = 74;
+                      const needleR = 14;
+                      const needleTipX = gaugeCx + needleR * Math.cos(needleAngleRad);
+                      const needleTipY = gaugeCy + needleR * Math.sin(needleAngleRad);
+                      const counterX = gaugeCx - 4 * Math.cos(needleAngleRad);
+                      const counterY = gaugeCy - 4 * Math.sin(needleAngleRad);
+                      const isPurging = purgingFrlId === comp.id;
 
-                        {/* Filter Bowl */}
-                        <rect x="12" y="45" width="36" height="52" rx="4" fill="#0f172a" stroke="#475569" strokeWidth="1.5" />
-                        <line x1="30" y1="48" x2="30" y2="90" stroke="#38bdf8" strokeWidth="2" />
-                        {/* Water level trap */}
-                        <path d="M 16 85 Q 30 80 44 85 L 44 95 L 16 95 Z" fill="#0284c7" opacity="0.6" />
-                        
-                        {/* Pressure Gauge Dial */}
-                        <circle cx="70" cy="35" r="26" fill="#0f172a" stroke="#475569" strokeWidth="2" />
-                        <circle cx="70" cy="35" r="22" fill="#1e293b" />
-                        {/* Dial marks */}
-                        <text x="70" y="28" fill="#94a3b8" fontSize="7" textAnchor="middle" fontFamily="'JetBrains Mono'">BAR</text>
-                        <text x="70" y="44" fill="#38bdf8" fontSize="10" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
-                          {(comp.state.pressureP || 6.0).toFixed(1)}
-                        </text>
-                        {/* Dial Needle */}
-                        <line x1="70" y1="35" x2="80" y2="24" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" />
-                      </g>
-                    )}
+                      // Gauge tick marks (0, 0.2, 0.4, 0.6, 0.8, 1.0 MPa)
+                      const majorTicks = [
+                        { val: '0', mpa: 0, deg: -135 },
+                        { val: '0.2', mpa: 2, deg: -81 },
+                        { val: '0.4', mpa: 4, deg: -27 },
+                        { val: '0.6', mpa: 6, deg: 27 },
+                        { val: '0.8', mpa: 8, deg: 81 },
+                        { val: '1.0', mpa: 10, deg: 135 },
+                      ];
+
+                      return (
+                        <g id={`frl-assembly-${comp.id}`}>
+                          {/* ------------------------------------------------------------- */}
+                          {/* 0. REAR STEEL MOUNTING BRACKET (SUPORTE TRASEIRO DE FIXAÇÃO) */}
+                          {/* ------------------------------------------------------------- */}
+                          {/* Central black steel mounting bracket with two vertical oval slots as in photo */}
+                          <g id="frl-rear-bracket">
+                            <rect x="58" y="18" width="34" height="48" rx="4" fill="#090e1a" stroke="#334155" strokeWidth="1.2" />
+                            {/* Left mounting oval hole / slot */}
+                            <rect x="64" y="24" width="7" height="13" rx="3.5" fill="#020617" stroke="#475569" strokeWidth="1" />
+                            {/* Right mounting oval hole / slot */}
+                            <rect x="79" y="24" width="7" height="13" rx="3.5" fill="#020617" stroke="#475569" strokeWidth="1" />
+                            {/* Bracket reinforcement bend shadow */}
+                            <line x1="59" y1="44" x2="91" y2="44" stroke="#1e293b" strokeWidth="1.5" />
+                          </g>
+
+                          {/* ------------------------------------------------------------- */}
+                          {/* 1. LEFT COLUMN: FILTER-REGULATOR (FILTRO-REGULADOR COMBINADO) */}
+                          {/* ------------------------------------------------------------- */}
+                          <g id="frl-regulator-column">
+                            {/* --- 1A. PRESSURE ADJUSTMENT KNOB (MANÍPULO GIRATÓRIO PRETO) --- */}
+                            <g
+                              className="cursor-pointer group/knob"
+                              onClick={(e) => handleAdjustFrlPressure(comp, e)}
+                            >
+                              <title>Clique para ajustar a pressão regulada (+1 bar)</title>
+                              {/* Knob upper fluted body */}
+                              <rect
+                                x="28"
+                                y="14"
+                                width="32"
+                                height="22"
+                                rx="3.5"
+                                fill="url(#frl-knob-grad)"
+                                stroke="#475569"
+                                strokeWidth="1"
+                                className="transition-all group-hover/knob:stroke-cyan-400"
+                              />
+                              {/* Top beveled cap */}
+                              <rect x="30" y="14" width="28" height="4" rx="2" fill="#334155" />
+                              {/* Vertical grip flutes (5 grooves) */}
+                              <line x1="33" y1="18" x2="33" y2="34" stroke="#475569" strokeWidth="1.2" />
+                              <line x1="38.5" y1="18" x2="38.5" y2="34" stroke="#64748b" strokeWidth="1.2" />
+                              <line x1="44" y1="18" x2="44" y2="34" stroke="#64748b" strokeWidth="1.2" />
+                              <line x1="49.5" y1="18" x2="49.5" y2="34" stroke="#64748b" strokeWidth="1.2" />
+                              <line x1="55" y1="18" x2="55" y2="34" stroke="#475569" strokeWidth="1.2" />
+                              {/* Rotary arrows cue */}
+                              <text x="44" y="22" fill="#94a3b8" fontSize="5" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                                ↺ PULL ↻
+                              </text>
+                            </g>
+
+                            {/* --- 1B. VIBRANT RED LOCKING COLLAR / RING (ANEL TRAVA VERMELHO) --- */}
+                            {/* Characteristic industrial feature from the user's photo */}
+                            <g id="frl-red-lock-ring">
+                              <rect
+                                x="25"
+                                y="36"
+                                width="38"
+                                height="8"
+                                rx="2"
+                                fill="url(#frl-red-collar-grad)"
+                                stroke="#991b1b"
+                                strokeWidth="0.8"
+                              />
+                              {/* Specular highlight line along the collar */}
+                              <line x1="27" y1="38" x2="61" y2="38" stroke="#fca5a5" strokeWidth="0.8" opacity="0.9" />
+                              {/* Lock teeth ridges */}
+                              <line x1="30" y1="40" x2="30" y2="43" stroke="#7f1d1d" strokeWidth="1" />
+                              <line x1="37" y1="40" x2="37" y2="43" stroke="#7f1d1d" strokeWidth="1" />
+                              <line x1="44" y1="40" x2="44" y2="43" stroke="#7f1d1d" strokeWidth="1" />
+                              <line x1="51" y1="40" x2="51" y2="43" stroke="#7f1d1d" strokeWidth="1" />
+                              <line x1="58" y1="40" x2="58" y2="43" stroke="#7f1d1d" strokeWidth="1" />
+                            </g>
+
+                            {/* --- 1C. CAST ALUMINUM REGULATOR BODY (CORPO METÁLICO PRETO) --- */}
+                            <rect
+                              x="17"
+                              y="44"
+                              width="54"
+                              height="50"
+                              rx="3"
+                              fill="url(#frl-metal-body)"
+                              stroke="#334155"
+                              strokeWidth="1.3"
+                            />
+                            {/* Left edge pneumatic inlet port boss (Bocal P) */}
+                            <rect x="7" y="66" width="11" height="16" rx="2" fill="#1e293b" stroke="#475569" strokeWidth="1" />
+                            {/* Brass hexagonal nut */}
+                            <rect x="9" y="68" width="5" height="12" rx="1" fill="#94a3b8" stroke="#64748b" strokeWidth="0.6" />
+                            {/* Blue Festo push-in connector collar */}
+                            <rect x="5" y="69.5" width="4" height="9" rx="1.5" fill="#0284c7" stroke="#38bdf8" strokeWidth="0.8" />
+                            {/* Air flow indicator arrow stamped on cast body */}
+                            <path d="M 12 55 L 18 55 M 16 53 L 18 55 L 16 57" stroke="#38bdf8" strokeWidth="1" strokeLinecap="round" />
+
+                            {/* --- 1D. CIRCULAR PRESSURE GAUGE (MANÔMETRO ANALÓGICO COM MOSTRADOR BRANCO) --- */}
+                            {/* Mounted front and center on the regulator, matching photo */}
+                            <g id="frl-pressure-gauge">
+                              {/* Gauge shadow */}
+                              <circle cx={gaugeCx + 1} cy={gaugeCy + 1.5} r="25" fill="#000000" opacity="0.4" />
+                              {/* Outer stepped black bezel */}
+                              <circle cx={gaugeCx} cy={gaugeCy} r="24.5" fill="#0b1120" stroke="#475569" strokeWidth="1.8" />
+                              <circle cx={gaugeCx} cy={gaugeCy} r="22" fill="#1e293b" stroke="#334155" strokeWidth="0.8" />
+                              {/* White dial face */}
+                              <circle cx={gaugeCx} cy={gaugeCy} r="19.5" fill="#ffffff" stroke="#cbd5e1" strokeWidth="0.5" />
+
+                              {/* Dial scale track arc */}
+                              <circle cx={gaugeCx} cy={gaugeCy} r="17" fill="none" stroke="#94a3b8" strokeWidth="0.6" strokeDasharray="60 30" transform={`rotate(135 ${gaugeCx} ${gaugeCy})`} />
+                              
+                              {/* Red safety warning zone arc (> 8 bar / 0.8 MPa) */}
+                              <path
+                                d={`M ${gaugeCx + 17 * Math.cos((81 - 90) * Math.PI / 180)} ${gaugeCy + 17 * Math.sin((81 - 90) * Math.PI / 180)} A 17 17 0 0 1 ${gaugeCx + 17 * Math.cos((135 - 90) * Math.PI / 180)} ${gaugeCy + 17 * Math.sin((135 - 90) * Math.PI / 180)}`}
+                                fill="none"
+                                stroke="#ef4444"
+                                strokeWidth="2"
+                              />
+
+                              {/* Inner secondary blue track */}
+                              <circle cx={gaugeCx} cy={gaugeCy} r="13" fill="none" stroke="#0284c7" strokeWidth="0.5" strokeOpacity="0.7" />
+
+                              {/* Radial Tick Marks and Numbers */}
+                              {majorTicks.map((tick, i) => {
+                                const rad = ((tick.deg - 90) * Math.PI) / 180;
+                                const x1 = gaugeCx + 18.5 * Math.cos(rad);
+                                const y1 = gaugeCy + 18.5 * Math.sin(rad);
+                                const x2 = gaugeCx + 15.5 * Math.cos(rad);
+                                const y2 = gaugeCy + 15.5 * Math.sin(rad);
+                                const tx = gaugeCx + 12 * Math.cos(rad);
+                                const ty = gaugeCy + 12 * Math.sin(rad);
+
+                                return (
+                                  <g key={`gtick-${i}`}>
+                                    <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#0f172a" strokeWidth="1" />
+                                    <text
+                                      x={tx}
+                                      y={ty + 1.8}
+                                      fill="#0f172a"
+                                      fontSize="3.8"
+                                      fontWeight="bold"
+                                      fontFamily="'JetBrains Mono'"
+                                      textAnchor="middle"
+                                    >
+                                      {tick.val}
+                                    </text>
+                                  </g>
+                                );
+                              })}
+
+                              {/* Minor ticks (every 1 bar / 0.1 MPa) */}
+                              {[-108, -54, 0, 54, 108].map((deg, i) => {
+                                const rad = ((deg - 90) * Math.PI) / 180;
+                                const x1 = gaugeCx + 18.5 * Math.cos(rad);
+                                const y1 = gaugeCy + 18.5 * Math.sin(rad);
+                                const x2 = gaugeCx + 16.5 * Math.cos(rad);
+                                const y2 = gaugeCy + 16.5 * Math.sin(rad);
+                                return <line key={`minortick-${i}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#334155" strokeWidth="0.6" />;
+                              })}
+
+                              {/* Dial Brand & Units Label */}
+                              <text x={gaugeCx} y={gaugeCy - 4} fill="#090d16" fontSize="4.2" fontWeight="900" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                                MPa
+                              </text>
+                              <text x={gaugeCx} y={gaugeCy + 8.5} fill="#0284c7" fontSize="3.6" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                                {pressure.toFixed(1)} bar
+                              </text>
+
+                              {/* Dynamic Gauge Indicator Needle */}
+                              <line
+                                x1={counterX}
+                                y1={counterY}
+                                x2={needleTipX}
+                                y2={needleTipY}
+                                stroke="#090d16"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                              />
+                              {/* Needle counterweight teardrop */}
+                              <circle cx={counterX} cy={counterY} r="1.8" fill="#090d16" />
+
+                              {/* Center Pivot Boss */}
+                              <circle cx={gaugeCx} cy={gaugeCy} r="3.2" fill="#0f172a" />
+                              <circle cx={gaugeCx} cy={gaugeCy} r="1.2" fill="#e2e8f0" />
+
+                              {/* Specular Glass Lens Reflection Dome */}
+                              <ellipse cx={gaugeCx - 5} cy={gaugeCy - 6} rx="12" ry="7" fill="url(#frl-gauge-shine)" transform={`rotate(-25 ${gaugeCx - 5} ${gaugeCy - 6})`} pointerEvents="none" />
+                            </g>
+
+                            {/* --- 1E. FILTER BOWL (COPO TRANSPARENTE DE POLICARBONATO) --- */}
+                            <g id="frl-filter-bowl">
+                              {/* Black mounting collar ring */}
+                              <rect x="20" y="94" width="48" height="6" rx="1.5" fill="#1e293b" stroke="#475569" strokeWidth="1" />
+
+                              {/* Transparent Polycarbonate Bowl */}
+                              <rect
+                                x="22"
+                                y="99"
+                                width="44"
+                                height="65"
+                                rx="7"
+                                fill="url(#frl-polycarb-glass)"
+                                stroke="#94a3b8"
+                                strokeWidth="1.2"
+                              />
+
+                              {/* Molded vertical grip ribs on bowl */}
+                              <line x1="25" y1="102" x2="25" y2="158" stroke="#ffffff" strokeWidth="1.2" opacity="0.45" />
+                              <line x1="63" y1="102" x2="63" y2="158" stroke="#ffffff" strokeWidth="0.8" opacity="0.3" />
+
+                              {/* Centrifugal swirl vane / deflector disc */}
+                              <rect x="27" y="100" width="34" height="3" rx="1" fill="#475569" />
+
+                              {/* SINTERED BRONZE POROUS FILTER ELEMENT (Bronze sinterizado poroso 5µm) */}
+                              {/* Characteristic golden/bronze porous cartridge shown in photo */}
+                              <rect
+                                x="28"
+                                y="103"
+                                width="32"
+                                height="22"
+                                rx="3"
+                                fill="url(#frl-sintered-bronze)"
+                                stroke="#b45309"
+                                strokeWidth="0.8"
+                              />
+                              {/* Sintered bronze texture dots */}
+                              <circle cx="33" cy="108" r="0.8" fill="#78350f" opacity="0.6" />
+                              <circle cx="40" cy="107" r="0.8" fill="#78350f" opacity="0.6" />
+                              <circle cx="47" cy="108" r="0.8" fill="#78350f" opacity="0.6" />
+                              <circle cx="54" cy="107" r="0.8" fill="#78350f" opacity="0.6" />
+                              <circle cx="36" cy="113" r="0.8" fill="#78350f" opacity="0.6" />
+                              <circle cx="43" cy="114" r="0.8" fill="#78350f" opacity="0.6" />
+                              <circle cx="50" cy="113" r="0.8" fill="#78350f" opacity="0.6" />
+                              <circle cx="33" cy="119" r="0.8" fill="#78350f" opacity="0.6" />
+                              <circle cx="41" cy="120" r="0.8" fill="#78350f" opacity="0.6" />
+                              <circle cx="48" cy="119" r="0.8" fill="#78350f" opacity="0.6" />
+                              <circle cx="55" cy="120" r="0.8" fill="#78350f" opacity="0.6" />
+                              {/* Filter lower retention baffle */}
+                              <rect x="29" y="125" width="30" height="2.5" rx="1" fill="#334155" />
+
+                              {/* Technical Red Warning Label on Bowl (as in photo) */}
+                              <g transform="translate(26, 129)">
+                                <rect x="0" y="0" width="36" height="15" rx="1.5" fill="#090f1d" fillOpacity="0.75" stroke="#ef4444" strokeWidth="0.7" />
+                                <text x="18" y="4.5" fill="#ef4444" fontSize="4.2" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                                  CAUTION
+                                </text>
+                                <text x="18" y="8.5" fill="#fca5a5" fontSize="3" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                                  MAX PRESS 1.0 MPa
+                                </text>
+                                <text x="18" y="12" fill="#fca5a5" fontSize="2.8" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                                  POLYCARBONATE BOWL
+                                </text>
+                              </g>
+
+                              {/* Water Trap / Liquid Condensation at Bottom */}
+                              <path
+                                d="M 23 148 Q 44 146 65 148 L 65 158 Q 44 164 23 158 Z"
+                                fill="url(#frl-water-grad)"
+                                stroke="#38bdf8"
+                                strokeWidth="0.8"
+                              />
+                              {/* Meniscus wave line */}
+                              <path d="M 24 148 Q 44 146 64 148" fill="none" stroke="#bae6fd" strokeWidth="0.8" opacity="0.85" />
+                              <text x="44" y="156" fill="#e0f2fe" fontSize="3.5" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                                CONDENSADO
+                              </text>
+                            </g>
+
+                            {/* --- 1F. MANUAL CONDENSATION DRAIN PETCOCK (DRENO MANUAL PURGADOR) --- */}
+                            {/* Interactive purge valve: clicking purges condensation with realistic exhaust hiss! */}
+                            <g
+                              className="cursor-pointer group/drain"
+                              onClick={(e) => handlePurgeFrl(comp.id, e)}
+                            >
+                              <title>Clique para purgar água condensada do filtro</title>
+                              {/* Threaded collar */}
+                              <rect x="40" y="164" width="8" height="4" fill="#94a3b8" stroke="#64748b" strokeWidth="0.5" />
+                              {/* Hexagonal brass drain body */}
+                              <rect
+                                x="38"
+                                y="168"
+                                width="12"
+                                height="5"
+                                rx="1"
+                                fill="#cbd5e1"
+                                stroke="#64748b"
+                                strokeWidth="0.8"
+                                className="transition-colors group-hover/drain:stroke-sky-400 group-hover/drain:fill-sky-100"
+                              />
+                              {/* Knurled drain nozzle / nipple */}
+                              <rect x="41.5" y="173" width="5" height="13" fill="#94a3b8" stroke="#475569" strokeWidth="0.6" />
+                              {/* Barbs for drain tube connection */}
+                              <line x1="41" y1="176" x2="47" y2="176" stroke="#475569" strokeWidth="0.8" />
+                              <line x1="41" y1="179" x2="47" y2="179" stroke="#475569" strokeWidth="0.8" />
+                              <line x1="41" y1="182" x2="47" y2="182" stroke="#475569" strokeWidth="0.8" />
+
+                              {/* Interactive purge mist puff animation when triggered */}
+                              {isPurging && (
+                                <g id="frl-purge-cloud">
+                                  <ellipse cx="44" cy="192" rx="16" ry="6" fill="#38bdf8" opacity="0.6" />
+                                  <ellipse cx="44" cy="196" rx="24" ry="8" fill="#bae6fd" opacity="0.4" />
+                                  <text x="44" y="195" fill="#0284c7" fontSize="5.5" fontWeight="900" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                                    💨 PURGA!
+                                  </text>
+                                </g>
+                              )}
+                            </g>
+                          </g>
+
+                          {/* ------------------------------------------------------------- */}
+                          {/* 2. CENTER MODULAR JOINER CLAMP (BLOCO ESPAÇADOR DE UNIÃO) */}
+                          {/* ------------------------------------------------------------- */}
+                          <g id="frl-center-clamp">
+                            <rect x="71" y="56" width="15" height="34" rx="2" fill="#0f172a" stroke="#334155" strokeWidth="1" />
+                            {/* Upper Allen Screw */}
+                            <circle cx="78.5" cy="64" r="2.8" fill="#1e293b" stroke="#64748b" strokeWidth="0.8" />
+                            <polygon points="78.5,62.5 79.8,63.2 79.8,64.8 78.5,65.5 77.2,64.8 77.2,63.2" fill="#94a3b8" />
+                            {/* Lower Allen Screw */}
+                            <circle cx="78.5" cy="80" r="2.8" fill="#1e293b" stroke="#64748b" strokeWidth="0.8" />
+                            <polygon points="78.5,78.5 79.8,79.2 79.8,80.8 78.5,81.5 77.2,80.8 77.2,79.2" fill="#94a3b8" />
+                          </g>
+
+                          {/* ------------------------------------------------------------- */}
+                          {/* 3. RIGHT COLUMN: LUBRICATOR (LUBRIFICADOR DE AR PNEUMÁTICO) */}
+                          {/* ------------------------------------------------------------- */}
+                          <g id="frl-lubricator-column">
+                            {/* --- 3A. DRIP SIGHT DOME (CÚPULA TRANSPARENTE VISOR DE ÓLEO) --- */}
+                            <g id="frl-drip-dome">
+                              {/* Needle adjustment micro-screw on top */}
+                              <rect x="103" y="21" width="8" height="10" rx="1.5" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
+                              <line x1="104.5" y1="23" x2="104.5" y2="29" stroke="#64748b" strokeWidth="0.8" />
+                              <line x1="107" y1="23" x2="107" y2="29" stroke="#64748b" strokeWidth="0.8" />
+                              <line x1="109.5" y1="23" x2="109.5" y2="29" stroke="#64748b" strokeWidth="0.8" />
+
+                              {/* Transparent Acrylic Dome */}
+                              <rect
+                                x="100"
+                                y="31"
+                                width="14"
+                                height="21"
+                                rx="5"
+                                fill="url(#frl-polycarb-glass)"
+                                stroke="#94a3b8"
+                                strokeWidth="1"
+                              />
+                              {/* Dome reflection highlight */}
+                              <line x1="102" y1="34" x2="102" y2="49" stroke="#ffffff" strokeWidth="1" opacity="0.6" />
+
+                              {/* Internal Brass Drip Nozzle */}
+                              <rect x="105.5" y="32" width="3" height="9" fill="#d97706" stroke="#b45309" strokeWidth="0.5" />
+                              {/* Falling golden oil droplet into air stream */}
+                              <ellipse cx="107" cy="45" rx="1.3" ry="1.8" fill="#f59e0b" stroke="#d97706" strokeWidth="0.4" />
+
+                              {/* Dome Base Mounting Ring */}
+                              <rect x="97" y="52" width="20" height="4" rx="1" fill="#1e293b" stroke="#475569" strokeWidth="0.8" />
+                            </g>
+
+                            {/* --- 3B. CAST ALUMINUM LUBRICATOR BODY (CORPO METÁLICO DO LUBRIFICADOR) --- */}
+                            <rect
+                              x="86"
+                              y="56"
+                              width="48"
+                              height="38"
+                              rx="3"
+                              fill="url(#frl-metal-body)"
+                              stroke="#334155"
+                              strokeWidth="1.3"
+                            />
+                            {/* Lubricator identification badge */}
+                            <text x="110" y="72" fill="#94a3b8" fontSize="5.5" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                              LUBRIFICADOR
+                            </text>
+                            <text x="110" y="80" fill="#64748b" fontSize="4.5" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                              ISO VG 32
+                            </text>
+
+                            {/* Right edge pneumatic outlet port boss (Bocal de Saída 1) */}
+                            <rect x="130" y="66" width="11" height="16" rx="2" fill="#1e293b" stroke="#475569" strokeWidth="1" />
+                            {/* Brass hexagonal nut */}
+                            <rect x="132" y="68" width="5" height="12" rx="1" fill="#94a3b8" stroke="#64748b" strokeWidth="0.6" />
+                            {/* Blue Festo push-in connector collar */}
+                            <rect x="137" y="69.5" width="4" height="9" rx="1.5" fill="#0284c7" stroke="#38bdf8" strokeWidth="0.8" />
+                            {/* Air flow indicator arrow */}
+                            <path d="M 126 55 L 132 55 M 130 53 L 132 55 L 130 57" stroke="#38bdf8" strokeWidth="1" strokeLinecap="round" />
+
+                            {/* --- 3C. LUBRICATOR BOWL (COPO TRANSPARENTE DE ÓLEO PNEUMÁTICO) --- */}
+                            <g id="frl-oil-bowl">
+                              {/* Top threaded collar ring */}
+                              <rect x="88" y="94" width="44" height="6" rx="1.5" fill="#1e293b" stroke="#475569" strokeWidth="1" />
+
+                              {/* Transparent Polycarbonate Bowl */}
+                              <rect
+                                x="90"
+                                y="99"
+                                width="40"
+                                height="65"
+                                rx="7"
+                                fill="url(#frl-polycarb-glass)"
+                                stroke="#94a3b8"
+                                strokeWidth="1.2"
+                              />
+                              {/* Vertical reflections on bowl */}
+                              <line x1="93" y1="102" x2="93" y2="158" stroke="#ffffff" strokeWidth="1.2" opacity="0.45" />
+                              <line x1="127" y1="102" x2="127" y2="158" stroke="#ffffff" strokeWidth="0.8" opacity="0.3" />
+
+                              {/* Vertical Siphon Tube (Tubo Pescador de Óleo) */}
+                              <rect x="108.5" y="100" width="3" height="52" rx="1" fill="#f1f5f9" fillOpacity="0.7" stroke="#94a3b8" strokeWidth="0.6" />
+                              {/* Bottom suction strainer screen */}
+                              <rect x="107" y="150" width="6" height="4" rx="1" fill="#d97706" stroke="#b45309" strokeWidth="0.5" />
+
+                              {/* Pneumatic Lubricant Oil Reservoir Level */}
+                              <path
+                                d="M 91 124 Q 110 122 129 124 L 129 158 Q 110 164 91 158 Z"
+                                fill="url(#frl-oil-grad)"
+                                stroke="#d97706"
+                                strokeWidth="0.8"
+                              />
+                              {/* Oil meniscus curve */}
+                              <path d="M 92 124 Q 110 122 128 124" fill="none" stroke="#fef08a" strokeWidth="0.8" opacity="0.9" />
+                              <text x="110" y="142" fill="#78350f" fontSize="4.2" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                                ÓLEO ISO VG32
+                              </text>
+
+                              {/* Technical Red Warning Label on Bowl */}
+                              <g transform="translate(92, 104)">
+                                <rect x="0" y="0" width="36" height="15" rx="1.5" fill="#090f1d" fillOpacity="0.75" stroke="#ef4444" strokeWidth="0.7" />
+                                <text x="18" y="4.5" fill="#ef4444" fontSize="4.2" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                                  CAUTION
+                                </text>
+                                <text x="18" y="8.5" fill="#fca5a5" fontSize="2.8" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                                  TURBINE OIL ISO VG32
+                                </text>
+                                <text x="18" y="12" fill="#fca5a5" fontSize="2.8" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                                  DO NOT USE SOLVENTS
+                                </text>
+                              </g>
+                            </g>
+
+                            {/* --- 3D. BOTTOM OIL DRAIN / FILL PLUG --- */}
+                            <rect x="105" y="164" width="10" height="7" rx="1.5" fill="#94a3b8" stroke="#64748b" strokeWidth="0.8" />
+                          </g>
+
+                          {/* ------------------------------------------------------------- */}
+                          {/* 4. COMPONENT IDENTIFICATION STRIP / TAG */}
+                          {/* ------------------------------------------------------------- */}
+                          <g transform="translate(4, 4)">
+                            <rect x="0" y="0" width="58" height="10" rx="2" fill="#0284c7" opacity="0.9" />
+                            <text x="29" y="7" fill="#ffffff" fontSize="6.5" fontWeight="900" fontFamily="'JetBrains Mono'" textAnchor="middle">
+                              0Z1 • FRL
+                            </text>
+                          </g>
+                        </g>
+                      );
+                    })()}
 
                     {/* 3b. AIR MANIFOLD (BLOCO DISTRIBUIDOR 8 SAÍDAS FESTO) */}
                     {comp.type === 'air_manifold' && (
@@ -2793,6 +3337,17 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         else if (port.name.includes('12')) portX = 84;
                       }
 
+                      // Auto-ajuste para a Unidade de Conservação FRL:
+                      // Posiciona conexões nos bocais do corpo metálico industrial (P à esq, 1 à dir)
+                      if (comp.type === 'frl_unit') {
+                        portY = 39;
+                        if (port.name.includes('P') || port.name.includes('Entrada')) {
+                          portX = 8;
+                        } else if (port.name.includes('1') || port.name.includes('Saída')) {
+                          portX = 92;
+                        }
+                      }
+
                       const px = (comp.width * portX) / 100;
                       const py = (comp.height * portY) / 100;
                       const isPneumatic = port.type === 'pneumatic';
@@ -2807,11 +3362,14 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       );
 
                       const isButtonStation = comp.type === 'push_button_station';
+                      const isFRL = comp.type === 'frl_unit';
                       const labelText = isButtonStation
                         ? (port.name.includes('13') ? '13' : port.name.includes('14') ? '14' : port.name.includes('11') ? '11' : port.name.includes('12') ? '12' : port.name)
+                        : isFRL
+                        ? (port.name.includes('P') || port.name.includes('Entrada') ? 'P (REDE)' : '1 (SAÍDA)')
                         : port.name.split(' ')[0];
                       const isBottom = py > comp.height / 2;
-                      const textY = isButtonStation ? 13 : (isBottom ? -13 : 18);
+                      const textY = isButtonStation ? 13 : isFRL ? -15 : (isBottom ? -13 : 18);
 
                       return (
                         <g
