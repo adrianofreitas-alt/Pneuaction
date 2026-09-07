@@ -27,7 +27,12 @@ import {
   Check,
   ShieldCheck,
   Eye,
-  Activity
+  Activity,
+  Move,
+  RotateCcw,
+  Ruler,
+  Minimize2,
+  Maximize2
 } from 'lucide-react';
 import { benchAudio } from '../utils/audioSynthesizer';
 import { getSensorPorts } from '../utils/circuitSimulator';
@@ -104,6 +109,8 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [hoveredPort, setHoveredPort] = useState<ComponentPort | null>(null);
   const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+  const [draggingConnectionId, setDraggingConnectionId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [draggingCompId, setDraggingCompId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -112,13 +119,33 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   const canvasRef = useRef<SVGSVGElement | null>(null);
   const lastSnappedCompIdRef = useRef<string | null>(null);
 
-  // Handle canvas mouse move for active drawing line
+  // Handle canvas mouse move for active drawing line and dragging
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     setMousePos({ x, y });
+
+    // Handle dragging connection control point (reposicionar / desviar / esticar cabo ou tubo)
+    if (draggingConnectionId) {
+      const clampedX = Math.max(15, Math.min(1385, Math.round(x)));
+      const clampedY = Math.max(15, Math.min(835, Math.round(y)));
+
+      onUpdateConnections(
+        connections.map((c) => {
+          if (c.id === draggingConnectionId) {
+            return {
+              ...c,
+              customControlPoint: { x: clampedX, y: clampedY },
+              customSag: undefined,
+            };
+          }
+          return c;
+        })
+      );
+      return;
+    }
 
     // Handle dragging component
     if (draggingCompId) {
@@ -295,6 +322,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
     if (draggingCompId) {
       setDraggingCompId(null);
     }
+    if (draggingConnectionId) {
+      setDraggingConnectionId(null);
+    }
   };
 
   // Port click to initiate or complete connection
@@ -357,10 +387,80 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
     }
   };
 
-  const handleDeleteConnection = (connId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteConnection = (connId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     onUpdateConnections(connections.filter((c) => c.id !== connId));
+    if (selectedConnectionId === connId) {
+      setSelectedConnectionId(null);
+    }
     benchAudio.playExhaust(0.1, 0.15);
+  };
+
+  // Ajuste de comprimento / folga da conexão selecionada (+/- mm de arco)
+  const handleAdjustSag = (connId: string, delta: number) => {
+    const conn = connections.find((c) => c.id === connId);
+    if (!conn) return;
+
+    const comp1 = components.find((c) => c.id === conn.fromComponentId);
+    const comp2 = components.find((c) => c.id === conn.toComponentId);
+    const port1 = comp1?.ports.find((p) => p.id === conn.fromPortId);
+    const port2 = comp2?.ports.find((p) => p.id === conn.toPortId);
+    if (!comp1 || !comp2 || !port1 || !port2) return;
+
+    const p1 = getPortWorldCoordinates(comp1, port1);
+    const p2 = getPortWorldCoordinates(comp2, port2);
+
+    const midChord = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+    const currentHandle = conn.customControlPoint || { x: midChord.x, y: midChord.y + 60 };
+
+    const vx = currentHandle.x - midChord.x;
+    const vy = currentHandle.y - midChord.y;
+    const dist = Math.sqrt(vx * vx + vy * vy);
+
+    let newHandle: { x: number; y: number };
+
+    if (dist < 10) {
+      // Se estava retilíneo, afasta na vertical para dar folga natural
+      newHandle = {
+        x: midChord.x,
+        y: Math.max(20, Math.min(830, midChord.y + Math.max(15, delta))),
+      };
+    } else {
+      // Afasta ou aproxima do ponto médio da reta entre os bornes
+      const scale = Math.max(0.1, (dist + delta) / dist);
+      newHandle = {
+        x: Math.max(15, Math.min(1385, Math.round(midChord.x + vx * scale))),
+        y: Math.max(15, Math.min(835, Math.round(midChord.y + vy * scale))),
+      };
+    }
+
+    onUpdateConnections(
+      connections.map((c) => {
+        if (c.id === connId) {
+          return {
+            ...c,
+            customControlPoint: newHandle,
+            customSag: undefined,
+          };
+        }
+        return c;
+      })
+    );
+    benchAudio.playRelayClick();
+  };
+
+  // Restaurar traçado automático com desvio inteligente de obstáculos
+  const handleResetConnectionRoute = (connId: string) => {
+    onUpdateConnections(
+      connections.map((c) => {
+        if (c.id === connId) {
+          const { customControlPoint, customSag, ...rest } = c;
+          return rest;
+        }
+        return c;
+      })
+    );
+    benchAudio.playRelayClick();
   };
 
   // Toggle Power Supply ON/OFF (Chave Liga / Desliga)
@@ -394,6 +494,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
     if ((e.target as HTMLElement).tagName.toLowerCase() === 'button') return;
     if (connectingStart) return;
 
+    setSelectedConnectionId(null);
     setDraggingCompId(comp.id);
     const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
     setDragOffset({
@@ -431,6 +532,12 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   const routedConnections = useMemo(() => {
     return calculateRoutedConnections(connections, components);
   }, [connections, components]);
+
+  // Conexão atualmente selecionada para reposicionamento e ajuste de comprimento
+  const selectedRouted = useMemo(() => {
+    if (!selectedConnectionId) return null;
+    return routedConnections.find((r) => r.connection.id === selectedConnectionId) || null;
+  }, [routedConnections, selectedConnectionId]);
 
   // Filter templates
   const filteredTemplates = COMPONENT_TEMPLATES.filter((tpl) => {
@@ -588,6 +695,93 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
           )}
         </div>
 
+        {/* Floating Contextual Toolbar for Selected Hose/Wire (Reposicionar / Desviar / Ajustar Comprimento) */}
+        {selectedRouted && (
+          <div className="absolute top-12 left-4 z-30 flex flex-wrap items-center gap-2.5 bg-slate-900/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-cyan-500/50 text-xs shadow-2xl shadow-cyan-950/40">
+            {/* Icon & Connection Info */}
+            <div className="flex items-center gap-2 pr-2 border-r border-slate-700/60">
+              {selectedRouted.isPneumatic ? (
+                <Wind className="w-4 h-4 text-cyan-400" />
+              ) : (
+                <Zap className="w-4 h-4 text-amber-400" />
+              )}
+              <div>
+                <div className="font-bold text-white flex items-center gap-1.5">
+                  {selectedRouted.isPneumatic ? 'Tubo Pneumático PU Ø6mm' : selectedRouted.isGroundWire ? 'Cabo Elétrico 0V (GND)' : 'Cabo Elétrico +24V'}
+                </div>
+                <div className="text-[10px] text-slate-400 font-mono">
+                  {selectedRouted.coords.sourceComp.tag} [{selectedRouted.coords.sourcePort.name}] ➔ {selectedRouted.coords.targetComp.tag} [{selectedRouted.coords.targetPort.name}]
+                </div>
+              </div>
+            </div>
+
+            {/* Real Measured Length */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700">
+              <Ruler className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-[11px] text-slate-300">Comprimento:</span>
+              <span className="font-mono font-bold text-cyan-300">{selectedRouted.lengthMm} mm</span>
+            </div>
+
+            {/* Shrink / Enlarge Controls */}
+            <div className="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700">
+              <button
+                onClick={() => handleAdjustSag(selectedRouted.connection.id, -30)}
+                className="px-2 py-1 rounded hover:bg-slate-700 text-slate-200 hover:text-white flex items-center gap-1 transition cursor-pointer"
+                title="Encolher cabo/tubo (deixa mais esticado/curto)"
+              >
+                <Minimize2 className="w-3 h-3 text-cyan-400" />
+                <span className="font-medium text-[11px]">Encolher (-30mm)</span>
+              </button>
+              <div className="w-px h-4 bg-slate-700" />
+              <button
+                onClick={() => handleAdjustSag(selectedRouted.connection.id, 30)}
+                className="px-2 py-1 rounded hover:bg-slate-700 text-slate-200 hover:text-white flex items-center gap-1 transition cursor-pointer"
+                title="Aumentar comprimento / folga da curva"
+              >
+                <Maximize2 className="w-3 h-3 text-cyan-400" />
+                <span className="font-medium text-[11px]">Aumentar (+30mm)</span>
+              </button>
+            </div>
+
+            {/* Interactive Drag Instruction */}
+            <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-300 px-2 py-1 rounded bg-slate-950/60 border border-slate-800">
+              <Move className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span>Arraste o pino no trajeto para desviar</span>
+            </div>
+
+            {/* Reset to Auto Route */}
+            <button
+              onClick={() => handleResetConnectionRoute(selectedRouted.connection.id)}
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center gap-1 transition text-[11px] cursor-pointer"
+              title="Restaurar traçado e caimento automático inteligente"
+            >
+              <RotateCcw className="w-3 h-3 text-slate-400" />
+              <span>Restaurar Auto</span>
+            </button>
+
+            {/* Delete Connection */}
+            <button
+              onClick={(e) => {
+                handleDeleteConnection(selectedRouted.connection.id, e);
+                setSelectedConnectionId(null);
+              }}
+              className="p-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-800 text-rose-300 hover:text-white transition cursor-pointer"
+              title="Excluir este tubo / cabo"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Close Toolbar */}
+            <button
+              onClick={() => setSelectedConnectionId(null)}
+              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+              title="Fechar barra de ajuste"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Active Connection Legend */}
         <div className="absolute bottom-3 left-4 z-20 flex items-center gap-3 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-[11px] shadow-lg">
           <div className="flex items-center gap-1.5">
@@ -618,6 +812,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             onClick={() => {
               if (connectingStart) setConnectingStart(null);
               onSelectComponent(null);
+              setSelectedConnectionId(null);
               setIsParamsOpen(false);
             }}
           >
@@ -2449,10 +2644,11 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             {/* ---------------------------------------------------- */}
             <g id="connections-layer">
               {routedConnections.map((routed) => {
-                const { connection: conn, coords, waypoints, pathD, isPneumatic, isGroundWire } = routed;
+                const { connection: conn, coords, waypoints, pathD, isPneumatic, isGroundWire, controlHandle, lengthMm } = routed;
                 const { x1, y1, x2, y2 } = coords;
 
                 const isHovered = hoveredConnectionId === conn.id;
+                const isSelected = selectedConnectionId === conn.id;
 
                 // Color based on type and pressure/voltage
                 let strokeColor = '#0284c7'; // Festo Blue PU hose
@@ -2465,11 +2661,6 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                   highlightColor = isGroundWire ? '#2563eb' : '#f87171';
                 }
 
-                // Ponto médio para o botão de exclusão
-                const midWp = waypoints.length >= 3 
-                  ? waypoints[Math.floor(waypoints.length / 2)] 
-                  : { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
-
                 return (
                   <g
                     key={conn.id}
@@ -2477,13 +2668,37 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                     onMouseEnter={() => setHoveredConnectionId(conn.id)}
                     onMouseLeave={() => setHoveredConnectionId(null)}
                   >
-                    {/* Outer glow / hit area for easy hover and click */}
+                    {/* Outer glow / hit area for easy hover and click / drag */}
                     <path
                       d={pathD}
                       fill="none"
                       stroke="transparent"
-                      strokeWidth={18}
+                      strokeWidth={22}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedConnectionId(conn.id);
+                        onSelectComponent(null);
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        setSelectedConnectionId(conn.id);
+                        onSelectComponent(null);
+                        setDraggingConnectionId(conn.id);
+                      }}
                     />
+
+                    {/* Selected active glow halo along entire curve */}
+                    {isSelected && (
+                      <path
+                        d={pathD}
+                        fill="none"
+                        stroke="#38bdf8"
+                        strokeWidth={strokeWidth + 7}
+                        strokeDasharray="8 6"
+                        opacity={0.65}
+                        className="animate-pulse pointer-events-none"
+                      />
+                    )}
 
                     {/* Shadow underneath */}
                     <path
@@ -2493,6 +2708,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       strokeWidth={strokeWidth + 3}
                       opacity={0.35}
                       transform="translate(1.5, 3.5)"
+                      className="pointer-events-none"
                     />
 
                     {/* Main hose / wire body */}
@@ -2503,7 +2719,18 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       strokeWidth={strokeWidth}
                       strokeLinecap="round"
                       filter={conn.active && isSimulating ? 'url(#hose-glow)' : undefined}
-                      className={isHovered ? 'brightness-125' : ''}
+                      className={isHovered || isSelected ? 'brightness-125' : ''}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedConnectionId(conn.id);
+                        onSelectComponent(null);
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        setSelectedConnectionId(conn.id);
+                        onSelectComponent(null);
+                        setDraggingConnectionId(conn.id);
+                      }}
                     />
 
                     {/* Glossy highlight along tube / wire to simulate polyurethane sheen */}
@@ -2514,6 +2741,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       strokeWidth={strokeWidth * 0.35}
                       strokeLinecap="round"
                       opacity={0.75}
+                      className="pointer-events-none"
                     />
 
                     {/* Animated flow dash if simulating */}
@@ -2525,7 +2753,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         strokeWidth={strokeWidth * 0.5}
                         strokeDasharray={isPneumatic ? '6 12' : '4 8'}
                         strokeLinecap="round"
-                        className="animate-[dash_1s_linear_infinite]"
+                        className="animate-[dash_1s_linear_infinite] pointer-events-none"
                       />
                     )}
 
@@ -2568,19 +2796,97 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       </g>
                     )}
 
-                    {/* Delete Connection Tooltip Button at midpoint */}
-                    {isHovered && (
-                      <g transform={`translate(${midWp.x}, ${midWp.y})`}>
-                        <circle r="12" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                    {/* Interactive deflection and length control handle */}
+                    {(isHovered || isSelected) && (
+                      <g
+                        transform={`translate(${controlHandle.x}, ${controlHandle.y})`}
+                        className="cursor-grab active:cursor-grabbing"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          setSelectedConnectionId(conn.id);
+                          onSelectComponent(null);
+                          setDraggingConnectionId(conn.id);
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedConnectionId(conn.id);
+                          onSelectComponent(null);
+                        }}
+                      >
+                        {/* Outer halo */}
+                        <circle
+                          r={isSelected ? 16 : 12}
+                          fill={isSelected ? '#0284c7' : '#0f172a'}
+                          fillOpacity={isSelected ? 0.35 : 0.75}
+                          stroke={isSelected ? '#38bdf8' : isPneumatic ? '#0ea5e9' : isGroundWire ? '#3b82f6' : '#ef4444'}
+                          strokeWidth={isSelected ? 2.5 : 1.5}
+                          strokeDasharray={isSelected ? '4 3' : undefined}
+                          className={isSelected ? 'animate-[spin_8s_linear_infinite]' : ''}
+                        />
+                        {/* Inner knob */}
+                        <circle
+                          r={isSelected ? 8 : 6}
+                          fill={isSelected ? '#38bdf8' : '#1e293b'}
+                          stroke="#ffffff"
+                          strokeWidth={1.5}
+                        />
+                        {/* Center dot */}
+                        {isSelected ? (
+                          <circle r="3" fill="#0369a1" />
+                        ) : (
+                          <circle r="2" fill="#94a3b8" />
+                        )}
+
+                        {/* Floating tooltip */}
+                        {!draggingConnectionId && (
+                          <g transform="translate(0, -22)" className="pointer-events-none">
+                            <rect
+                              x="-75"
+                              y="-12"
+                              width="150"
+                              height="22"
+                              rx="5"
+                              fill="#0f172a"
+                              stroke={isSelected ? '#38bdf8' : '#64748b'}
+                              strokeWidth="1.2"
+                              opacity="0.95"
+                            />
+                            <text
+                              x="0"
+                              y="3"
+                              fill="#e2e8f0"
+                              fontSize="9"
+                              fontWeight="600"
+                              fontFamily="system-ui, -apple-system, sans-serif"
+                              textAnchor="middle"
+                            >
+                              {isSelected ? 'Arraste p/ desviar / esticar' : 'Clique p/ reposicionar'} ({lengthMm}mm)
+                            </text>
+                          </g>
+                        )}
+                      </g>
+                    )}
+
+                    {/* Quick Delete Tooltip Button */}
+                    {isHovered && !draggingConnectionId && !isSelected && (
+                      <g transform={`translate(${controlHandle.x + 22}, ${controlHandle.y - 12})`}>
+                        <circle
+                          r="10"
+                          fill="#ef4444"
+                          stroke="#ffffff"
+                          strokeWidth="1.2"
+                          className="cursor-pointer hover:fill-rose-700"
+                          onClick={(e) => handleDeleteConnection(conn.id, e)}
+                        />
                         <text
                           x="0"
-                          y="4"
+                          y="3.5"
                           fill="#ffffff"
-                          fontSize="12"
+                          fontSize="11"
                           fontWeight="bold"
                           textAnchor="middle"
                           onClick={(e) => handleDeleteConnection(conn.id, e)}
-                          className="cursor-pointer"
+                          className="cursor-pointer pointer-events-none"
                         >
                           ×
                         </text>

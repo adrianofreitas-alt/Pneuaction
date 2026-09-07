@@ -116,6 +116,9 @@ export interface VirtualConnection {
   voltageV?: number;
   flowRateLmin?: number;
   isLeaking?: boolean;
+  // Reposicionamento manual e ajuste de comprimento/folga do tubo ou cabo
+  customControlPoint?: { x: number; y: number };
+  customSag?: number; // Ajuste de folga / caimento relativo (positivo = mais longo/curvado, negativo = mais curto/esticado)
 }
 
 export interface DiagnosticFault {
