@@ -42,8 +42,22 @@ import { calculateRoutedConnections } from '../utils/cableRouter';
 // Utility to calculate transformed world coordinates for ports taking rotation into account
 export const getPortWorldCoordinates = (comp: BenchComponent, port: ComponentPort) => {
   const rotation = comp.rotation || 0;
-  const rawX = (comp.width * port.x) / 100;
-  const rawY = (comp.height * port.y) / 100;
+  let portX = port.x;
+  let portY = port.y;
+
+  // Auto-ajuste para o módulo de botões de acionamento:
+  // Garante que os bornes elétricos fiquem na régua inferior dedicada (y: 83%),
+  // deixando os botões de acionamento superiores (y: ~70px) 100% livres e desobstruídos
+  if (comp.type === 'push_button_station' && port.y < 70) {
+    portY = 83;
+    if (port.name.includes('13')) portX = 16;
+    else if (port.name.includes('14')) portX = 38;
+    else if (port.name.includes('11')) portX = 62;
+    else if (port.name.includes('12')) portX = 84;
+  }
+
+  const rawX = (comp.width * portX) / 100;
+  const rawY = (comp.height * portY) / 100;
 
   if (!rotation) {
     return {
@@ -1751,12 +1765,56 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       );
                     })()}
 
-                    {/* 5. PUSH BUTTON STATION */}
+                    {/* 5. PUSH BUTTON STATION (BOTOEIRA INDUSTRIAL FESTO DE COMANDO) */}
                     {comp.type === 'push_button_station' && (
-                      <g transform="translate(20, 36)">
-                        {/* Green Button NA (13-14) */}
+                      <g>
+                        {/* ---------------------------------------------------- */}
+                        {/* ZONA SUPERIOR: DECK DE ACIONAMENTO ERGONÔMICO        */}
+                        {/* Área 100% desobstruída e livre de conexões           */}
+                        {/* ---------------------------------------------------- */}
+                        <rect
+                          x="8"
+                          y="32"
+                          width="144"
+                          height="74"
+                          rx="6"
+                          fill="#090f1d"
+                          stroke="#1e293b"
+                          strokeWidth="1.2"
+                        />
+                        {/* Divisória sutil entre os dois botões no deck */}
+                        <line x1="80" y1="36" x2="80" y2="102" stroke="#1e293b" strokeWidth="1" strokeDasharray="3 3" />
+
+                        {/* Etiqueta de Função Superior S1 */}
+                        <text
+                          x="43"
+                          y="43"
+                          fill="#34d399"
+                          fontSize="7"
+                          fontWeight="bold"
+                          fontFamily="'JetBrains Mono', monospace"
+                          textAnchor="middle"
+                        >
+                          S1 (LIGA / PARTIDA)
+                        </text>
+
+                        {/* Etiqueta de Função Superior S0 */}
+                        <text
+                          x="117"
+                          y="43"
+                          fill="#f87171"
+                          fontSize="7"
+                          fontWeight="bold"
+                          fontFamily="'JetBrains Mono', monospace"
+                          textAnchor="middle"
+                        >
+                          S0 (DESLIGA / PARADA)
+                        </text>
+
+                        {/* ==================================================== */}
+                        {/* BOTÃO PULSADOR VERDE S1 (NA 13-14)                   */}
+                        {/* ==================================================== */}
                         <g
-                          transform="translate(10, 5)"
                           onMouseDown={(e) => {
                             e.stopPropagation();
                             onPressButton(comp.id, 'NA');
@@ -1765,16 +1823,104 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             e.stopPropagation();
                             onReleaseButton(comp.id, 'NA');
                           }}
-                          className="cursor-pointer hover:brightness-110"
+                          onMouseLeave={() => {
+                            if (comp.state.buttonNApressed) {
+                              onReleaseButton(comp.id, 'NA');
+                            }
+                          }}
+                          onTouchStart={(e) => {
+                            e.stopPropagation();
+                            onPressButton(comp.id, 'NA');
+                          }}
+                          onTouchEnd={(e) => {
+                            e.stopPropagation();
+                            onReleaseButton(comp.id, 'NA');
+                          }}
+                          className="cursor-pointer group/btn-na"
                         >
-                          <circle cx="16" cy="16" r="14" fill="#065f46" stroke="#10b981" strokeWidth="2" />
-                          <circle cx="16" cy="16" r="10" fill={comp.state.buttonNApressed ? '#34d399' : '#10b981'} />
-                          <text x="40" y="20" fill="#e2e8f0" fontSize="10" fontWeight="bold">S1 (NA)</text>
+                          {/* Colar Metálico de Fixação Externa */}
+                          <circle
+                            cx="43"
+                            cy="70"
+                            r="21"
+                            fill="#1e293b"
+                            stroke="#475569"
+                            strokeWidth="1.5"
+                          />
+                          {/* Anel Chanfrado Interno */}
+                          <circle
+                            cx="43"
+                            cy="70"
+                            r="18"
+                            fill="#0f172a"
+                            stroke="#334155"
+                            strokeWidth="1"
+                          />
+                          {/* Halo luminoso quando acionado */}
+                          {comp.state.buttonNApressed && (
+                            <circle
+                              cx="43"
+                              cy="70"
+                              r="24"
+                              fill="none"
+                              stroke="#10b981"
+                              strokeWidth="2"
+                              opacity="0.8"
+                              className="animate-pulse"
+                            />
+                          )}
+                          {/* Atuador Cilíndrico / Cúpula Emborrachada Verde */}
+                          <circle
+                            cx="43"
+                            cy="70"
+                            r={comp.state.buttonNApressed ? 14 : 15.5}
+                            fill={comp.state.buttonNApressed ? '#34d399' : '#059669'}
+                            stroke={comp.state.buttonNApressed ? '#6ee7b7' : '#10b981'}
+                            strokeWidth={comp.state.buttonNApressed ? 2.5 : 2}
+                            className="transition-all"
+                          />
+                          {/* Brilho Especular Superior do Botão */}
+                          <ellipse
+                            cx="40"
+                            cy={comp.state.buttonNApressed ? 68 : 66}
+                            rx="7"
+                            ry="3.5"
+                            fill="#ffffff"
+                            opacity={comp.state.buttonNApressed ? 0.6 : 0.35}
+                            pointerEvents="none"
+                          />
+                          {/* Símbolo Industrial IEC "I" (Liga) */}
+                          <text
+                            x="43"
+                            y={comp.state.buttonNApressed ? 73.5 : 73}
+                            fill="#ffffff"
+                            fontSize="9"
+                            fontWeight="bold"
+                            fontFamily="'JetBrains Mono', monospace"
+                            textAnchor="middle"
+                            pointerEvents="none"
+                          >
+                            I
+                          </text>
+                          {/* Legenda de Status Inferior S1 */}
+                          <text
+                            x="43"
+                            y="99"
+                            fill={comp.state.buttonNApressed ? '#34d399' : '#64748b'}
+                            fontSize="6"
+                            fontWeight="bold"
+                            fontFamily="'JetBrains Mono', monospace"
+                            textAnchor="middle"
+                            pointerEvents="none"
+                          >
+                            {comp.state.buttonNApressed ? 'ACIONADO (NA)' : 'PULSO NA'}
+                          </text>
                         </g>
 
-                        {/* Red Button NF (11-12) */}
+                        {/* ==================================================== */}
+                        {/* BOTÃO PULSADOR VERMELHO S0 (NF 11-12)                */}
+                        {/* ==================================================== */}
                         <g
-                          transform="translate(10, 50)"
                           onMouseDown={(e) => {
                             e.stopPropagation();
                             onPressButton(comp.id, 'NF');
@@ -1783,11 +1929,183 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             e.stopPropagation();
                             onReleaseButton(comp.id, 'NF');
                           }}
-                          className="cursor-pointer hover:brightness-110"
+                          onMouseLeave={() => {
+                            if (comp.state.buttonNFpressed) {
+                              onReleaseButton(comp.id, 'NF');
+                            }
+                          }}
+                          onTouchStart={(e) => {
+                            e.stopPropagation();
+                            onPressButton(comp.id, 'NF');
+                          }}
+                          onTouchEnd={(e) => {
+                            e.stopPropagation();
+                            onReleaseButton(comp.id, 'NF');
+                          }}
+                          className="cursor-pointer group/btn-nf"
                         >
-                          <circle cx="16" cy="16" r="14" fill="#7f1d1d" stroke="#ef4444" strokeWidth="2" />
-                          <circle cx="16" cy="16" r="10" fill={comp.state.buttonNFpressed ? '#f87171' : '#ef4444'} />
-                          <text x="40" y="20" fill="#e2e8f0" fontSize="10" fontWeight="bold">S0 (NF)</text>
+                          {/* Colar Metálico de Fixação Externa */}
+                          <circle
+                            cx="117"
+                            cy="70"
+                            r="21"
+                            fill="#1e293b"
+                            stroke="#475569"
+                            strokeWidth="1.5"
+                          />
+                          {/* Anel Chanfrado Interno */}
+                          <circle
+                            cx="117"
+                            cy="70"
+                            r="18"
+                            fill="#0f172a"
+                            stroke="#334155"
+                            strokeWidth="1"
+                          />
+                          {/* Halo luminoso quando acionado */}
+                          {comp.state.buttonNFpressed && (
+                            <circle
+                              cx="117"
+                              cy="70"
+                              r="24"
+                              fill="none"
+                              stroke="#ef4444"
+                              strokeWidth="2"
+                              opacity="0.8"
+                              className="animate-pulse"
+                            />
+                          )}
+                          {/* Atuador Cilíndrico / Cúpula Emborrachada Vermelha */}
+                          <circle
+                            cx="117"
+                            cy="70"
+                            r={comp.state.buttonNFpressed ? 14 : 15.5}
+                            fill={comp.state.buttonNFpressed ? '#ef4444' : '#b91c1c'}
+                            stroke={comp.state.buttonNFpressed ? '#fca5a5' : '#ef4444'}
+                            strokeWidth={comp.state.buttonNFpressed ? 2.5 : 2}
+                            className="transition-all"
+                          />
+                          {/* Brilho Especular Superior do Botão */}
+                          <ellipse
+                            cx="114"
+                            cy={comp.state.buttonNFpressed ? 68 : 66}
+                            rx="7"
+                            ry="3.5"
+                            fill="#ffffff"
+                            opacity={comp.state.buttonNFpressed ? 0.6 : 0.35}
+                            pointerEvents="none"
+                          />
+                          {/* Símbolo Industrial IEC "O" (Desliga) */}
+                          <text
+                            x="117"
+                            y={comp.state.buttonNFpressed ? 73.5 : 73}
+                            fill="#ffffff"
+                            fontSize="9"
+                            fontWeight="bold"
+                            fontFamily="'JetBrains Mono', monospace"
+                            textAnchor="middle"
+                            pointerEvents="none"
+                          >
+                            O
+                          </text>
+                          {/* Legenda de Status Inferior S0 */}
+                          <text
+                            x="117"
+                            y="99"
+                            fill={comp.state.buttonNFpressed ? '#f87171' : '#64748b'}
+                            fontSize="6"
+                            fontWeight="bold"
+                            fontFamily="'JetBrains Mono', monospace"
+                            textAnchor="middle"
+                            pointerEvents="none"
+                          >
+                            {comp.state.buttonNFpressed ? 'ACIONADO (NF)' : 'PULSO NF'}
+                          </text>
+                        </g>
+
+                        {/* ---------------------------------------------------- */}
+                        {/* ZONA INFERIOR: RÉGUA DE BORNES 4mm E ESQUEMA IEC     */}
+                        {/* Painel isolado com bornes 13-14 (NA) e 11-12 (NF)    */}
+                        {/* ---------------------------------------------------- */}
+                        <rect
+                          x="8"
+                          y="112"
+                          width="144"
+                          height="62"
+                          rx="4"
+                          fill="#030712"
+                          stroke="#334155"
+                          strokeWidth="1"
+                        />
+                        {/* Linha separadora central entre bancos NA e NF */}
+                        <line x1="80" y1="114" x2="80" y2="172" stroke="#1e293b" strokeWidth="1" strokeDasharray="2 2" />
+
+                        {/* --- BANCO ESQUERDO: CONTATO NA (13-14) --- */}
+                        <text
+                          x="43"
+                          y="122"
+                          fill="#10b981"
+                          fontSize="6.5"
+                          fontWeight="bold"
+                          fontFamily="'JetBrains Mono', monospace"
+                          textAnchor="middle"
+                        >
+                          NA (13-14)
+                        </text>
+
+                        {/* Diagrama Esquemático IEC do Contato NA */}
+                        <g>
+                          {/* Linha terminal 13 */}
+                          <line x1="26" y1="133" x2="35" y2="133" stroke="#64748b" strokeWidth="1.5" />
+                          <circle cx="35" cy="133" r="2" fill="#38bdf8" />
+                          {/* Linha terminal 14 */}
+                          <line x1="51" y1="133" x2="61" y2="133" stroke="#64748b" strokeWidth="1.5" />
+                          <circle cx="51" cy="133" r="2" fill={comp.state.buttonNApressed ? '#10b981' : '#64748b'} />
+                          {/* Lâmina móvel do contato */}
+                          {comp.state.buttonNApressed ? (
+                            <line x1="35" y1="133" x2="51" y2="133" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
+                          ) : (
+                            <line x1="35" y1="133" x2="49" y2="127" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" />
+                          )}
+                          {/* Acoplamento mecânico tracejado ao botão */}
+                          <line x1="43" y1="125" x2="43" y2="130" stroke="#10b981" strokeWidth="0.8" strokeDasharray="1.5 1.5" />
+                          {/* Números 13 e 14 */}
+                          <text x="21" y="135" fill="#94a3b8" fontSize="6" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">13</text>
+                          <text x="65" y="135" fill="#94a3b8" fontSize="6" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">14</text>
+                        </g>
+
+                        {/* --- BANCO DIREITO: CONTATO NF (11-12) --- */}
+                        <text
+                          x="117"
+                          y="122"
+                          fill="#ef4444"
+                          fontSize="6.5"
+                          fontWeight="bold"
+                          fontFamily="'JetBrains Mono', monospace"
+                          textAnchor="middle"
+                        >
+                          NF (11-12)
+                        </text>
+
+                        {/* Diagrama Esquemático IEC do Contato NF */}
+                        <g>
+                          {/* Linha terminal 11 */}
+                          <line x1="100" y1="133" x2="109" y2="133" stroke="#64748b" strokeWidth="1.5" />
+                          <circle cx="109" cy="133" r="2" fill="#38bdf8" />
+                          {/* Linha terminal 12 */}
+                          <line x1="125" y1="133" x2="134" y2="133" stroke="#64748b" strokeWidth="1.5" />
+                          <circle cx="125" cy="133" r="2" fill={!comp.state.buttonNFpressed ? '#ef4444' : '#64748b'} />
+                          {/* Lâmina móvel do contato */}
+                          {!comp.state.buttonNFpressed ? (
+                            <line x1="109" y1="133" x2="125" y2="133" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+                          ) : (
+                            <line x1="109" y1="133" x2="123" y2="127" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" />
+                          )}
+                          {/* Acoplamento mecânico tracejado ao botão */}
+                          <line x1="117" y1="125" x2="117" y2="130" stroke="#ef4444" strokeWidth="0.8" strokeDasharray="1.5 1.5" />
+                          {/* Números 11 e 12 */}
+                          <text x="95" y="135" fill="#94a3b8" fontSize="6" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">11</text>
+                          <text x="138" y="135" fill="#94a3b8" fontSize="6" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">12</text>
                         </g>
                       </g>
                     )}
@@ -2461,8 +2779,22 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                     {/* PORTS RENDERING (Connection Circles / Entradas e Saídas) */}
                     {/* ------------------------------------------------ */}
                     {comp.ports.map((port) => {
-                      const px = (comp.width * port.x) / 100;
-                      const py = (comp.height * port.y) / 100;
+                      let portX = port.x;
+                      let portY = port.y;
+
+                      // Auto-ajuste para o módulo de botões de acionamento:
+                      // Garante que os bornes elétricos fiquem na régua inferior dedicada (y: 83%),
+                      // deixando os botões de acionamento superiores (y: ~70px) 100% livres e desobstruídos
+                      if (comp.type === 'push_button_station' && port.y < 70) {
+                        portY = 83;
+                        if (port.name.includes('13')) portX = 16;
+                        else if (port.name.includes('14')) portX = 38;
+                        else if (port.name.includes('11')) portX = 62;
+                        else if (port.name.includes('12')) portX = 84;
+                      }
+
+                      const px = (comp.width * portX) / 100;
+                      const py = (comp.height * portY) / 100;
                       const isPneumatic = port.type === 'pneumatic';
                       const isTarget = connectingStart && connectingStart.port.type === port.type;
                       const isGround = port.functionType === 'ground_0v' || port.name.includes('0V');
@@ -2474,9 +2806,12 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           (c.toComponentId === comp.id && c.toPortId === port.id)
                       );
 
-                      const labelText = port.name.split(' ')[0];
+                      const isButtonStation = comp.type === 'push_button_station';
+                      const labelText = isButtonStation
+                        ? (port.name.includes('13') ? '13' : port.name.includes('14') ? '14' : port.name.includes('11') ? '11' : port.name.includes('12') ? '12' : port.name)
+                        : port.name.split(' ')[0];
                       const isBottom = py > comp.height / 2;
-                      const textY = isBottom ? -13 : 18;
+                      const textY = isButtonStation ? 13 : (isBottom ? -13 : 18);
 
                       return (
                         <g
@@ -2604,14 +2939,24 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                 height="13"
                                 rx="3"
                                 fill="#090f1d"
-                                stroke={isPneumatic ? '#0284c7' : isGround ? '#1e3a8a' : '#dc2626'}
+                                stroke={
+                                  isPneumatic ? '#0284c7' :
+                                  isGround ? '#1e3a8a' :
+                                  isButtonStation && (port.name.includes('13') || port.name.includes('14')) ? '#059669' :
+                                  '#dc2626'
+                                }
                                 strokeWidth="0.8"
                                 opacity="0.9"
                               />
                               <text
                                 x="0"
                                 y="2.5"
-                                fill={isPneumatic ? '#38bdf8' : isGround ? '#93c5fd' : '#fca5a5'}
+                                fill={
+                                  isPneumatic ? '#38bdf8' :
+                                  isGround ? '#93c5fd' :
+                                  isButtonStation && (port.name.includes('13') || port.name.includes('14')) ? '#34d399' :
+                                  '#fca5a5'
+                                }
                                 fontSize="7.5"
                                 fontWeight="bold"
                                 fontFamily="'JetBrains Mono', monospace"

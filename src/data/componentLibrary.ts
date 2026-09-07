@@ -314,12 +314,12 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     width: 160,
     height: 180,
     tagPrefix: '1S',
-    description: 'Estação industrial com botão pulsador verde normalmente aberto (NA 13-14 para pulso de partida/liga) e botão vermelho normalmente fechado (NF 11-12 para parada/desliga).',
+    description: 'Estação industrial com botões pulsadores ergonômicos superiores (Verde NA Liga/Partida e Vermelho NF Desliga/Parada) e régua inferior dedicada de bornes 4mm com diagramas esquemáticos IEC desobstruídos.',
     defaultPorts: [
-      { name: 'NA (13)', type: 'electrical', functionType: 'signal_in', x: 25, y: 35 },
-      { name: 'NA (14)', type: 'electrical', functionType: 'signal_out', x: 75, y: 35 },
-      { name: 'NF (11)', type: 'electrical', functionType: 'signal_in', x: 25, y: 75 },
-      { name: 'NF (12)', type: 'electrical', functionType: 'signal_out', x: 75, y: 75 },
+      { name: 'NA (13)', type: 'electrical', functionType: 'signal_in', x: 16, y: 83 },
+      { name: 'NA (14)', type: 'electrical', functionType: 'signal_out', x: 38, y: 83 },
+      { name: 'NF (11)', type: 'electrical', functionType: 'signal_in', x: 62, y: 83 },
+      { name: 'NF (12)', type: 'electrical', functionType: 'signal_out', x: 84, y: 83 },
     ],
     defaultState: {
       buttonNApressed: false,
