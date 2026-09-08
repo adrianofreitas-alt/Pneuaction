@@ -543,6 +543,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   const handleComponentMouseDown = (comp: BenchComponent, e: React.MouseEvent) => {
     if ((e.target as HTMLElement).tagName.toLowerCase() === 'button') return;
     if (connectingStart) return;
+    if (comp.type.startsWith('terminal_strip')) return;
 
     setSelectedConnectionId(null);
     setDraggingCompId(comp.id);
@@ -978,6 +979,22 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                 <stop offset="40%" stopColor="#ffffff" stopOpacity="0.1" />
                 <stop offset="100%" stopColor="#ffffff" stopOpacity="0.0" />
               </linearGradient>
+
+              {/* Terminal Strip +24V Polyamide Red Gradient */}
+              <linearGradient id="term-strip-24v-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ef4444" />
+                <stop offset="25%" stopColor="#dc2626" />
+                <stop offset="70%" stopColor="#b91c1c" />
+                <stop offset="100%" stopColor="#7f1d1d" />
+              </linearGradient>
+
+              {/* Terminal Strip 0V Polyamide Blue Gradient */}
+              <linearGradient id="term-strip-0v-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#2563eb" />
+                <stop offset="25%" stopColor="#1d4ed8" />
+                <stop offset="70%" stopColor="#1e40af" />
+                <stop offset="100%" stopColor="#172554" />
+              </linearGradient>
             </defs>
 
             {/* ==================================================== */}
@@ -1052,6 +1069,8 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                 const cx = comp.width / 2;
                 const cy = comp.height / 2;
 
+                const isTerminalStrip = comp.type.startsWith('terminal_strip');
+
                 return (
                   <g
                     key={comp.id}
@@ -1059,23 +1078,25 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                     transform={`translate(${comp.x}, ${comp.y}) rotate(${rotation}, ${cx}, ${cy})`}
                     onMouseDown={(e) => {
                       handleComponentMouseDown(comp, e);
-                      onSelectComponent(comp);
+                      if (!isTerminalStrip) onSelectComponent(comp);
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onSelectComponent(comp);
+                      if (!isTerminalStrip) onSelectComponent(comp);
                     }}
                     onDoubleClick={(e) => {
                       e.stopPropagation();
-                      onSelectComponent(comp);
-                      setIsParamsOpen(true);
+                      if (!isTerminalStrip) {
+                        onSelectComponent(comp);
+                        setIsParamsOpen(true);
+                      }
                     }}
-                    className="cursor-move group"
+                    className={isTerminalStrip ? 'select-none' : 'cursor-move group'}
                   >
                     <title>{`${comp.name} (${comp.tag}) • Rotação: ${rotation}° • Clique para selecionar / Duplo clique para Parâmetros Técnicos`}</title>
                     
                     {/* Active Selection Outline & Angle Badge */}
-                    {isSelected && (
+                    {isSelected && !isTerminalStrip && (
                       <g className="pointer-events-none">
                         <rect
                           x="-5"
@@ -1099,31 +1120,35 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                     )}
 
                     {/* Shadow */}
-                    <rect
-                      x="2"
-                      y="4"
-                      width={comp.width}
-                      height={comp.height}
-                      rx="10"
-                      fill="#000000"
-                      opacity="0.5"
-                    />
+                    {!isTerminalStrip && (
+                      <rect
+                        x="2"
+                        y="4"
+                        width={comp.width}
+                        height={comp.height}
+                        rx="10"
+                        fill="#000000"
+                        opacity="0.5"
+                      />
+                    )}
 
                     {/* Component Metal Chassis */}
-                    <rect
-                      x="0"
-                      y="0"
-                      width={comp.width}
-                      height={comp.height}
-                      rx="8"
-                      fill="#1e293b"
-                      stroke={isSelected ? '#38bdf8' : comp.faults?.isLeaking || comp.faults?.isCoilBurned ? '#ef4444' : '#334155'}
-                      strokeWidth={isSelected ? 2.5 : 1.5}
-                      className="transition-colors"
-                    />
+                    {!isTerminalStrip && (
+                      <rect
+                        x="0"
+                        y="0"
+                        width={comp.width}
+                        height={comp.height}
+                        rx="8"
+                        fill="#1e293b"
+                        stroke={isSelected ? '#38bdf8' : comp.faults?.isLeaking || comp.faults?.isCoilBurned ? '#ef4444' : '#334155'}
+                        strokeWidth={isSelected ? 2.5 : 1.5}
+                        className="transition-colors"
+                      />
+                    )}
 
                     {/* Rack Fixation Screws (Módulos elétricos aparafusados no rack superior conforme a foto) */}
-                    {isElectrical && (
+                    {isElectrical && !isTerminalStrip && (
                       <g>
                         <circle cx="10" cy="5" r="2.5" fill="#64748b" stroke="#0f172a" strokeWidth="0.8" />
                         <line x1="8.5" y1="5" x2="11.5" y2="5" stroke="#cbd5e1" strokeWidth="0.6" />
@@ -1137,7 +1162,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                     )}
 
                     {/* Quick-Clamping Support Bracket for Slotted Aluminum Profile (Componentes pneumáticos) */}
-                    {!isElectrical && (
+                    {!isElectrical && !isTerminalStrip && (
                       <g>
                         <rect x={comp.width / 2 - 16} y={comp.height - 2} width="32" height="5" rx="2" fill="#0284c7" stroke="#0369a1" strokeWidth="0.8" />
                         <circle cx={comp.width / 2} cy={comp.height + 0.5} r="1.5" fill="#ffffff" />
@@ -1145,81 +1170,193 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                     )}
 
                     {/* Top Anodized Header Bar */}
-                    <rect
-                      x="0"
-                      y="0"
-                      width={comp.width}
-                      height="28"
-                      rx="8"
-                      fill="#0f172a"
-                    />
-                    <rect
-                      x="0"
-                      y="20"
-                      width={comp.width}
-                      height="8"
-                      fill="#0f172a"
-                    />
+                    {!isTerminalStrip && (
+                      <>
+                        <rect
+                          x="0"
+                          y="0"
+                          width={comp.width}
+                          height="28"
+                          rx="8"
+                          fill="#0f172a"
+                        />
+                        <rect
+                          x="0"
+                          y="20"
+                          width={comp.width}
+                          height="8"
+                          fill="#0f172a"
+                        />
 
-                    {/* Tag Badge (e.g. 1A, 1V, K1) */}
-                    <rect
-                      x="8"
-                      y="5"
-                      width="38"
-                      height="18"
-                      rx="4"
-                      fill={comp.faults?.isLeaking || comp.faults?.isCoilBurned ? '#ef4444' : '#0284c7'}
-                    />
-                    <text
-                      x="27"
-                      y="18"
-                      fill="#ffffff"
-                      fontSize="11"
-                      fontWeight="bold"
-                      fontFamily="'JetBrains Mono', monospace"
-                      textAnchor="middle"
-                    >
-                      {comp.tag}
-                    </text>
+                        {/* Tag Badge (e.g. 1A, 1V, K1) */}
+                        <rect
+                          x="8"
+                          y="5"
+                          width="38"
+                          height="18"
+                          rx="4"
+                          fill={comp.faults?.isLeaking || comp.faults?.isCoilBurned ? '#ef4444' : '#0284c7'}
+                        />
+                        <text
+                          x="27"
+                          y="18"
+                          fill="#ffffff"
+                          fontSize="11"
+                          fontWeight="bold"
+                          fontFamily="'JetBrains Mono', monospace"
+                          textAnchor="middle"
+                        >
+                          {comp.tag}
+                        </text>
 
-                    {/* Component Title */}
-                    <text
-                      x="52"
-                      y="18"
-                      fill="#e2e8f0"
-                      fontSize="11"
-                      fontWeight="600"
-                    >
-                      {comp.type === 'power_supply_24v' ? 'Fonte 24V' : (comp.name.length > 18 ? comp.name.substring(0, 17) + '…' : comp.name)}
-                    </text>
+                        {/* Component Title */}
+                        <text
+                          x="52"
+                          y="18"
+                          fill="#e2e8f0"
+                          fontSize="11"
+                          fontWeight="600"
+                        >
+                          {comp.type === 'power_supply_24v' ? 'Fonte 24V' : (comp.name.length > 18 ? comp.name.substring(0, 17) + '…' : comp.name)}
+                        </text>
 
-                    {/* Festo Didactic brand badge for electrical rack modules */}
-                    {isElectrical && (
-                      <text
-                        x={comp.width - 50}
-                        y="17"
-                        fill="#38bdf8"
-                        fontSize="8"
-                        fontWeight="bold"
-                        letterSpacing="0.5"
-                        fontFamily="'JetBrains Mono', monospace"
-                      >
-                        FESTO
-                      </text>
+                        {/* Festo Didactic brand badge for electrical rack modules */}
+                        {isElectrical && (
+                          <text
+                            x={comp.width - 50}
+                            y="17"
+                            fill="#38bdf8"
+                            fontSize="8"
+                            fontWeight="bold"
+                            letterSpacing="0.5"
+                            fontFamily="'JetBrains Mono', monospace"
+                          >
+                            FESTO
+                          </text>
+                        )}
+
+                        {/* Delete Component icon button */}
+                        <g
+                          transform={`translate(${comp.width - 24}, 5)`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteComponent(comp.id);
+                          }}
+                          className="cursor-pointer opacity-40 hover:opacity-100 transition"
+                        >
+                          <rect width="18" height="18" rx="4" fill="#334155" />
+                          <text x="9" y="13" fill="#f87171" fontSize="12" textAnchor="middle">×</text>
+                        </g>
+                      </>
                     )}
 
-                    {/* Delete Component icon button */}
-                    <g
-                      transform={`translate(${comp.width - 24}, 5)`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteComponent(comp.id);
-                      }}
-                      className="cursor-pointer opacity-40 hover:opacity-100 transition"
-                    >
-                      <rect width="18" height="18" rx="4" fill="#334155" />
-                      <text x="9" y="13" fill="#f87171" fontSize="12" textAnchor="middle">×</text>
-                    </g>
+                    {/* ==================================================== */}
+                    {/* RÉGUA DE BORNES +24V CC (BARRAMENTO SUPERIOR)        */}
+                    {/* ==================================================== */}
+                    {comp.type === 'terminal_strip_24v' && (() => {
+                      const isStripEnergized = connections.some(
+                        (c) => c.active && (c.fromComponentId === comp.id || c.toComponentId === comp.id)
+                      );
+
+                      return (
+                        <g id={`terminal-strip-24v-${comp.id}`}>
+                          {/* Sombra sutil de profundidade */}
+                          <rect x="0" y="1" width={comp.width} height={comp.height} rx="3" fill="#000000" opacity="0.45" />
+
+                          {/* Base de fixação em perfil/trilho DIN de alumínio */}
+                          <rect x="0" y="0" width={comp.width} height={comp.height} rx="2.5" fill="#334155" stroke="#475569" strokeWidth="0.8" />
+                          <line x1="0" y1="1" x2={comp.width} y2="1" stroke="#94a3b8" strokeWidth="0.8" opacity="0.7" />
+                          <line x1="0" y1={comp.height - 1} x2={comp.width} y2={comp.height - 1} stroke="#1e293b" strokeWidth="0.8" />
+
+                          {/* Corpo isolante contínuo em poliamida vermelha industrial (+24V) */}
+                          <rect x="2" y="1.5" width={comp.width - 4} height={comp.height - 3} rx="2" fill="url(#term-strip-24v-grad)" stroke="#991b1b" strokeWidth="0.6" />
+
+                          {/* Barramento interno condutor de cobre em toda a extensão */}
+                          <line x1="10" y1={comp.height / 2} x2={comp.width - 10} y2={comp.height / 2} stroke="#fbbf24" strokeWidth="1.2" strokeDasharray="3 1.5" opacity="0.45" />
+
+                          {/* Bloco de Entrada Especial (FONTE IN) na extremidade esquerda */}
+                          <rect x="6" y="2" width="56" height={comp.height - 4} rx="2" fill="#7f1d1d" stroke="#f59e0b" strokeWidth="1" />
+                          
+                          {/* LED Indicador de Potencial 24V Ativo */}
+                          <circle cx="15" cy={comp.height / 2} r="3" fill="#0f172a" stroke="#d97706" strokeWidth="0.8" />
+                          <circle
+                            cx="15"
+                            cy={comp.height / 2}
+                            r="2"
+                            fill={isStripEnergized ? '#22c55e' : '#450a0a'}
+                            filter={isStripEnergized ? 'url(#hose-glow)' : undefined}
+                          />
+
+                          {/* Marcações Técnicas Serigrafadas */}
+                          <text x="135" y="11" fill="#fecaca" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
+                            BARRAMENTO +24V CC (ALIMENTAÇÃO) • IEC 60204-1
+                          </text>
+                          <text x="560" y="11" fill="#fca5a5" fontSize="6.5" fontWeight="600" fontFamily="'JetBrains Mono', monospace" opacity="0.65">
+                            DISTRIBUIDOR EQUIPOTENCIAL 24VDC • MÁX. 10A
+                          </text>
+                          <text x="960" y="11" fill="#fecaca" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
+                            RÉGUA SUPERIOR DE BORNES 24V
+                          </text>
+                          <text x="1270" y="11" fill="#fbbf24" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
+                            FESTO DIDACTIC
+                          </text>
+                        </g>
+                      );
+                    })()}
+
+                    {/* ==================================================== */}
+                    {/* RÉGUA DE BORNES 0V CC GND (BARRAMENTO INFERIOR)       */}
+                    {/* ==================================================== */}
+                    {comp.type === 'terminal_strip_0v' && (() => {
+                      const isStripGrounded = connections.some(
+                        (c) => c.active && (c.fromComponentId === comp.id || c.toComponentId === comp.id)
+                      );
+
+                      return (
+                        <g id={`terminal-strip-0v-${comp.id}`}>
+                          {/* Sombra sutil de profundidade */}
+                          <rect x="0" y="1" width={comp.width} height={comp.height} rx="3" fill="#000000" opacity="0.45" />
+
+                          {/* Base de fixação em perfil/trilho DIN de alumínio */}
+                          <rect x="0" y="0" width={comp.width} height={comp.height} rx="2.5" fill="#334155" stroke="#475569" strokeWidth="0.8" />
+                          <line x1="0" y1="1" x2={comp.width} y2="1" stroke="#94a3b8" strokeWidth="0.8" opacity="0.7" />
+                          <line x1="0" y1={comp.height - 1} x2={comp.width} y2={comp.height - 1} stroke="#1e293b" strokeWidth="0.8" />
+
+                          {/* Corpo isolante contínuo em poliamida azul industrial (0V GND) */}
+                          <rect x="2" y="1.5" width={comp.width - 4} height={comp.height - 3} rx="2" fill="url(#term-strip-0v-grad)" stroke="#1e3a8a" strokeWidth="0.6" />
+
+                          {/* Barramento interno condutor de retorno estanhado em toda a extensão */}
+                          <line x1="10" y1={comp.height / 2} x2={comp.width - 10} y2={comp.height / 2} stroke="#93c5fd" strokeWidth="1.2" strokeDasharray="3 1.5" opacity="0.45" />
+
+                          {/* Bloco de Entrada Especial (FONTE IN) na extremidade esquerda */}
+                          <rect x="6" y="2" width="56" height={comp.height - 4} rx="2" fill="#172554" stroke="#38bdf8" strokeWidth="1" />
+                          
+                          {/* LED Indicador de Conexão 0V GND Ativa */}
+                          <circle cx="15" cy={comp.height / 2} r="3" fill="#0f172a" stroke="#0284c7" strokeWidth="0.8" />
+                          <circle
+                            cx="15"
+                            cy={comp.height / 2}
+                            r="2"
+                            fill={isStripGrounded ? '#38bdf8' : '#082f49'}
+                            filter={isStripGrounded ? 'url(#hose-glow)' : undefined}
+                          />
+
+                          {/* Marcações Técnicas Serigrafadas */}
+                          <text x="135" y="11" fill="#dbeafe" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
+                            BARRAMENTO 0V CC (COMUM / GND) • IEC 60204-1
+                          </text>
+                          <text x="560" y="11" fill="#bfdbfe" fontSize="6.5" fontWeight="600" fontFamily="'JetBrains Mono', monospace" opacity="0.65">
+                            DISTRIBUIDOR EQUIPOTENCIAL 0VDC • REFERÊNCIA DE TERRA
+                          </text>
+                          <text x="960" y="11" fill="#dbeafe" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
+                            RÉGUA INFERIOR DE BORNES 0V
+                          </text>
+                          <text x="1270" y="11" fill="#38bdf8" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
+                            FESTO DIDACTIC
+                          </text>
+                        </g>
+                      );
+                    })()}
 
                     {/* ------------------------------------------------ */}
                     {/* CUSTOM INTERNAL GRAPHICS PER COMPONENT TYPE */}
@@ -3344,13 +3481,32 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                       const isButtonStation = comp.type === 'push_button_station';
                       const isFRL = comp.type === 'frl_unit';
-                      const labelText = isButtonStation
-                        ? (port.name.includes('13') ? '13' : port.name.includes('14') ? '14' : port.name.includes('11') ? '11' : port.name.includes('12') ? '12' : port.name)
-                        : isFRL
-                        ? (port.name.includes('P') || port.name.includes('Entrada') ? 'P (REDE)' : '1 (SAÍDA)')
-                        : port.name.split(' ')[0];
+                      const isTerminalStripComp = comp.type.startsWith('terminal_strip');
+                      const isStripInPort = isTerminalStripComp && port.name.includes('IN');
+
+                      let labelText = port.name.split(' ')[0];
+                      if (isButtonStation) {
+                        labelText = port.name.includes('13') ? '13' : port.name.includes('14') ? '14' : port.name.includes('11') ? '11' : port.name.includes('12') ? '12' : port.name;
+                      } else if (isFRL) {
+                        labelText = port.name.includes('P') || port.name.includes('Entrada') ? 'P (REDE)' : '1 (SAÍDA)';
+                      } else if (isTerminalStripComp) {
+                        if (isStripInPort) {
+                          labelText = comp.type === 'terminal_strip_24v' ? '⚡ FONTE IN' : '⏚ FONTE IN';
+                        } else {
+                          const numMatch = port.name.match(/\((\d+)\)/);
+                          labelText = numMatch ? numMatch[1] : port.name;
+                        }
+                      }
+
                       const isBottom = py > comp.height / 2;
-                      const textY = isButtonStation ? 13 : isFRL ? -15 : (isBottom ? -13 : 18);
+                      let textY = isButtonStation ? 13 : isFRL ? -15 : (isBottom ? -13 : 18);
+                      if (isTerminalStripComp) {
+                        if (comp.type === 'terminal_strip_24v') {
+                          textY = isStripInPort ? 16 : 14;
+                        } else {
+                          textY = isStripInPort ? -16 : -14;
+                        }
+                      }
 
                       return (
                         <g
@@ -3447,22 +3603,26 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             <g>
                               {/* Capa isolante circular colorida */}
                               <circle
-                                r="8.5"
+                                r={isTerminalStripComp ? (isStripInPort ? 6.8 : 6.0) : 8.5}
                                 fill="#0f172a"
-                                stroke={isGround ? '#1e3a8a' : '#ef4444'}
-                                strokeWidth="2.5"
+                                stroke={
+                                  isStripInPort
+                                    ? (isGround ? '#38bdf8' : '#fbbf24')
+                                    : (isGround ? '#1e3a8a' : '#ef4444')
+                                }
+                                strokeWidth={isStripInPort ? 2.5 : isTerminalStripComp ? 2.0 : 2.5}
                                 className="transition-colors group-hover/port:stroke-white"
                               />
                               {/* Bucha metálica niquelada de contato interno */}
                               <circle
-                                r="5"
+                                r={isTerminalStripComp ? 3.6 : 5}
                                 fill="#090d16"
                                 stroke="#fbbf24"
-                                strokeWidth="1"
+                                strokeWidth={isTerminalStripComp ? 0.8 : 1}
                               />
                               {/* Orifício central do borne 4mm */}
                               <circle
-                                r="2.8"
+                                r={isTerminalStripComp ? 2.0 : 2.8}
                                 fill={isConnected ? (isGround ? '#172554' : '#ef4444') : '#020617'}
                               />
                             </g>
@@ -3472,31 +3632,33 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           {comp.type !== 'reed_switch_sensor' && (
                             <g transform={`translate(0, ${textY})`}>
                               <rect
-                                x={-(labelText.length * 3.8 + 5)}
-                                y="-7"
-                                width={labelText.length * 7.6 + 10}
-                                height="13"
-                                rx="3"
+                                x={-(labelText.length * (isTerminalStripComp ? 3.0 : 3.8) + (isTerminalStripComp ? 3 : 5))}
+                                y={isTerminalStripComp ? "-5.5" : "-7"}
+                                width={labelText.length * (isTerminalStripComp ? 6.0 : 7.6) + (isTerminalStripComp ? 6 : 10)}
+                                height={isTerminalStripComp ? "11" : "13"}
+                                rx={isTerminalStripComp ? 2 : 3}
                                 fill="#090f1d"
                                 stroke={
+                                  isStripInPort ? (isGround ? '#38bdf8' : '#f59e0b') :
                                   isPneumatic ? '#0284c7' :
                                   isGround ? '#1e3a8a' :
                                   isButtonStation && (port.name.includes('13') || port.name.includes('14')) ? '#059669' :
                                   '#dc2626'
                                 }
-                                strokeWidth="0.8"
-                                opacity="0.9"
+                                strokeWidth={isStripInPort ? 1.2 : 0.8}
+                                opacity={isTerminalStripComp && !isStripInPort && hoveredPort?.id !== port.id ? 0.65 : 0.95}
                               />
                               <text
                                 x="0"
-                                y="2.5"
+                                y={isTerminalStripComp ? "2.2" : "2.5"}
                                 fill={
+                                  isStripInPort ? (isGround ? '#38bdf8' : '#fbbf24') :
                                   isPneumatic ? '#38bdf8' :
                                   isGround ? '#93c5fd' :
                                   isButtonStation && (port.name.includes('13') || port.name.includes('14')) ? '#34d399' :
                                   '#fca5a5'
                                 }
-                                fontSize="7.5"
+                                fontSize={isTerminalStripComp ? (isStripInPort ? "6.5" : "6") : "7.5"}
                                 fontWeight="bold"
                                 fontFamily="'JetBrains Mono', monospace"
                                 textAnchor="middle"

@@ -71,7 +71,12 @@ export function getComponentObstacles(
   targetCompId: string
 ): ObstacleRect[] {
   return components
-    .filter((comp) => comp.id !== sourceCompId && comp.id !== targetCompId)
+    .filter(
+      (comp) =>
+        comp.id !== sourceCompId &&
+        comp.id !== targetCompId &&
+        !comp.type.startsWith('terminal_strip')
+    )
     .map((comp) => {
       let right = comp.x + comp.width;
       let bottom = comp.y + comp.height;
@@ -347,7 +352,14 @@ export function calculateRoutedConnections(
     const p2 = getPortWorldCoordinates(targetComp, targetPort);
 
     const isPneumatic = sourcePort.type === 'pneumatic';
-    const isGroundWire = !isPneumatic && (sourcePort.name === '0V' || targetPort.name === '0V');
+    const isGroundWire =
+      !isPneumatic &&
+      (sourcePort.functionType === 'ground_0v' ||
+        targetPort.functionType === 'ground_0v' ||
+        sourcePort.name.includes('0V') ||
+        targetPort.name.includes('0V') ||
+        sourceComp.type === 'terminal_strip_0v' ||
+        targetComp.type === 'terminal_strip_0v');
 
     const obstacles = getComponentObstacles(components, sourceComp.id, targetComp.id);
     const { pathD, waypoints } = generateCurvedPath(

@@ -161,17 +161,32 @@ export function evaluateCircuitElectricalState(
     });
   }
 
-  // Propagate 0V through electrical connections
+  // Propagate 0V through electrical connections and 0V bus terminal strips
   const queue0V = Array.from(nodes0V);
-  while (queue0V.length > 0) {
-    const current = queue0V.shift()!;
-    const neighbors = getNeighbors(current);
-    for (const n of neighbors) {
-      if (!nodes0V.has(n)) {
-        nodes0V.add(n);
-        queue0V.push(n);
+  const process0VQueue = () => {
+    while (queue0V.length > 0) {
+      const current = queue0V.shift()!;
+      const neighbors = getNeighbors(current);
+      for (const n of neighbors) {
+        if (!nodes0V.has(n)) {
+          nodes0V.add(n);
+          queue0V.push(n);
+        }
       }
     }
+  };
+  process0VQueue();
+
+  // Equipotential bus for 0V Terminal Strip (todos os bornes interligados internamente)
+  const strip0V = components.find(c => c.type === 'terminal_strip_0v');
+  if (strip0V && strip0V.ports.some(p => nodes0V.has(p.id))) {
+    strip0V.ports.forEach(p => {
+      if (!nodes0V.has(p.id)) {
+        nodes0V.add(p.id);
+        queue0V.push(p.id);
+      }
+    });
+    process0VQueue();
   }
 
   // 2. Seed +24V nodes from Power Supply +24V ports (only if active)
@@ -190,6 +205,17 @@ export function evaluateCircuitElectricalState(
     while (changed && iterations < 20) {
       changed = false;
       iterations++;
+
+      // Equipotential bus bridging for +24V Terminal Strip (todos os bornes interligados internamente)
+      const strip24V = components.find(c => c.type === 'terminal_strip_24v');
+      if (strip24V && hasElectricalPower && strip24V.ports.some(p => nodes24V.has(p.id))) {
+        strip24V.ports.forEach(p => {
+          if (!nodes24V.has(p.id)) {
+            nodes24V.add(p.id);
+            changed = true;
+          }
+        });
+      }
 
       // Direct wire propagation
       const current24 = Array.from(nodes24V);

@@ -403,8 +403,142 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
       ledRedActive: false,
       buzzerActive: false
     }
+  },
+  {
+    type: 'terminal_strip_24v',
+    name: 'Régua de Bornes Elétricos +24V CC (Barramento Superior)',
+    category: 'supply',
+    width: 1380,
+    height: 17,
+    tagPrefix: '+24V_BUS',
+    description: 'Régua de bornes DIN contínua em toda a extensão superior do painel com 1 borne de entrada principal para interligação com a fonte de alimentação 24V e 28 bornes de distribuição equipotenciais para alimentação de equipamentos.',
+    defaultPorts: [
+      { name: '+24V (IN / Fonte)', type: 'electrical', functionType: 'power_24v', x: 2.2, y: 50 },
+      ...Array.from({ length: 28 }).map((_, i) => ({
+        name: `+24V (${i + 1})`,
+        type: 'electrical' as const,
+        functionType: 'power_24v' as const,
+        x: Number((5.5 + i * ((98.5 - 5.5) / 27)).toFixed(2)),
+        y: 50,
+      }))
+    ],
+    defaultState: {
+      voltageV: 24.0,
+      isLocked: true,
+      isPowered: true,
+    }
+  },
+  {
+    type: 'terminal_strip_0v',
+    name: 'Régua de Bornes Elétricos 0V CC GND (Barramento Inferior)',
+    category: 'supply',
+    width: 1380,
+    height: 17,
+    tagPrefix: '0V_BUS',
+    description: 'Régua de bornes DIN contínua em toda a extensão inferior do painel com 1 borne de entrada principal para interligação com o 0V da fonte e 28 bornes de distribuição equipotenciais para retorno de sensores, relés e válvulas.',
+    defaultPorts: [
+      { name: '0V (IN / Fonte)', type: 'electrical', functionType: 'ground_0v', x: 2.2, y: 50 },
+      ...Array.from({ length: 28 }).map((_, i) => ({
+        name: `0V (${i + 1})`,
+        type: 'electrical' as const,
+        functionType: 'ground_0v' as const,
+        x: Number((5.5 + i * ((98.5 - 5.5) / 27)).toFixed(2)),
+        y: 50,
+      }))
+    ],
+    defaultState: {
+      voltageV: 0.0,
+      isLocked: true,
+      isPowered: true,
+    }
   }
 ];
+
+export function createTerminalStrip24V(id = 'terminal_strip_24v_bus'): BenchComponent {
+  return {
+    id,
+    type: 'terminal_strip_24v',
+    name: 'Régua de Bornes +24V CC',
+    tag: '+24V',
+    category: 'supply',
+    x: 10,
+    y: 3,
+    width: 1380,
+    height: 17,
+    ports: [
+      {
+        id: `${id}_port_in`,
+        name: '+24V (IN / Fonte)',
+        type: 'electrical',
+        functionType: 'power_24v',
+        x: 2.2,
+        y: 50,
+      },
+      ...Array.from({ length: 28 }).map((_, i) => ({
+        id: `${id}_port_${i + 1}`,
+        name: `+24V (${i + 1})`,
+        type: 'electrical' as const,
+        functionType: 'power_24v' as const,
+        x: Number((5.5 + i * ((98.5 - 5.5) / 27)).toFixed(2)),
+        y: 50,
+      }))
+    ],
+    state: {
+      voltageV: 24.0,
+      isLocked: true,
+      isPowered: true,
+    },
+    faults: {
+      isLeaking: false,
+      isStuck: false,
+      isCoilBurned: false,
+      isLowPressure: false,
+    }
+  };
+}
+
+export function createTerminalStrip0V(id = 'terminal_strip_0v_bus'): BenchComponent {
+  return {
+    id,
+    type: 'terminal_strip_0v',
+    name: 'Régua de Bornes 0V CC (GND)',
+    tag: '0V',
+    category: 'supply',
+    x: 10,
+    y: 203,
+    width: 1380,
+    height: 17,
+    ports: [
+      {
+        id: `${id}_port_in`,
+        name: '0V (IN / Fonte)',
+        type: 'electrical',
+        functionType: 'ground_0v',
+        x: 2.2,
+        y: 50,
+      },
+      ...Array.from({ length: 28 }).map((_, i) => ({
+        id: `${id}_port_${i + 1}`,
+        name: `0V (${i + 1})`,
+        type: 'electrical' as const,
+        functionType: 'ground_0v' as const,
+        x: Number((5.5 + i * ((98.5 - 5.5) / 27)).toFixed(2)),
+        y: 50,
+      }))
+    ],
+    state: {
+      voltageV: 0.0,
+      isLocked: true,
+      isPowered: true,
+    },
+    faults: {
+      isLeaking: false,
+      isStuck: false,
+      isCoilBurned: false,
+      isLowPressure: false,
+    }
+  };
+}
 
 export function createComponentFromTemplate(template: ComponentTemplate, x: number, y: number, index: number): BenchComponent {
   return {
