@@ -710,40 +710,27 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
       {/* Center: Aluminum Workbench Canvas */}
       <main className="flex-1 relative flex flex-col bg-[#0b101b] overflow-hidden">
-        {/* Canvas Toolbar overlay */}
-        <div className="absolute top-3 left-4 z-20 flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-xs shadow-lg">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-cyan-400" />
-            <span className="font-semibold text-slate-200">Painel de Alumínio Ranhurado</span>
-          </div>
-          <span className="text-slate-600">|</span>
-          <span className="text-slate-400">
-            {components.length} módulos instalados
-          </span>
-          <span className="text-slate-600">|</span>
-          <span className="text-slate-400">
-            {connections.length} conexões ativas
-          </span>
-          {selectedComponent && (
-            <>
-              <span className="text-slate-600">|</span>
+        {/* Canvas Contextual Badges: Only shown during interactive actions (e.g. connecting ports or selected module) */}
+        {(connectingStart || selectedComponent) && (
+          <div className="absolute top-3 left-4 z-20 flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-xs shadow-lg">
+            {selectedComponent && (
               <span className="flex items-center gap-1 text-cyan-300 font-medium">
                 Selecionado: <strong className="font-mono text-white">{selectedComponent.tag}</strong> ({(selectedComponent.rotation || 0)}°)
               </span>
-            </>
-          )}
-          {connectingStart && (
-            <div className="flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded bg-cyan-950 border border-cyan-700 text-cyan-300 animate-pulse">
-              <span>Conectando {connectingStart.port.name}... Clique no destino ou ESC</span>
-              <button
-                onClick={() => setConnectingStart(null)}
-                className="hover:text-white"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          )}
-        </div>
+            )}
+            {connectingStart && (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-cyan-950 border border-cyan-700 text-cyan-300 animate-pulse">
+                <span>Conectando {connectingStart.port.name}... Clique no destino ou ESC</span>
+                <button
+                  onClick={() => setConnectingStart(null)}
+                  className="hover:text-white ml-1"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Floating Contextual Toolbar for Selected Hose/Wire (Reposicionar / Desviar / Ajustar Comprimento) */}
         {selectedRouted && (
@@ -1006,15 +993,6 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                   opacity="0.5"
                 />
               ))}
-
-              {/* Rack Superior Title Identification Badge */}
-              <g transform="translate(930, 8)">
-                <rect width="450" height="20" rx="4" fill="#0f172a" stroke="#38bdf8" strokeWidth="1" opacity="0.9" />
-                <circle cx="16" cy="10" r="3.5" fill="#10b981" />
-                <text x="28" y="14" fill="#e2e8f0" fontSize="9" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
-                  RACK SUPERIOR: MÓDULOS DE CONTROLE ELÉTRICO 24V CC (PELV)
-                </text>
-              </g>
             </g>
 
             {/* ==================================================== */}
