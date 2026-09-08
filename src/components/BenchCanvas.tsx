@@ -854,18 +854,40 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             }}
           >
             <defs>
+              {/* Aluminum Extrusion Slat Gradient (Perfil de Alumínio Anodizado Natural) */}
+              <linearGradient id="aluminum-slat-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#e2e8f0" />
+                <stop offset="25%" stopColor="#d5dbe5" />
+                <stop offset="70%" stopColor="#cbd5e1" />
+                <stop offset="100%" stopColor="#b4bece" />
+              </linearGradient>
+
               {/* Aluminum Extrusion T-Slot Pattern for Didactic Bench */}
-              <pattern id="aluminum-slats" width="50" height="48" patternUnits="userSpaceOnUse">
-                {/* Slat aluminum face */}
-                <rect width="50" height="48" fill="#141c2e" />
-                <line x1="0" y1="0" x2="50" y2="0" stroke="#334155" strokeWidth="1" />
-                {/* Subtle surface brushed texture */}
-                <line x1="0" y1="12" x2="50" y2="12" stroke="#1e293b" strokeWidth="0.6" opacity="0.6" />
-                <line x1="0" y1="24" x2="50" y2="24" stroke="#1e293b" strokeWidth="0.6" opacity="0.6" />
-                {/* Horizontal T-Slot groove */}
-                <rect x="0" y="40" width="50" height="7" fill="#070b14" />
-                <line x1="0" y1="43.5" x2="50" y2="43.5" stroke="#1e293b" strokeWidth="1" strokeDasharray="6 4" />
-                <line x1="0" y1="47.5" x2="50" y2="47.5" stroke="#475569" strokeWidth="0.8" />
+              <pattern id="aluminum-slats" width="60" height="50" patternUnits="userSpaceOnUse">
+                {/* Slat aluminum face - light gray characteristic of anodized extruded aluminum */}
+                <rect width="60" height="50" fill="url(#aluminum-slat-gradient)" />
+                {/* Upper edge specular bevel reflection */}
+                <line x1="0" y1="0.5" x2="60" y2="0.5" stroke="#ffffff" strokeWidth="1" opacity="0.9" />
+
+                {/* Fine longitudinal brushed aluminum surface texture lines */}
+                <line x1="0" y1="10" x2="60" y2="10" stroke="#ffffff" strokeWidth="0.8" opacity="0.5" />
+                <line x1="0" y1="20" x2="60" y2="20" stroke="#94a3b8" strokeWidth="0.5" opacity="0.4" />
+                <line x1="0" y1="30" x2="60" y2="30" stroke="#ffffff" strokeWidth="0.7" opacity="0.45" />
+
+                {/* T-Slot upper bevel chamfer (reflexo biselado superior da ranhura) */}
+                <line x1="0" y1="41" x2="60" y2="41" stroke="#ffffff" strokeWidth="1" />
+                <line x1="0" y1="42" x2="60" y2="42" stroke="#64748b" strokeWidth="0.8" />
+
+                {/* Horizontal T-Slot groove (ranhura T profunda para porcas de fixação rápida) */}
+                <rect x="0" y="42.5" width="60" height="6" fill="#334155" />
+                {/* Slot inner cavity shadow */}
+                <rect x="0" y="42.5" width="60" height="2" fill="#1e293b" opacity="0.9" />
+                {/* T-slot central channel guide line */}
+                <line x1="0" y1="45.5" x2="60" y2="45.5" stroke="#0f172a" strokeWidth="1.2" strokeDasharray="8 6" opacity="0.75" />
+
+                {/* T-Slot lower bevel chamfer */}
+                <line x1="0" y1="48.5" x2="60" y2="48.5" stroke="#64748b" strokeWidth="0.8" />
+                <line x1="0" y1="49.5" x2="60" y2="49.5" stroke="#f1f5f9" strokeWidth="1" />
               </pattern>
 
               {/* Glowing hose filter */}
@@ -963,20 +985,22 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             {/* ==================================================== */}
             <g id="top-electrical-rack">
               {/* Rack Interior Backplane */}
-              <rect x="0" y="0" width="1400" height="222" fill="#090f1d" />
-              
-              {/* Top Mounting Rail (DIN / Eurocard Frame) */}
-              <rect x="10" y="6" width="1380" height="14" rx="2" fill="#1e293b" stroke="#334155" strokeWidth="1" />
+              <rect x="0" y="0" width="1400" height="222" fill="#0f172a" />
+
+              {/* Top Mounting Rail (Trilho de Fixação em Alumínio Anodizado) */}
+              <rect x="10" y="6" width="1380" height="14" rx="2" fill="#94a3b8" stroke="#64748b" strokeWidth="1" />
+              <line x1="10" y1="7" x2="1390" y2="7" stroke="#e2e8f0" strokeWidth="1" />
               {/* Screw holes along the top rail */}
               {Array.from({ length: 35 }).map((_, i) => (
-                <circle key={`ts_${i}`} cx={25 + i * 39} cy="13" r="2.5" fill="#475569" stroke="#090f1d" strokeWidth="0.6" />
+                <circle key={`ts_${i}`} cx={25 + i * 39} cy="13" r="2.5" fill="#475569" stroke="#cbd5e1" strokeWidth="0.8" />
               ))}
 
               {/* Bottom Mounting Rail of Electrical Rack */}
-              <rect x="10" y="202" width="1380" height="14" rx="2" fill="#1e293b" stroke="#334155" strokeWidth="1" />
+              <rect x="10" y="202" width="1380" height="14" rx="2" fill="#94a3b8" stroke="#64748b" strokeWidth="1" />
+              <line x1="10" y1="203" x2="1390" y2="203" stroke="#e2e8f0" strokeWidth="1" />
               {/* Screw holes along the bottom rail */}
               {Array.from({ length: 35 }).map((_, i) => (
-                <circle key={`bs_${i}`} cx={25 + i * 39} cy="209" r="2.5" fill="#475569" stroke="#090f1d" strokeWidth="0.6" />
+                <circle key={`bs_${i}`} cx={25 + i * 39} cy="209" r="2.5" fill="#475569" stroke="#cbd5e1" strokeWidth="0.8" />
               ))}
 
               {/* Vertical Module Guide Marks (indica baias modulares padronizadas lado a lado) */}
@@ -987,56 +1011,35 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                   y1="22"
                   x2={240 + i * 140}
                   y2="200"
-                  stroke="#1e293b"
+                  stroke="#334155"
                   strokeWidth="1"
                   strokeDasharray="4 6"
-                  opacity="0.5"
+                  opacity="0.4"
                 />
               ))}
             </g>
 
             {/* ==================================================== */}
-            {/* 2. VIGA DIVISÓRIA ESTRUTURAL (SEPARAÇÃO RACK / PAINEL) */}
+            {/* 2. VIGA DIVISÓRIA ESTRUTURAL (PERFIL DE ALUMÍNIO)    */}
             {/* ==================================================== */}
             <g id="structural-divider">
-              <rect x="0" y="222" width="1400" height="18" fill="#1e293b" stroke="#475569" strokeWidth="1" />
-              <line x1="0" y1="224" x2="1400" y2="224" stroke="#64748b" strokeWidth="1" opacity="0.6" />
-              <line x1="0" y1="238" x2="1400" y2="238" stroke="#090f1d" strokeWidth="1" />
-              {/* Center plate */}
-              <g transform="translate(560, 224)">
-                <rect width="280" height="14" rx="3" fill="#090f1d" stroke="#334155" strokeWidth="1" />
-                <text x="140" y="234" fill="#38bdf8" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono', monospace">
-                  DIVISOR ESTRUTURAL • BANCADA DIDÁTICA
-                </text>
-              </g>
+              <rect x="0" y="222" width="1400" height="18" fill="#94a3b8" stroke="#64748b" strokeWidth="1" />
+              <line x1="0" y1="223" x2="1400" y2="223" stroke="#f8fafc" strokeWidth="1.2" />
+              <line x1="0" y1="227" x2="1400" y2="227" stroke="#cbd5e1" strokeWidth="0.8" />
+              <line x1="0" y1="239" x2="1400" y2="239" stroke="#475569" strokeWidth="1.2" />
             </g>
 
             {/* ==================================================== */}
             {/* 3. PAINEL RANHURADO DE PERFIL DE ALUMÍNIO (PNEUMÁTICA) */}
             {/* ==================================================== */}
             <g id="lower-pneumatic-panel">
-              {/* Slotted Aluminum Profile Background */}
+              {/* Slotted Aluminum Profile Background (Perfil de Alumínio Anodizado Cinza Claro) */}
               <rect x="0" y="240" width="1400" height="610" fill="url(#aluminum-slats)" />
-
-              {/* Guia de Montagem FRL + Distribuidor (à esquerda conforme a foto) */}
-              <g transform="translate(25, 246)">
-                <rect width="270" height="18" rx="3" fill="#090f1d" stroke="#0284c7" strokeWidth="1" opacity="0.85" />
-                <text x="135" y="258" fill="#38bdf8" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono', monospace">
-                  SUPRIMENTO DE AR (FRL + DISTRIBUIDOR)
-                </text>
-              </g>
-
-              {/* Placa de Identificação do Painel Ranhurado */}
-              <g transform="translate(820, 824)">
-                <rect width="560" height="18" rx="3" fill="#090f1d" stroke="#334155" strokeWidth="1" opacity="0.85" />
-                <text x="280" y="836" fill="#94a3b8" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono', monospace">
-                  PAINEL DE PERFIL DE ALUMÍNIO RANHURADO (VÁLVULAS, SENSORES E ATUADORES)
-                </text>
-              </g>
             </g>
 
             {/* Workbench External Frame Border */}
-            <rect x="0" y="0" width="1400" height="850" fill="none" stroke="#334155" strokeWidth="4" />
+            <rect x="0" y="0" width="1400" height="850" fill="none" stroke="#64748b" strokeWidth="4" />
+            <rect x="2" y="2" width="1396" height="846" fill="none" stroke="#94a3b8" strokeWidth="1" opacity="0.6" />
 
             {/* ---------------------------------------------------- */}
             {/* COMPONENTS LAYER */}
