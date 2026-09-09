@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { Maximize, Minimize } from 'lucide-react';
 import { 
   BenchComponent, 
   VirtualConnection, 
@@ -66,6 +67,60 @@ export default function App() {
   }) => {
     zoomControlsRef.current = controls;
   };
+
+  // Fullscreen state (Modo Painel Puro: exibe somente o painel e seus componentes)
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  const handleToggleFullscreen = () => {
+    setIsFullscreen((prev) => {
+      const next = !prev;
+      if (next && currentTab !== 'workbench') {
+        setCurrentTab('workbench');
+      }
+      try {
+        if (next) {
+          if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(() => {});
+          }
+        } else {
+          if (document.fullscreenElement && document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+          }
+        }
+      } catch {
+        // Fallback gracioso se bloqueado por iframe sandbox
+      }
+      setTimeout(() => {
+        zoomControlsRef.current?.fitScreen();
+      }, 70);
+      return next;
+    });
+  };
+
+  // Escuta tecla Escape e evento fullscreenchange do navegador
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        handleToggleFullscreen();
+      }
+    };
+
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && isFullscreen) {
+        setIsFullscreen(false);
+        setTimeout(() => {
+          zoomControlsRef.current?.fitScreen();
+        }, 70);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [isFullscreen]);
 
   // Telemetry metrics
   const [metrics, setMetrics] = useState<TelemetryMetrics>({
@@ -645,35 +700,58 @@ export default function App() {
     : null;
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-slate-950 font-sans text-slate-100 overflow-hidden">
-      {/* Header Navigation */}
-      <Header
-        currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
-        isSimulating={isSimulating}
-        setIsSimulating={setIsSimulating}
-        isEmergencyActive={isEmergencyActive}
-        onToggleEmergency={handleToggleEmergency}
-        onResetBench={handleResetBench}
-        onLoadPreset={handleLoadPreset}
-        onExportCAD={handleExportCAD}
-        onOpenReportModal={() => setIsReportModalOpen(true)}
-        activeFaultsCount={faults.length}
-        unreadNotifications={faults.filter(f => f.severity === 'critical').length}
-        isCatalogOpen={isCatalogOpen}
-        onToggleCatalog={handleToggleCatalog}
-        selectedComponent={currentSelectedComp}
-        onRotateComponent={handleRotateSelectedComponent}
-        zoom={zoom}
-        onZoomIn={() => zoomControlsRef.current?.zoomIn()}
-        onZoomOut={() => zoomControlsRef.current?.zoomOut()}
-        onResetZoom={() => zoomControlsRef.current?.resetZoom()}
-        onFitScreen={() => zoomControlsRef.current?.fitScreen()}
-        mousePos={canvasMousePos}
-        showCrosshair={showCrosshair}
-        onToggleCrosshair={() => setShowCrosshair(prev => !prev)}
-        onCenterOnCursor={() => zoomControlsRef.current?.centerOnCursor()}
-      />
+    <div className="flex flex-col h-screen w-screen bg-slate-950 font-sans text-slate-100 overflow-hidden relative">
+      {/* Header Navigation: Oculto no Modo Tela Cheia para exibir somente o painel e seus componentes */}
+      {!isFullscreen && (
+        <Header
+          currentTab={currentTab}
+          setCurrentTab={setCurrentTab}
+          isSimulating={isSimulating}
+          setIsSimulating={setIsSimulating}
+          isEmergencyActive={isEmergencyActive}
+          onToggleEmergency={handleToggleEmergency}
+          onResetBench={handleResetBench}
+          onLoadPreset={handleLoadPreset}
+          onExportCAD={handleExportCAD}
+          onOpenReportModal={() => setIsReportModalOpen(true)}
+          activeFaultsCount={faults.length}
+          unreadNotifications={faults.filter(f => f.severity === 'critical').length}
+          isCatalogOpen={isCatalogOpen}
+          onToggleCatalog={handleToggleCatalog}
+          selectedComponent={currentSelectedComp}
+          onRotateComponent={handleRotateSelectedComponent}
+          zoom={zoom}
+          onZoomIn={() => zoomControlsRef.current?.zoomIn()}
+          onZoomOut={() => zoomControlsRef.current?.zoomOut()}
+          onResetZoom={() => zoomControlsRef.current?.resetZoom()}
+          onFitScreen={() => zoomControlsRef.current?.fitScreen()}
+          mousePos={canvasMousePos}
+          showCrosshair={showCrosshair}
+          onToggleCrosshair={() => setShowCrosshair(prev => !prev)}
+          onCenterOnCursor={() => zoomControlsRef.current?.centerOnCursor()}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={handleToggleFullscreen}
+        />
+      )}
+
+      {/* Botão Flutuante de Tela Cheia (Exibido no Modo Painel Puro para restaurar a tela inteira) */}
+      {isFullscreen && (
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <button
+            id="btn-exit-fullscreen"
+            type="button"
+            onClick={handleToggleFullscreen}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900/95 hover:bg-slate-800 text-cyan-300 border border-cyan-500/60 shadow-2xl backdrop-blur-md transition-all cursor-pointer hover:border-cyan-400 active:scale-95 group"
+            title="Aperte novamente para restaurar a tela inteira com todos os botões e campos (Atalho: Esc)"
+          >
+            <Minimize className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+            <span>Sair da Tela Cheia</span>
+            <span className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-slate-800 rounded border border-slate-700 text-slate-400">
+              Esc
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Main Viewport Content based on active tab */}
       <div className="flex-1 flex overflow-hidden relative">
@@ -691,7 +769,7 @@ export default function App() {
             onTriggerManualOverride={handleTriggerManualOverride}
             onPressButton={handlePressButton}
             onReleaseButton={handleReleaseButton}
-            isCatalogOpen={isCatalogOpen}
+            isCatalogOpen={isFullscreen ? false : isCatalogOpen}
             onToggleCatalog={handleToggleCatalog}
             onRotateComponent={handleRotateSelectedComponent}
             zoom={zoom}

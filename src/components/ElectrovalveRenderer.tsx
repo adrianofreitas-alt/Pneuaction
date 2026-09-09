@@ -33,9 +33,6 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
   const springCoils = isLeftPos ? 7 : 5;
   const springWidth = isLeftPos ? 16 : 28;
 
-  const modelName = isDouble ? '4V220-06' : '4V210-06';
-  const valveTypeLabel = isDouble ? '5/2 BI-ESTÁVEL' : '5/2 MONO-ESTÁVEL';
-
   return (
     <g id={`electrovalve-${comp.id}`} className="select-none">
       {/* ------------------------------------------------------------------- */}
@@ -199,30 +196,6 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
             <polygon points="-1.8,-1 0,-2.2 1.8,-1 1.8,1 0,2.2 -1.8,1" fill="#475569" />
           </g>
         ))}
-
-        {/* Technical Nameplate Label (Model, Pressure, ISO symbol) */}
-        <g id="valve-nameplate" transform="translate(68, 48)">
-          <rect x="0" y="0" width="114" height="12" rx="2" fill="#0f172a" stroke="#334155" strokeWidth="0.8" />
-          <text
-            x="6"
-            y="9"
-            fill="#38bdf8"
-            fontSize="6.5"
-            fontWeight="bold"
-            fontFamily="'JetBrains Mono', monospace"
-          >
-            MODEL: {modelName}
-          </text>
-          <text
-            x="76"
-            y="9"
-            fill="#94a3b8"
-            fontSize="5.8"
-            fontFamily="'JetBrains Mono', monospace"
-          >
-            0.15-0.8 MPa
-          </text>
-        </g>
       </g>
 
       {/* ------------------------------------------------------------------- */}
@@ -642,45 +615,9 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           <line x1="60" y1="64" x2="60" y2="118" stroke="#ffffff" strokeWidth="0.8" opacity="0.4" />
           <line x1="190" y1="64" x2="190" y2="118" stroke="#38bdf8" strokeWidth="0.8" opacity="0.4" />
 
-          {/* Laser-etched Micro-labels on Glass Surface */}
-          <text x="64" y="69" fill="#38bdf8" fontSize="5.2" fontWeight="bold" fontFamily="'JetBrains Mono'" opacity="0.75">
-            CORPO VIDRO ÓPTICO BOROSILICATO
-          </text>
-          <text x="186" y="69" fill="#94a3b8" fontSize="4.8" textAnchor="end" fontFamily="'JetBrains Mono'" opacity="0.75">
-            Ø CARRETEL 16mm
-          </text>
-
           {/* Top highlight line of the glass window */}
           <line x1="62" y1="64" x2="188" y2="64" stroke="#ffffff" strokeWidth="1.2" opacity="0.75" />
           <line x1="62" y1="118" x2="188" y2="118" stroke="#38bdf8" strokeWidth="0.8" opacity="0.5" />
-
-          {/* Real-time status badge inside the glass */}
-          <g transform="translate(125, 114)">
-            <rect
-              x="-60"
-              y="0"
-              width="120"
-              height="11"
-              rx="2.5"
-              fill="#0f172a"
-              stroke={isLeftPos ? '#f59e0b' : '#38bdf8'}
-              strokeWidth="0.8"
-              opacity="0.95"
-            />
-            <text
-              x="0"
-              y="8"
-              fill={isLeftPos ? '#fcd34d' : '#bae6fd'}
-              fontSize="6"
-              fontWeight="bold"
-              textAnchor="middle"
-              fontFamily="'JetBrains Mono', monospace"
-            >
-              {isLeftPos
-                ? 'POSIÇÃO 2: ENERGIZADA (1→4 / 2→3)'
-                : 'POSIÇÃO 1: NORMAL MOLA (1→2 / 4→5)'}
-            </text>
-          </g>
         </g>
       ) : (
         /* Solid Industrial Shell Mode with Inspection Window */
@@ -697,9 +634,6 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
             <line x1="48" y1="28" x2="66" y2="6" stroke="#94a3b8" strokeWidth="1.2" />
             <line x1="66" y1="28" x2="48" y2="6" stroke="#94a3b8" strokeWidth="1.2" />
           </g>
-          <text x="125" y="114" fill="#94a3b8" fontSize="6.5" textAnchor="middle" fontFamily="'JetBrains Mono'">
-            CARCAÇA BLINDADA IP65
-          </text>
         </g>
       )}
 
@@ -725,18 +659,9 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
         />
 
         {/* Coil Technical Stamp */}
-        <g transform="translate(26, 60)">
-          <text x="0" y="0" fill="#f8fafc" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+        <g transform="translate(26, 68)">
+          <text x="0" y="0" fill="#f8fafc" fontSize="8.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
             Y1
-          </text>
-          <text x="0" y="8" fill="#94a3b8" fontSize="5" textAnchor="middle" fontFamily="'JetBrains Mono'">
-            24V DC 4.8W
-          </text>
-          <text x="0" y="15" fill="#64748b" fontSize="4.5" textAnchor="middle" fontFamily="'JetBrains Mono'">
-            100% ED IP65
-          </text>
-          <text x="0" y="24" fill="#94a3b8" fontSize="5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
-            CE
           </text>
         </g>
 
@@ -826,18 +751,9 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           <line x1="46" y1="54" x2="46" y2="84" stroke="#64748b" strokeWidth="0.8" />
 
           {/* Coil Technical Stamp */}
-          <g transform="translate(20, 60)">
-            <text x="0" y="0" fill="#f8fafc" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+          <g transform="translate(20, 68)">
+            <text x="0" y="0" fill="#f8fafc" fontSize="8.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
               Y2
-            </text>
-            <text x="0" y="8" fill="#94a3b8" fontSize="5" textAnchor="middle" fontFamily="'JetBrains Mono'">
-              24V DC 4.8W
-            </text>
-            <text x="0" y="15" fill="#64748b" fontSize="4.5" textAnchor="middle" fontFamily="'JetBrains Mono'">
-              100% ED IP65
-            </text>
-            <text x="0" y="24" fill="#94a3b8" fontSize="5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
-              CE
             </text>
           </g>
 
@@ -925,14 +841,11 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
             strokeWidth="2"
             strokeLinecap="round"
           />
-          <text x="14" y="46" fill="#475569" fontSize="6" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
-            MOLA
-          </text>
         </g>
       )}
 
       {/* ------------------------------------------------------------------- */}
-      {/* 6. MANUAL OVERRIDE BUTTONS (BOTOEIRAS MANUAIS AZUIS DA FOTO)        */}
+      {/* 6. MANUAL OVERRIDE BUTTONS (BOTOEIRAS MANUAIS AZUIS)                */}
       {/* ------------------------------------------------------------------- */}
       {/* Left Blue Manual Button (Pino azul de acionamento manual próximo a Y1) */}
       <g
@@ -957,10 +870,6 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           strokeWidth="1"
         />
         <circle cx="-1.5" cy="-1.5" r="1.5" fill="#bae6fd" />
-        {/* MAN Label */}
-        <text x="0" y="14" fill="#0284c7" fontSize="5.5" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">
-          MAN
-        </text>
       </g>
 
       {/* Right Blue Manual Button (for Double Solenoid) */}
@@ -985,46 +894,8 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
             strokeWidth="1"
           />
           <circle cx="-1.5" cy="-1.5" r="1.5" fill="#bae6fd" />
-          <text x="0" y="14" fill="#0284c7" fontSize="5.5" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">
-            MAN
-          </text>
         </g>
       )}
-
-      {/* ------------------------------------------------------------------- */}
-      {/* 7. GLASS CUTAWAY TOGGLE BUTTON (Alternar Vidro Transparente)        */}
-      {/* ------------------------------------------------------------------- */}
-      <g
-        id="toggle-glass-btn"
-        transform="translate(125, 43)"
-        onClick={(e) => {
-          e.stopPropagation();
-          setShowGlassCutaway(!showGlassCutaway);
-        }}
-        className="cursor-pointer hover:opacity-100 opacity-80"
-      >
-        <rect
-          x="-36"
-          y="-6"
-          width="72"
-          height="12"
-          rx="3"
-          fill={showGlassCutaway ? '#0369a1' : '#334155'}
-          stroke="#38bdf8"
-          strokeWidth="0.8"
-        />
-        <text
-          x="0"
-          y="2"
-          fill="#ffffff"
-          fontSize="5.5"
-          fontWeight="bold"
-          textAnchor="middle"
-          fontFamily="'JetBrains Mono', monospace"
-        >
-          {showGlassCutaway ? '🔍 CORPO DE VIDRO ATIVO' : '⚙️ VER INTERIOR (VIDRO)'}
-        </text>
-      </g>
     </g>
   );
 };

@@ -29,8 +29,8 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     tagPrefix: '0Z',
     description: 'Unidade industrial de tratamento de ar comprimido modular (FRL) padrão Festo/SMC com regulador de pressão, anel de trava vermelho de segurança, manômetro analógico (MPa/bar), filtro centrífugo 5µm com elemento de bronze sinterizado e dreno manual, e lubrificador de ar com cúpula visor de gotejamento.',
     defaultPorts: [
-      { name: 'P (Entrada Rede)', type: 'pneumatic', functionType: 'pressure', x: 8, y: 39 },
-      { name: '1 (Saída Regulada)', type: 'pneumatic', functionType: 'pressure', x: 92, y: 39 },
+      { name: 'P', type: 'pneumatic', functionType: 'pressure', x: 8, y: 39 },
+      { name: 'S', type: 'pneumatic', functionType: 'pressure', x: 92, y: 39 },
     ],
     defaultState: {
       pressureP: 6.0, // 6 bar

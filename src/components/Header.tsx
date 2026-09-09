@@ -16,7 +16,9 @@ import {
   LocateFixed,
   ZoomIn,
   ZoomOut,
-  Maximize2
+  Maximize2,
+  Maximize,
+  Minimize
 } from 'lucide-react';
 import { PRESET_CIRCUITS } from '../data/presets';
 import { BenchComponent } from '../types';
@@ -47,6 +49,8 @@ interface HeaderProps {
   showCrosshair?: boolean;
   onToggleCrosshair?: () => void;
   onCenterOnCursor?: () => void;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -75,6 +79,8 @@ export const Header: React.FC<HeaderProps> = ({
   showCrosshair = false,
   onToggleCrosshair,
   onCenterOnCursor,
+  isFullscreen = false,
+  onToggleFullscreen,
 }) => {
   return (
     <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 text-slate-100">
@@ -270,6 +276,18 @@ export const Header: React.FC<HeaderProps> = ({
               <Maximize2 className="w-3.5 h-3.5" />
             </button>
           </div>
+
+          {/* Botão de Tela Cheia (Modo Painel Puro - Somente o painel e seus componentes) */}
+          <button
+            id="btn-toggle-fullscreen"
+            type="button"
+            onClick={onToggleFullscreen}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-950/90 hover:bg-cyan-900 text-cyan-300 border border-cyan-700 shadow-md shadow-cyan-950/50 transition-all cursor-pointer active:scale-95"
+            title="Modo Tela Cheia: exibe somente o painel e seus componentes. Clique novamente para restaurar a tela inteira."
+          >
+            <Maximize className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Tela Cheia</span>
+          </button>
         </div>
 
         {/* Right: Presets, CAD, Report */}

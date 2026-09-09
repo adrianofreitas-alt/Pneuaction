@@ -2379,16 +2379,6 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             {/* --- 3D. BOTTOM OIL DRAIN / FILL PLUG --- */}
                             <rect x="105" y="164" width="10" height="7" rx="1.5" fill="#94a3b8" stroke="#64748b" strokeWidth="0.8" />
                           </g>
-
-                          {/* ------------------------------------------------------------- */}
-                          {/* 4. COMPONENT IDENTIFICATION STRIP / TAG */}
-                          {/* ------------------------------------------------------------- */}
-                          <g transform="translate(4, 4)">
-                            <rect x="0" y="0" width="58" height="10" rx="2" fill="#0284c7" opacity="0.9" />
-                            <text x="29" y="7" fill="#ffffff" fontSize="6.5" fontWeight="900" fontFamily="'JetBrains Mono'" textAnchor="middle">
-                              0Z1 • FRL
-                            </text>
-                          </g>
                         </g>
                       );
                     })()}
@@ -3582,17 +3572,17 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                       let labelText = port.name.split(' ')[0];
                       if (isExhaust) {
-                        labelText = 'SILENCIADOR';
+                        labelText = '';
                       } else if (isElectrovalve) {
                         if (port.name.includes('Y1')) {
-                          labelText = (port.functionType === 'signal_in' || port.name.includes('+')) ? 'Y1 (+24V)' : 'Y1 (0V)';
+                          labelText = 'Y1';
                         } else if (port.name.includes('Y2')) {
-                          labelText = (port.functionType === 'signal_in' || port.name.includes('+')) ? 'Y2 (+24V)' : 'Y2 (0V)';
+                          labelText = 'Y2';
                         }
                       } else if (isButtonStation) {
                         labelText = port.name.includes('13') ? '13' : port.name.includes('14') ? '14' : port.name.includes('11') ? '11' : port.name.includes('12') ? '12' : port.name;
                       } else if (isFRL) {
-                        labelText = port.name.includes('P') || port.name.includes('Entrada') ? 'P (REDE)' : '1 (SAÍDA)';
+                        labelText = port.name.includes('P') || port.name.includes('Entrada') ? 'P' : 'S';
                       } else if (isTerminalStripComp) {
                         if (isStripInPort) {
                           labelText = comp.type === 'terminal_strip_24v' ? '⚡ FONTE IN' : '⏚ FONTE IN';
@@ -3756,8 +3746,8 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             </g>
                           )}
 
-                          {/* Port Technical Label Badge (Oculto em sensores para manter o chicote limpo com etiquetas embutidas) */}
-                          {comp.type !== 'reed_switch_sensor' && (
+                          {/* Port Technical Label Badge (Oculto em sensores e quando labelText vazio como silenciadores) */}
+                          {comp.type !== 'reed_switch_sensor' && Boolean(labelText) && (
                             <g transform={`translate(0, ${textY})`}>
                               <rect
                                 x={-(labelText.length * (isTerminalStripComp ? 3.0 : 3.8) + (isTerminalStripComp ? 3 : 5))}
