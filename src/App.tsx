@@ -45,6 +45,28 @@ export default function App() {
   const [isCatalogOpen, setIsCatalogOpen] = useState<boolean>(true);
   const [testDurationSeconds, setTestDurationSeconds] = useState<number>(0);
 
+  // Zoom and Cursor Position state (controlados na barra do Header)
+  const [zoom, setZoom] = useState<number>(1);
+  const [showCrosshair, setShowCrosshair] = useState<boolean>(false);
+  const [canvasMousePos, setCanvasMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const zoomControlsRef = useRef<{
+    zoomIn: () => void;
+    zoomOut: () => void;
+    resetZoom: () => void;
+    fitScreen: () => void;
+    centerOnCursor: () => void;
+  } | null>(null);
+
+  const handleRegisterZoomControls = (controls: {
+    zoomIn: () => void;
+    zoomOut: () => void;
+    resetZoom: () => void;
+    fitScreen: () => void;
+    centerOnCursor: () => void;
+  }) => {
+    zoomControlsRef.current = controls;
+  };
+
   // Telemetry metrics
   const [metrics, setMetrics] = useState<TelemetryMetrics>({
     mainPressureBar: 6.0,
@@ -642,6 +664,15 @@ export default function App() {
         onToggleCatalog={handleToggleCatalog}
         selectedComponent={currentSelectedComp}
         onRotateComponent={handleRotateSelectedComponent}
+        zoom={zoom}
+        onZoomIn={() => zoomControlsRef.current?.zoomIn()}
+        onZoomOut={() => zoomControlsRef.current?.zoomOut()}
+        onResetZoom={() => zoomControlsRef.current?.resetZoom()}
+        onFitScreen={() => zoomControlsRef.current?.fitScreen()}
+        mousePos={canvasMousePos}
+        showCrosshair={showCrosshair}
+        onToggleCrosshair={() => setShowCrosshair(prev => !prev)}
+        onCenterOnCursor={() => zoomControlsRef.current?.centerOnCursor()}
       />
 
       {/* Main Viewport Content based on active tab */}
@@ -663,6 +694,11 @@ export default function App() {
             isCatalogOpen={isCatalogOpen}
             onToggleCatalog={handleToggleCatalog}
             onRotateComponent={handleRotateSelectedComponent}
+            zoom={zoom}
+            onZoomChange={setZoom}
+            showCrosshair={showCrosshair}
+            onMousePosChange={setCanvasMousePos}
+            onRegisterZoomControls={handleRegisterZoomControls}
           />
         )}
 

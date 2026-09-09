@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { 
   BenchComponent, 
   VirtualConnection, 
@@ -113,6 +113,17 @@ interface BenchCanvasProps {
   isCatalogOpen: boolean;
   onToggleCatalog: () => void;
   onRotateComponent?: () => void;
+  zoom?: number;
+  onZoomChange?: (zoom: number) => void;
+  showCrosshair?: boolean;
+  onMousePosChange?: (pos: { x: number; y: number }) => void;
+  onRegisterZoomControls?: (controls: {
+    zoomIn: () => void;
+    zoomOut: () => void;
+    resetZoom: () => void;
+    fitScreen: () => void;
+    centerOnCursor: () => void;
+  }) => void;
 }
 
 export const BenchCanvas: React.FC<BenchCanvasProps> = ({
@@ -131,6 +142,11 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   isCatalogOpen,
   onToggleCatalog,
   onRotateComponent,
+  zoom: externalZoom,
+  onZoomChange,
+  showCrosshair: externalShowCrosshair,
+  onMousePosChange,
+  onRegisterZoomControls,
 }) => {
   // Connection wiring state
   const [connectingStart, setConnectingStart] = useState<{
@@ -138,8 +154,12 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
     port: ComponentPort;
   } | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState<number>(1);
-  const [showCrosshair, setShowCrosshair] = useState<boolean>(false);
+  const [internalZoom, setInternalZoom] = useState<number>(1);
+  const [internalShowCrosshair, setInternalShowCrosshair] = useState<boolean>(false);
+  
+  const zoom = externalZoom !== undefined ? externalZoom : internalZoom;
+  const showCrosshair = externalShowCrosshair !== undefined ? externalShowCrosshair : internalShowCrosshair;
+
   const [hoveredPort, setHoveredPort] = useState<ComponentPort | null>(null);
   const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
@@ -156,30 +176,38 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
   // Smooth Zoom Controllers with anchor tracking
   const handleZoom = (delta: number, anchorClient?: { clientX: number; clientY: number }) => {
-    setZoom((prev) => {
-      const next = Math.max(0.3, Math.min(2.5, Number((prev + delta).toFixed(2))));
-      if (next === prev) return prev;
+    const prev = zoom;
+    const next = Math.max(0.3, Math.min(2.5, Number((prev + delta).toFixed(2))));
+    if (next === prev) return;
 
-      const container = containerRef.current;
-      if (container) {
-        const containerRect = container.getBoundingClientRect();
-        const anchorX = anchorClient ? anchorClient.clientX - containerRect.left : container.clientWidth / 2;
-        const anchorY = anchorClient ? anchorClient.clientY - containerRect.top : container.clientHeight / 2;
+    const container = containerRef.current;
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+      const anchorX = anchorClient ? anchorClient.clientX - containerRect.left : container.clientWidth / 2;
+      const anchorY = anchorClient ? anchorClient.clientY - containerRect.top : container.clientHeight / 2;
 
-        const contentX = (container.scrollLeft + anchorX) / prev;
-        const contentY = (container.scrollTop + anchorY) / prev;
+      const contentX = (container.scrollLeft + anchorX) / prev;
+      const contentY = (container.scrollTop + anchorY) / prev;
 
-        requestAnimationFrame(() => {
-          container.scrollLeft = contentX * next - anchorX;
-          container.scrollTop = contentY * next - anchorY;
-        });
-      }
-      return next;
-    });
+      requestAnimationFrame(() => {
+        container.scrollLeft = contentX * next - anchorX;
+        container.scrollTop = contentY * next - anchorY;
+      });
+    }
+
+    if (onZoomChange) {
+      onZoomChange(next);
+    } else {
+      setInternalZoom(next);
+    }
   };
 
   const handleResetZoom = () => {
-    setZoom(1);
+    if (onZoomChange) {
+      onZoomChange(1);
+    } else {
+      setInternalZoom(1);
+    }
   };
 
   const handleFitScreen = () => {
@@ -188,7 +216,11 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
     const availableW = container.clientWidth - 40;
     const availableH = container.clientHeight - 40;
     const fitScale = Math.max(0.3, Math.min(1.2, Number(Math.min(availableW / 2800, availableH / 1700).toFixed(2))));
-    setZoom(fitScale);
+    if (onZoomChange) {
+      onZoomChange(fitScale);
+    } else {
+      setInternalZoom(fitScale);
+    }
     container.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
   };
 
@@ -203,6 +235,19 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
       behavior: 'smooth'
     });
   };
+
+  // Expose zoom controls to parent / Header toolbar
+  useEffect(() => {
+    if (onRegisterZoomControls) {
+      onRegisterZoomControls({
+        zoomIn: () => handleZoom(0.15),
+        zoomOut: () => handleZoom(-0.15),
+        resetZoom: handleResetZoom,
+        fitScreen: handleFitScreen,
+        centerOnCursor: handleCenterOnCursor,
+      });
+    }
+  });
 
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (e.ctrlKey || e.metaKey || e.altKey) {
@@ -251,6 +296,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
       y = Math.max(0, Math.min(1700, Math.round(svgP.y)));
     }
     setMousePos({ x, y });
+    onMousePosChange?.({ x, y });
 
     // Handle dragging connection control point (reposicionar / desviar / esticar cabo ou tubo)
     if (draggingConnectionId) {
@@ -906,22 +952,6 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             </button>
           </div>
         )}
-
-        {/* Active Connection Legend */}
-        <div className="absolute bottom-3 left-4 z-20 flex items-center gap-3 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-[11px] shadow-lg">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-1.5 bg-cyan-500 rounded-sm" />
-            <span className="text-slate-300">Mangueira Pneumática (PU 6mm Azul Claro)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-1.5 bg-rose-500 rounded-sm" />
-            <span className="text-slate-300">Cabo Elétrico (+24V Vermelho)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-1.5 bg-blue-900 border border-blue-500 rounded-sm shadow-xs" />
-            <span className="text-slate-300">Cabo Elétrico (0V Azul Escuro)</span>
-          </div>
-        </div>
 
         {/* SVG Interactive Workbench Canvas */}
         <div 
@@ -4168,84 +4198,6 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
               </g>
             )}
           </svg>
-        </div>
-
-        {/* Floating Zoom and Position Control Bar (Marcado pelo cursor do mouse) */}
-        <div className="absolute bottom-4 right-6 z-30 flex items-center gap-1.5 bg-slate-900/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-700/80 text-xs shadow-2xl select-none">
-          {/* Real-time Cursor Coordinates Readout */}
-          <div 
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300 font-mono text-[11px]"
-            title="Posição instantânea marcada pelo cursor do mouse na bancada (2800 x 1700 mm)"
-          >
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-            <span className="text-slate-400">X:</span>
-            <span className="font-bold text-cyan-300">{mousePos.x}</span>
-            <span className="text-slate-400 ml-1">Y:</span>
-            <span className="font-bold text-cyan-300">{mousePos.y}</span>
-            <span className="text-slate-500 text-[10px]">mm</span>
-          </div>
-
-          {/* Precision Crosshair Toggle Button */}
-          <button
-            onClick={() => setShowCrosshair(!showCrosshair)}
-            className={`p-1.5 rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${
-              showCrosshair 
-                ? 'bg-cyan-950 border-cyan-500 text-cyan-300 shadow-sm shadow-cyan-900/50' 
-                : 'bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-slate-300 hover:text-white'
-            }`}
-            title={showCrosshair ? 'Desativar retícula de mira do cursor' : 'Ativar retícula e guias de precisão no cursor do mouse'}
-          >
-            <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden sm:inline text-[11px] font-medium">Mira</span>
-          </button>
-
-          {/* Center Viewport on Mouse Position Button */}
-          <button
-            onClick={handleCenterOnCursor}
-            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1.5"
-            title="Centralizar a visão na posição marcada pelo cursor do mouse"
-          >
-            <LocateFixed className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden sm:inline text-[11px] font-medium">Centralizar</span>
-          </button>
-
-          <div className="w-px h-5 bg-slate-700/80 mx-0.5" />
-
-          {/* Zoom Out Button */}
-          <button
-            onClick={() => handleZoom(-0.15)}
-            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
-            title="Diminuir Zoom (-15%)"
-          >
-            <ZoomOut className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Zoom Level Indicator / Reset 100% */}
-          <button
-            onClick={handleResetZoom}
-            className="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-cyan-300 font-mono font-semibold text-[11px] transition cursor-pointer"
-            title="Clique para redefinir o zoom para 100% (1:1)"
-          >
-            {Math.round(zoom * 100)}%
-          </button>
-
-          {/* Zoom In Button */}
-          <button
-            onClick={() => handleZoom(0.15)}
-            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
-            title="Aumentar Zoom (+15%)"
-          >
-            <ZoomIn className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Fit to Screen Button */}
-          <button
-            onClick={handleFitScreen}
-            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-cyan-300 transition cursor-pointer"
-            title="Ajustar painel inteiro à tela (Ver tudo 2800x1700)"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-          </button>
         </div>
       </main>
 

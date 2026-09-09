@@ -3,7 +3,7 @@ import {
   Play, 
   Square, 
   RotateCcw, 
-  RotateCw,
+  RotateCw, 
   AlertOctagon, 
   Activity, 
   FileText, 
@@ -11,7 +11,12 @@ import {
   FolderDown, 
   Layers, 
   Cpu, 
-  Bell
+  Bell,
+  Crosshair,
+  LocateFixed,
+  ZoomIn,
+  ZoomOut,
+  Maximize2
 } from 'lucide-react';
 import { PRESET_CIRCUITS } from '../data/presets';
 import { BenchComponent } from '../types';
@@ -33,6 +38,15 @@ interface HeaderProps {
   onToggleCatalog: () => void;
   selectedComponent?: BenchComponent | null;
   onRotateComponent?: () => void;
+  zoom?: number;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onResetZoom?: () => void;
+  onFitScreen?: () => void;
+  mousePos?: { x: number; y: number };
+  showCrosshair?: boolean;
+  onToggleCrosshair?: () => void;
+  onCenterOnCursor?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -51,7 +65,16 @@ export const Header: React.FC<HeaderProps> = ({
   isCatalogOpen,
   onToggleCatalog,
   selectedComponent,
-  onRotateComponent
+  onRotateComponent,
+  zoom = 1,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
+  onFitScreen,
+  mousePos = { x: 0, y: 0 },
+  showCrosshair = false,
+  onToggleCrosshair,
+  onCenterOnCursor,
 }) => {
   return (
     <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 text-slate-100">
@@ -162,6 +185,91 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             )}
           </button>
+
+          {/* Paleta de Zoom e Navegação Fixada no Header (Ao lado direito de Girar Componente) */}
+          <div 
+            id="header-zoom-palette" 
+            className="flex items-center gap-1 bg-slate-950/80 px-2 py-1 rounded-lg border border-slate-800 text-xs select-none shadow-xs"
+            title="Controles de Visualização e Zoom do Painel de Montagem (2800x1700mm)"
+          >
+            {/* Leitura de Coordenadas sob o Mouse */}
+            <div 
+              className="hidden 2xl:flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300 font-mono text-[11px]"
+              title="Posição instantânea marcada pelo cursor do mouse na bancada (2800 x 1700 mm)"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+              <span className="text-slate-400 text-[10px]">X:</span>
+              <span className="font-bold text-cyan-300 min-w-[26px] text-right">{mousePos.x}</span>
+              <span className="text-slate-400 text-[10px] ml-0.5">Y:</span>
+              <span className="font-bold text-cyan-300 min-w-[26px] text-right">{mousePos.y}</span>
+            </div>
+
+            {/* Alternar Mira de Precisão */}
+            <button
+              type="button"
+              onClick={onToggleCrosshair}
+              className={`p-1.5 rounded border transition cursor-pointer flex items-center ${
+                showCrosshair 
+                  ? 'bg-cyan-950 border-cyan-500 text-cyan-300 shadow-xs' 
+                  : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-400 hover:text-white'
+              }`}
+              title={showCrosshair ? 'Desativar retícula de mira do cursor' : 'Ativar mira e guias de precisão no cursor do mouse'}
+            >
+              <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
+            </button>
+
+            {/* Centralizar Viewport no Cursor */}
+            <button
+              type="button"
+              onClick={onCenterOnCursor}
+              className="p-1.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+              title="Centralizar a visão na posição marcada pelo cursor do mouse"
+            >
+              <LocateFixed className="w-3.5 h-3.5 text-cyan-400" />
+            </button>
+
+            <div className="w-px h-4 bg-slate-800 mx-0.5" />
+
+            {/* Diminuir Zoom */}
+            <button
+              type="button"
+              onClick={onZoomOut}
+              className="p-1.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
+              title="Diminuir Zoom (-15%)"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Indicador de Zoom / Redefinir para 100% */}
+            <button
+              type="button"
+              onClick={onResetZoom}
+              className="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 hover:text-cyan-300 font-mono font-semibold text-[11px] transition cursor-pointer"
+              title="Clique para redefinir o zoom para 100% (1:1)"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+
+            {/* Aumentar Zoom */}
+            <button
+              type="button"
+              onClick={onZoomIn}
+              className="p-1.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
+              title="Aumentar Zoom (+15%)"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Enquadrar Tudo na Tela (Fit Screen) */}
+            <button
+              type="button"
+              onClick={onFitScreen}
+              className="p-1.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-cyan-300 transition cursor-pointer"
+              title="Ajustar bancada inteira à tela (2800x1700)"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* Right: Presets, CAD, Report */}
