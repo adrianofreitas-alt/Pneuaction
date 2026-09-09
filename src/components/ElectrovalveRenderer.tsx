@@ -129,6 +129,23 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           <stop offset="100%" stopColor="#475569" stopOpacity="0.35" />
         </linearGradient>
 
+        {/* Machined Brass Hex Body for Silencers & Fittings */}
+        <linearGradient id={`brass-hex-${comp.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fef08a" />
+          <stop offset="25%" stopColor="#f59e0b" />
+          <stop offset="60%" stopColor="#d97706" />
+          <stop offset="100%" stopColor="#92400e" />
+        </linearGradient>
+
+        {/* Sintered Bronze Porous Silencer Filter Element */}
+        <linearGradient id={`sintered-bronze-${comp.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#78350f" />
+          <stop offset="20%" stopColor="#b45309" />
+          <stop offset="50%" stopColor="#d97706" />
+          <stop offset="80%" stopColor="#b45309" />
+          <stop offset="100%" stopColor="#78350f" />
+        </linearGradient>
+
         {/* Glow filter for active solenoid & LED */}
         <filter id={`led-glow-${comp.id}`} x="-40%" y="-40%" width="180%" height="180%">
           <feGaussianBlur stdDeviation="3.5" result="blur" />
@@ -245,39 +262,82 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
         </g>
       </g>
 
-      {/* Bottom Ports: 5 (R), 1 (P), 3 (S) */}
+      {/* Bottom Ports: 5 (S) com Silenciador de Bronze, 1 (P) Engate Rápido, 3 (R) com Silenciador de Bronze */}
       <g id="pneumatic-ports-bottom">
-        {/* Port 5 (R) - Escape da câmara A */}
+        {/* Port 5 (S) - Silenciador Pneumático de Bronze Sinterizado G1/8" (Escape da câmara A) */}
         <g transform="translate(75, 126)">
-          <rect x="-10" y="0" width="20" height="14" rx="2" fill="#64748b" stroke="#334155" strokeWidth="1" />
-          <circle cx="0" cy="14" r="8" fill="#334155" stroke="#94a3b8" strokeWidth="1.5" />
-          <circle cx="0" cy="14" r="5.5" fill="#0f172a" />
-          {/* Silenciador de bronze sinterizado / escape */}
-          <rect x="-5" y="11" width="10" height="6" rx="1" fill="#b45309" opacity="0.8" />
-          <text x="0" y="27" fill="#94a3b8" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
-            5 (R)
+          <title>Silenciador Pneumático G1/8" em Bronze Sinterizado (Exaustão 5/S - NR-15)</title>
+          {/* Base roscada no bloco da válvula */}
+          <rect x="-9" y="0" width="18" height="6" rx="1.5" fill="#334155" stroke="#475569" strokeWidth="0.8" />
+          {/* Corpo sextavado de latão industrial */}
+          <rect x="-8" y="5" width="16" height="6" rx="1" fill={`url(#brass-hex-${comp.id})`} stroke="#78350f" strokeWidth="0.8" />
+          <line x1="-4" y1="5" x2="-4" y2="11" stroke="#fef08a" strokeWidth="0.7" opacity="0.8" />
+          <line x1="4" y1="5" x2="4" y2="11" stroke="#78350f" strokeWidth="0.7" opacity="0.8" />
+          {/* Cartucho cônico de bronze sinterizado poroso */}
+          <path
+            d="M -7 11 L -5.5 25 Q 0 28 5.5 25 L 7 11 Z"
+            fill={`url(#sintered-bronze-${comp.id})`}
+            stroke="#78350f"
+            strokeWidth="0.9"
+          />
+          {/* Ranhuras de difusão e textura de porosidade sinterizada */}
+          <line x1="-5" y1="14" x2="5" y2="14" stroke="#fef08a" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.6" />
+          <line x1="-5.5" y1="18" x2="5.5" y2="18" stroke="#451a03" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.8" />
+          <line x1="-4.5" y1="22" x2="4.5" y2="22" stroke="#fef08a" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.5" />
+          {/* Difusão de ar no escape quando ativo */}
+          {!isLeftPos && (
+            <g opacity="0.85">
+              <line x1="-9" y1="18" x2="-13" y2="18" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 1" />
+              <line x1="9" y1="18" x2="13" y2="18" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 1" />
+              <line x1="0" y1="29" x2="0" y2="33" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 1" />
+            </g>
+          )}
+          <text x="0" y="36" fill="#ca8a04" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+            5 (S)
           </text>
         </g>
 
-        {/* Port 1 (P) - Entrada de Ar Comprimido Principal */}
+        {/* Port 1 (P) - Entrada de Ar Comprimido Principal (Engate Festo QS) */}
         <g transform="translate(125, 126)">
           <rect x="-12" y="0" width="24" height="14" rx="2" fill="#64748b" stroke="#334155" strokeWidth="1" />
           <circle cx="0" cy="14" r="9.5" fill="#1e293b" stroke="#ef4444" strokeWidth="1.8" />
           <circle cx="0" cy="14" r="6.5" fill="#0f172a" />
           <circle cx="0" cy="14" r="4" fill="#ef4444" />
-          <text x="0" y="27" fill="#ef4444" fontSize="8" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">
+          <text x="0" y="28" fill="#ef4444" fontSize="8" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">
             1 (P)
           </text>
         </g>
 
-        {/* Port 3 (S) - Escape da câmara B */}
+        {/* Port 3 (R) - Silenciador Pneumático de Bronze Sinterizado G1/8" (Escape da câmara B) */}
         <g transform="translate(175, 126)">
-          <rect x="-10" y="0" width="20" height="14" rx="2" fill="#64748b" stroke="#334155" strokeWidth="1" />
-          <circle cx="0" cy="14" r="8" fill="#334155" stroke="#94a3b8" strokeWidth="1.5" />
-          <circle cx="0" cy="14" r="5.5" fill="#0f172a" />
-          <rect x="-5" y="11" width="10" height="6" rx="1" fill="#b45309" opacity="0.8" />
-          <text x="0" y="27" fill="#94a3b8" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
-            3 (S)
+          <title>Silenciador Pneumático G1/8" em Bronze Sinterizado (Exaustão 3/R - NR-15)</title>
+          {/* Base roscada no bloco da válvula */}
+          <rect x="-9" y="0" width="18" height="6" rx="1.5" fill="#334155" stroke="#475569" strokeWidth="0.8" />
+          {/* Corpo sextavado de latão industrial */}
+          <rect x="-8" y="5" width="16" height="6" rx="1" fill={`url(#brass-hex-${comp.id})`} stroke="#78350f" strokeWidth="0.8" />
+          <line x1="-4" y1="5" x2="-4" y2="11" stroke="#fef08a" strokeWidth="0.7" opacity="0.8" />
+          <line x1="4" y1="5" x2="4" y2="11" stroke="#78350f" strokeWidth="0.7" opacity="0.8" />
+          {/* Cartucho cônico de bronze sinterizado poroso */}
+          <path
+            d="M -7 11 L -5.5 25 Q 0 28 5.5 25 L 7 11 Z"
+            fill={`url(#sintered-bronze-${comp.id})`}
+            stroke="#78350f"
+            strokeWidth="0.9"
+          />
+          {/* Ranhuras de difusão e textura de porosidade sinterizada */}
+          <line x1="-5" y1="14" x2="5" y2="14" stroke="#fef08a" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.6" />
+          <line x1="-5.5" y1="18" x2="5.5" y2="18" stroke="#451a03" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.8" />
+          <line x1="-4.5" y1="22" x2="4.5" y2="22" stroke="#fef08a" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.5" />
+          {/* Difusão de ar no escape quando ativo */}
+          {isLeftPos && (
+            <g opacity="0.85">
+              <line x1="-9" y1="18" x2="-13" y2="18" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 1" />
+              <line x1="9" y1="18" x2="13" y2="18" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 1" />
+              <line x1="0" y1="29" x2="0" y2="33" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 1" />
+            </g>
+          )}
+          <text x="0" y="36" fill="#ca8a04" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+            3 (R)
           </text>
         </g>
       </g>
@@ -689,18 +749,18 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           </g>
         )}
 
-        {/* Transparent Polycarbonate DIN 43650 Connector Plug (Conector transparente) */}
-        <g id="din-plug-y1" transform="translate(8, 0)">
+        {/* Transparent Polycarbonate DIN 43650 Connector Plug (Conector transparente com bornes 24V e 0V fisicamente separados) */}
+        <g id="din-plug-y1" transform="translate(4, 0)">
           {/* Cable Gland (Prensa-cabo branco/creme) */}
-          <rect x="-8" y="10" width="10" height="14" rx="2" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="1" />
-          <line x1="-5" y1="11" x2="-5" y2="23" stroke="#cbd5e1" strokeWidth="1" />
+          <rect x="-6" y="8" width="8" height="14" rx="2" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="1" />
+          <line x1="-3" y1="9" x2="-3" y2="21" stroke="#cbd5e1" strokeWidth="1" />
 
-          {/* Translucent Plug Case */}
+          {/* Translucent Plug Case ampliado para acomodar bornes separados */}
           <rect
             x="2"
-            y="2"
-            width="34"
-            height="40"
+            y="0"
+            width="38"
+            height="44"
             rx="3"
             fill={`url(#din-glass-${comp.id})`}
             stroke="#94a3b8"
@@ -708,35 +768,37 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           />
 
           {/* Central Screw (Parafuso central de fixação) */}
-          <circle cx="19" cy="18" r="4.5" fill="#475569" stroke="#94a3b8" strokeWidth="1" />
-          <line x1="16.5" y1="18" x2="21.5" y2="18" stroke="#e2e8f0" strokeWidth="1" />
-          <line x1="19" y1="15.5" x2="19" y2="20.5" stroke="#e2e8f0" strokeWidth="1" />
+          <circle cx="21" cy="20" r="4" fill="#475569" stroke="#94a3b8" strokeWidth="1" />
+          <line x1="18.5" y1="20" x2="23.5" y2="20" stroke="#e2e8f0" strokeWidth="1" />
+          <line x1="21" y1="17.5" x2="21" y2="22.5" stroke="#e2e8f0" strokeWidth="1" />
 
-          {/* Internal Brass Terminals */}
-          <rect x="7" y="6" width="6" height="8" rx="1" fill="#d97706" />
-          <rect x="7" y="26" width="6" height="8" rx="1" fill="#475569" />
+          {/* Terminal +24V (A1) Superior/Esquerdo */}
+          <rect x="1" y="0" width="8" height="8" rx="2" fill="#ef4444" opacity="0.3" />
+          <circle cx="5" cy="4" r="3.5" fill="#ef4444" stroke="#fca5a5" strokeWidth="0.8" />
+          <text x="5" y="4" fill="#ffffff" fontSize="5" fontWeight="bold" textAnchor="middle" dominantBaseline="middle" fontFamily="'JetBrains Mono'">
+            +
+          </text>
+
+          {/* Terminal 0V (A2) Inferior/Direito - Separado fisicamente */}
+          <rect x="29" y="36" width="8" height="8" rx="2" fill="#1e3a8a" opacity="0.3" />
+          <circle cx="33" cy="40" r="3.5" fill="#1d4ed8" stroke="#93c5fd" strokeWidth="0.8" />
+          <text x="33" y="40" fill="#ffffff" fontSize="6" fontWeight="bold" textAnchor="middle" dominantBaseline="middle" fontFamily="'JetBrains Mono'">
+            -
+          </text>
 
           {/* DIN Plug Indicator LED */}
-          <g transform="translate(28, 30)">
+          <g transform="translate(10, 28)">
             <circle
               cx="0"
               cy="0"
-              r="4"
+              r="3.5"
               fill={y1Active ? '#22c55e' : '#334155'}
               stroke={y1Active ? '#86efac' : '#1e293b'}
               strokeWidth="1"
               filter={y1Active ? `url(#led-glow-${comp.id})` : undefined}
             />
-            {y1Active && <circle cx="0" cy="0" r="1.5" fill="#ffffff" />}
+            {y1Active && <circle cx="0" cy="0" r="1.2" fill="#ffffff" />}
           </g>
-
-          {/* Terminal labels */}
-          <text x="10" y="4" fill="#ef4444" fontSize="5.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
-            +
-          </text>
-          <text x="10" y="38" fill="#38bdf8" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
-            -
-          </text>
         </g>
       </g>
 
@@ -788,51 +850,54 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
             </g>
           )}
 
-          {/* Transparent Polycarbonate DIN 43650 Connector Plug Y2 */}
-          <g id="din-plug-y2" transform="translate(4, 0)">
+          {/* Transparent Polycarbonate DIN 43650 Connector Plug Y2 (Bornes separados) */}
+          <g id="din-plug-y2" transform="translate(0, 0)">
             <rect
               x="0"
-              y="2"
-              width="34"
-              height="40"
+              y="0"
+              width="38"
+              height="44"
               rx="3"
               fill={`url(#din-glass-${comp.id})`}
               stroke="#94a3b8"
               strokeWidth="1.2"
             />
             {/* Cable Gland */}
-            <rect x="34" y="10" width="10" height="14" rx="2" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="1" />
-            <line x1="37" y1="11" x2="37" y2="23" stroke="#cbd5e1" strokeWidth="1" />
+            <rect x="36" y="8" width="8" height="14" rx="2" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="1" />
+            <line x1="39" y1="9" x2="39" y2="21" stroke="#cbd5e1" strokeWidth="1" />
 
             {/* Central Screw */}
-            <circle cx="15" cy="18" r="4.5" fill="#475569" stroke="#94a3b8" strokeWidth="1" />
-            <line x1="12.5" y1="18" x2="17.5" y2="18" stroke="#e2e8f0" strokeWidth="1" />
-            <line x1="15" y1="15.5" x2="15" y2="20.5" stroke="#e2e8f0" strokeWidth="1" />
+            <circle cx="19" cy="20" r="4" fill="#475569" stroke="#94a3b8" strokeWidth="1" />
+            <line x1="16.5" y1="20" x2="21.5" y2="20" stroke="#e2e8f0" strokeWidth="1" />
+            <line x1="19" y1="17.5" x2="19" y2="22.5" stroke="#e2e8f0" strokeWidth="1" />
 
-            {/* Terminals */}
-            <rect x="21" y="6" width="6" height="8" rx="1" fill="#d97706" />
-            <rect x="21" y="26" width="6" height="8" rx="1" fill="#475569" />
+            {/* Terminal +24V (A1) Superior/Direito (x: 94%, y: 13%) */}
+            <rect x="30" y="0" width="8" height="8" rx="2" fill="#ef4444" opacity="0.3" />
+            <circle cx="34" cy="4" r="3.5" fill="#ef4444" stroke="#fca5a5" strokeWidth="0.8" />
+            <text x="34" y="4" fill="#ffffff" fontSize="5" fontWeight="bold" textAnchor="middle" dominantBaseline="middle" fontFamily="'JetBrains Mono'">
+              +
+            </text>
+
+            {/* Terminal 0V (A2) Inferior/Esquerdo (x: 82%, y: 38%) */}
+            <rect x="2" y="36" width="8" height="8" rx="2" fill="#1e3a8a" opacity="0.3" />
+            <circle cx="6" cy="40" r="3.5" fill="#1d4ed8" stroke="#93c5fd" strokeWidth="0.8" />
+            <text x="6" y="40" fill="#ffffff" fontSize="6" fontWeight="bold" textAnchor="middle" dominantBaseline="middle" fontFamily="'JetBrains Mono'">
+              -
+            </text>
 
             {/* Indicator LED */}
-            <g transform="translate(7, 30)">
+            <g transform="translate(28, 28)">
               <circle
                 cx="0"
                 cy="0"
-                r="4"
+                r="3.5"
                 fill={y2Active ? '#22c55e' : '#334155'}
                 stroke={y2Active ? '#86efac' : '#1e293b'}
                 strokeWidth="1"
                 filter={y2Active ? `url(#led-glow-${comp.id})` : undefined}
               />
-              {y2Active && <circle cx="0" cy="0" r="1.5" fill="#ffffff" />}
+              {y2Active && <circle cx="0" cy="0" r="1.2" fill="#ffffff" />}
             </g>
-
-            <text x="24" y="4" fill="#ef4444" fontSize="5.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
-              +
-            </text>
-            <text x="24" y="38" fill="#38bdf8" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
-              -
-            </text>
           </g>
         </g>
       ) : (

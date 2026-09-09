@@ -180,11 +180,11 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
       { name: '4 (A)', type: 'pneumatic', functionType: 'work_a', x: 38, y: 19 },
       { name: '3 (R)', type: 'pneumatic', functionType: 'exhaust_r', x: 70, y: 88 },
       { name: '5 (S)', type: 'pneumatic', functionType: 'exhaust_s', x: 30, y: 88 },
-      // Electrical coils
-      { name: 'Y1 (+) A1', type: 'electrical', functionType: 'signal_in', x: 9, y: 19 },
-      { name: 'Y1 (-) A2', type: 'electrical', functionType: 'ground_0v', x: 9, y: 31 },
-      { name: 'Y2 (+) A1', type: 'electrical', functionType: 'signal_in', x: 91, y: 19 },
-      { name: 'Y2 (-) A2', type: 'electrical', functionType: 'ground_0v', x: 91, y: 31 },
+      // Electrical coils (Separados fisicamente: +24V no topo/esquerda e 0V na base/direita para facilitar a ligação)
+      { name: 'Y1 (+) A1', type: 'electrical', functionType: 'signal_in', x: 6, y: 13 },
+      { name: 'Y1 (-) A2', type: 'electrical', functionType: 'ground_0v', x: 18, y: 38 },
+      { name: 'Y2 (+) A1', type: 'electrical', functionType: 'signal_in', x: 94, y: 13 },
+      { name: 'Y2 (-) A2', type: 'electrical', functionType: 'ground_0v', x: 82, y: 38 },
     ],
     defaultState: {
       valvePosition: 'left', // 'left' = P->4 & 2->3 (avançado), 'right' = P->2 & 4->5 (recuado)
@@ -211,8 +211,8 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
       { name: '4 (A)', type: 'pneumatic', functionType: 'work_a', x: 40, y: 19 },
       { name: '3 (R)', type: 'pneumatic', functionType: 'exhaust_r', x: 72, y: 88 },
       { name: '5 (S)', type: 'pneumatic', functionType: 'exhaust_s', x: 32, y: 88 },
-      { name: 'Y1 (+) A1', type: 'electrical', functionType: 'signal_in', x: 10, y: 19 },
-      { name: 'Y1 (-) A2', type: 'electrical', functionType: 'ground_0v', x: 10, y: 31 },
+      { name: 'Y1 (+) A1', type: 'electrical', functionType: 'signal_in', x: 6, y: 13 },
+      { name: 'Y1 (-) A2', type: 'electrical', functionType: 'ground_0v', x: 18, y: 38 },
     ],
     defaultState: {
       valvePosition: 'right', // Normal por mola: P->2, 4->5

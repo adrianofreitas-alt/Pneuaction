@@ -73,6 +73,28 @@ export const getPortWorldCoordinates = (comp: BenchComponent, port: ComponentPor
     }
   }
 
+  // Auto-ajuste para Eletroválvulas 5/2 (Duplo Solenoide e Simples Solenoide):
+  // Separa fisicamente as conexões elétricas de +24V (A1) e 0V (A2) para facilitar a fiação
+  if (comp.type === 'valve_5_2_double_solenoid' || comp.type === 'valve_5_2_single_solenoid') {
+    if (port.name.includes('Y1')) {
+      if (port.functionType === 'signal_in' || port.name.includes('+')) {
+        portX = 6;
+        portY = 13;
+      } else if (port.functionType === 'ground_0v' || port.name.includes('-')) {
+        portX = 18;
+        portY = 38;
+      }
+    } else if (port.name.includes('Y2')) {
+      if (port.functionType === 'signal_in' || port.name.includes('+')) {
+        portX = 94;
+        portY = 13;
+      } else if (port.functionType === 'ground_0v' || port.name.includes('-')) {
+        portX = 82;
+        portY = 38;
+      }
+    }
+  }
+
   const rawX = (comp.width * portX) / 100;
   const rawY = (comp.height * portY) / 100;
 
@@ -501,6 +523,15 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   // Port click to initiate or complete connection
   const handlePortClick = (comp: BenchComponent, port: ComponentPort, e: React.MouseEvent) => {
     e.stopPropagation();
+
+    // Silenciadores de bronze sinterizado acoplados nas portas de exaustão 3 e 5
+    if (port.functionType === 'exhaust_r' || port.functionType === 'exhaust_s') {
+      benchAudio.playExhaust(0.18, 0.2);
+      if (connectingStart) {
+        setConnectingStart(null);
+      }
+      return;
+    }
 
     if (!connectingStart) {
       // Start connection
@@ -1338,17 +1369,6 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           textAnchor="middle"
                         >
                           {comp.tag}
-                        </text>
-
-                        {/* Component Title */}
-                        <text
-                          x="52"
-                          y="18"
-                          fill="#e2e8f0"
-                          fontSize="11"
-                          fontWeight="600"
-                        >
-                          {comp.type === 'power_supply_24v' ? 'Fonte 24V' : (comp.name.length > 18 ? comp.name.substring(0, 17) + '…' : comp.name)}
                         </text>
 
                         {/* Festo Didactic brand badge for electrical rack modules */}
@@ -3603,10 +3623,33 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         }
                       }
 
+                      // Auto-ajuste para Eletroválvulas 5/2:
+                      // Separa fisicamente as conexões elétricas de +24V (A1) e 0V (A2)
+                      if (comp.type === 'valve_5_2_double_solenoid' || comp.type === 'valve_5_2_single_solenoid') {
+                        if (port.name.includes('Y1')) {
+                          if (port.functionType === 'signal_in' || port.name.includes('+')) {
+                            portX = 6;
+                            portY = 13;
+                          } else if (port.functionType === 'ground_0v' || port.name.includes('-')) {
+                            portX = 18;
+                            portY = 38;
+                          }
+                        } else if (port.name.includes('Y2')) {
+                          if (port.functionType === 'signal_in' || port.name.includes('+')) {
+                            portX = 94;
+                            portY = 13;
+                          } else if (port.functionType === 'ground_0v' || port.name.includes('-')) {
+                            portX = 82;
+                            portY = 38;
+                          }
+                        }
+                      }
+
                       const px = (comp.width * portX) / 100;
                       const py = (comp.height * portY) / 100;
                       const isPneumatic = port.type === 'pneumatic';
-                      const isTarget = connectingStart && connectingStart.port.type === port.type;
+                      const isExhaust = port.functionType === 'exhaust_r' || port.functionType === 'exhaust_s';
+                      const isTarget = !isExhaust && connectingStart && connectingStart.port.type === port.type;
                       const isGround = port.functionType === 'ground_0v' || port.name.includes('0V');
 
                       // Check if port is connected
@@ -3620,9 +3663,18 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       const isFRL = comp.type === 'frl_unit';
                       const isTerminalStripComp = comp.type.startsWith('terminal_strip');
                       const isStripInPort = isTerminalStripComp && port.name.includes('IN');
+                      const isElectrovalve = comp.type === 'valve_5_2_double_solenoid' || comp.type === 'valve_5_2_single_solenoid';
 
                       let labelText = port.name.split(' ')[0];
-                      if (isButtonStation) {
+                      if (isExhaust) {
+                        labelText = 'SILENCIADOR';
+                      } else if (isElectrovalve) {
+                        if (port.name.includes('Y1')) {
+                          labelText = (port.functionType === 'signal_in' || port.name.includes('+')) ? 'Y1 (+24V)' : 'Y1 (0V)';
+                        } else if (port.name.includes('Y2')) {
+                          labelText = (port.functionType === 'signal_in' || port.name.includes('+')) ? 'Y2 (+24V)' : 'Y2 (0V)';
+                        }
+                      } else if (isButtonStation) {
                         labelText = port.name.includes('13') ? '13' : port.name.includes('14') ? '14' : port.name.includes('11') ? '11' : port.name.includes('12') ? '12' : port.name;
                       } else if (isFRL) {
                         labelText = port.name.includes('P') || port.name.includes('Entrada') ? 'P (REDE)' : '1 (SAÍDA)';
@@ -3636,13 +3688,15 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       }
 
                       const isBottom = py > comp.height / 2;
-                      let textY = isButtonStation ? 13 : isFRL ? -15 : (isBottom ? -13 : 18);
+                      let textY = isExhaust ? 26 : isButtonStation ? 13 : isFRL ? -15 : (isBottom ? -13 : 18);
                       if (isTerminalStripComp) {
                         if (comp.type === 'terminal_strip_24v') {
                           textY = isStripInPort ? 16 : 14;
                         } else {
                           textY = isStripInPort ? -16 : -14;
                         }
+                      } else if (isElectrovalve) {
+                        textY = portY < 25 ? -14 : 15;
                       }
 
                       return (
@@ -3676,8 +3730,30 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             />
                           )}
 
-                          {/* Outer Metallic / Plastic Ring (Orifício Circular de Entrada/Saída) */}
-                          {isPneumatic ? (
+                          {/* Outer Metallic / Plastic Ring (Orifício Circular de Entrada/Saída ou Silenciador de Bronze) */}
+                          {isExhaust ? (
+                            // Silenciador Pneumático G1/8" em Bronze Sinterizado (Escape das Câmaras)
+                            <g className="cursor-default">
+                              <title>Silenciador Pneumático G1/8" em Bronze Sinterizado (NR-15 - Atenuação Acústica)</title>
+                              {/* Base sextavada em latão industrial usinado */}
+                              <rect x="-8" y="-4" width="16" height="8" rx="1.5" fill="#d97706" stroke="#78350f" strokeWidth="1" />
+                              <line x1="-4" y1="-4" x2="-4" y2="4" stroke="#fef08a" strokeWidth="0.8" opacity="0.8" />
+                              <line x1="4" y1="-4" x2="4" y2="4" stroke="#78350f" strokeWidth="0.8" opacity="0.8" />
+                              {/* Elemento cônico poroso de bronze sinterizado */}
+                              <path
+                                d="M -7 4 L -5.5 17 Q 0 20 5.5 17 L 7 4 Z"
+                                fill="#b45309"
+                                stroke="#78350f"
+                                strokeWidth="1"
+                              />
+                              {/* Textura e ranhuras de descompressão acústica */}
+                              <line x1="-5" y1="7" x2="5" y2="7" stroke="#fde047" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.7" />
+                              <line x1="-5.5" y1="11" x2="5.5" y2="11" stroke="#451a03" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.8" />
+                              <line x1="-5" y1="14" x2="5" y2="14" stroke="#fde047" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.6" />
+                              {/* Orifício central de escape */}
+                              <circle cx="0" cy="0" r="2.2" fill="#78350f" />
+                            </g>
+                          ) : isPneumatic ? (
                             // Engate Rápido Pneumático Festo QS
                             <g>
                               {/* Base metálica sextavada do engate rápido */}
@@ -3777,6 +3853,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                 fill="#090f1d"
                                 stroke={
                                   isStripInPort ? (isGround ? '#38bdf8' : '#f59e0b') :
+                                  isExhaust ? '#b45309' :
                                   isPneumatic ? '#0284c7' :
                                   isGround ? '#1e3a8a' :
                                   isButtonStation && (port.name.includes('13') || port.name.includes('14')) ? '#059669' :
@@ -3790,6 +3867,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                 y={isTerminalStripComp ? "2.2" : "2.5"}
                                 fill={
                                   isStripInPort ? (isGround ? '#38bdf8' : '#fbbf24') :
+                                  isExhaust ? '#fde047' :
                                   isPneumatic ? '#38bdf8' :
                                   isGround ? '#93c5fd' :
                                   isButtonStation && (port.name.includes('13') || port.name.includes('14')) ? '#34d399' :
