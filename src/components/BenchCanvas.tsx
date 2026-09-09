@@ -897,92 +897,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
           </div>
         )}
 
-        {/* Floating Contextual Toolbar for Selected Hose/Wire (Reposicionar / Desviar / Ajustar Comprimento) */}
-        {selectedRouted && (
-          <div className="absolute top-12 left-4 z-30 flex flex-wrap items-center gap-2.5 bg-slate-900/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-cyan-500/50 text-xs shadow-2xl shadow-cyan-950/40">
-            {/* Icon & Connection Info */}
-            <div className="flex items-center gap-2 pr-2 border-r border-slate-700/60">
-              {selectedRouted.isPneumatic ? (
-                <Wind className="w-4 h-4 text-cyan-400" />
-              ) : (
-                <Zap className="w-4 h-4 text-amber-400" />
-              )}
-              <div>
-                <div className="font-bold text-white flex items-center gap-1.5">
-                  {selectedRouted.isPneumatic ? 'Tubo Pneumático PU Ø6mm' : selectedRouted.isGroundWire ? 'Cabo Elétrico 0V (GND)' : 'Cabo Elétrico +24V'}
-                </div>
-                <div className="text-[10px] text-slate-400 font-mono">
-                  {selectedRouted.coords.sourceComp.tag} [{selectedRouted.coords.sourcePort.name}] ➔ {selectedRouted.coords.targetComp.tag} [{selectedRouted.coords.targetPort.name}]
-                </div>
-              </div>
-            </div>
-
-            {/* Real Measured Length */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700">
-              <Ruler className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="text-[11px] text-slate-300">Comprimento:</span>
-              <span className="font-mono font-bold text-cyan-300">{selectedRouted.lengthMm} mm</span>
-            </div>
-
-            {/* Shrink / Enlarge Controls */}
-            <div className="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700">
-              <button
-                onClick={() => handleAdjustSag(selectedRouted.connection.id, -30)}
-                className="px-2 py-1 rounded hover:bg-slate-700 text-slate-200 hover:text-white flex items-center gap-1 transition cursor-pointer"
-                title="Encolher cabo/tubo (deixa mais esticado/curto)"
-              >
-                <Minimize2 className="w-3 h-3 text-cyan-400" />
-                <span className="font-medium text-[11px]">Encolher (-30mm)</span>
-              </button>
-              <div className="w-px h-4 bg-slate-700" />
-              <button
-                onClick={() => handleAdjustSag(selectedRouted.connection.id, 30)}
-                className="px-2 py-1 rounded hover:bg-slate-700 text-slate-200 hover:text-white flex items-center gap-1 transition cursor-pointer"
-                title="Aumentar comprimento / folga da curva"
-              >
-                <Maximize2 className="w-3 h-3 text-cyan-400" />
-                <span className="font-medium text-[11px]">Aumentar (+30mm)</span>
-              </button>
-            </div>
-
-            {/* Interactive Drag Instruction */}
-            <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-300 px-2 py-1 rounded bg-slate-950/60 border border-slate-800">
-              <Move className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span>Arraste o pino no trajeto para desviar</span>
-            </div>
-
-            {/* Reset to Auto Route */}
-            <button
-              onClick={() => handleResetConnectionRoute(selectedRouted.connection.id)}
-              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center gap-1 transition text-[11px] cursor-pointer"
-              title="Restaurar traçado e caimento automático inteligente"
-            >
-              <RotateCcw className="w-3 h-3 text-slate-400" />
-              <span>Restaurar Auto</span>
-            </button>
-
-            {/* Delete Connection */}
-            <button
-              onClick={(e) => {
-                handleDeleteConnection(selectedRouted.connection.id, e);
-                setSelectedConnectionId(null);
-              }}
-              className="p-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-800 text-rose-300 hover:text-white transition cursor-pointer"
-              title="Excluir este tubo / cabo"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Close Toolbar */}
-            <button
-              onClick={() => setSelectedConnectionId(null)}
-              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
-              title="Fechar barra de ajuste"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+        {/* Floating Connection Drag/Status Message (se conectando) */}
 
         {/* SVG Interactive Workbench Canvas */}
         <div 
@@ -3928,8 +3843,13 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                     className="cursor-pointer group"
                     onMouseEnter={() => setHoveredConnectionId(conn.id)}
                     onMouseLeave={() => setHoveredConnectionId(null)}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteConnection(conn.id, e);
+                      setSelectedConnectionId(null);
+                    }}
                   >
-                    {/* Outer glow / hit area for easy hover and click / drag */}
+                    {/* Outer glow / hit area for easy hover and click / drag / double-click delete */}
                     <path
                       d={pathD}
                       fill="none"
@@ -3939,6 +3859,11 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         e.stopPropagation();
                         setSelectedConnectionId(conn.id);
                         onSelectComponent(null);
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteConnection(conn.id, e);
+                        setSelectedConnectionId(null);
                       }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
@@ -3985,6 +3910,11 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         e.stopPropagation();
                         setSelectedConnectionId(conn.id);
                         onSelectComponent(null);
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteConnection(conn.id, e);
+                        setSelectedConnectionId(null);
                       }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
@@ -4073,6 +4003,11 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           setSelectedConnectionId(conn.id);
                           onSelectComponent(null);
                         }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteConnection(conn.id, e);
+                          setSelectedConnectionId(null);
+                        }}
                       >
                         {/* Outer halo */}
                         <circle
@@ -4102,9 +4037,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         {!draggingConnectionId && (
                           <g transform="translate(0, -22)" className="pointer-events-none">
                             <rect
-                              x="-75"
+                              x="-95"
                               y="-12"
-                              width="150"
+                              width="190"
                               height="22"
                               rx="5"
                               fill="#0f172a"
@@ -4121,7 +4056,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                               fontFamily="system-ui, -apple-system, sans-serif"
                               textAnchor="middle"
                             >
-                              {isSelected ? 'Arraste p/ desviar / esticar' : 'Clique p/ reposicionar'} ({lengthMm}mm)
+                              Arraste p/ esticar ou curvar (2 cliques p/ excluir)
                             </text>
                           </g>
                         )}
