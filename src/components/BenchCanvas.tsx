@@ -32,7 +32,12 @@ import {
   RotateCcw,
   Ruler,
   Minimize2,
-  Maximize2
+  Maximize2,
+  ZoomIn,
+  ZoomOut,
+  Crosshair,
+  LocateFixed,
+  Target
 } from 'lucide-react';
 import { benchAudio } from '../utils/audioSynthesizer';
 import { getSensorPorts } from '../utils/circuitSimulator';
@@ -133,6 +138,8 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
     port: ComponentPort;
   } | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState<number>(1);
+  const [showCrosshair, setShowCrosshair] = useState<boolean>(false);
   const [hoveredPort, setHoveredPort] = useState<ComponentPort | null>(null);
   const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
@@ -144,7 +151,66 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   const [purgingFrlId, setPurgingFrlId] = useState<string | null>(null);
 
   const canvasRef = useRef<SVGSVGElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const lastSnappedCompIdRef = useRef<string | null>(null);
+
+  // Smooth Zoom Controllers with anchor tracking
+  const handleZoom = (delta: number, anchorClient?: { clientX: number; clientY: number }) => {
+    setZoom((prev) => {
+      const next = Math.max(0.3, Math.min(2.5, Number((prev + delta).toFixed(2))));
+      if (next === prev) return prev;
+
+      const container = containerRef.current;
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        const anchorX = anchorClient ? anchorClient.clientX - containerRect.left : container.clientWidth / 2;
+        const anchorY = anchorClient ? anchorClient.clientY - containerRect.top : container.clientHeight / 2;
+
+        const contentX = (container.scrollLeft + anchorX) / prev;
+        const contentY = (container.scrollTop + anchorY) / prev;
+
+        requestAnimationFrame(() => {
+          container.scrollLeft = contentX * next - anchorX;
+          container.scrollTop = contentY * next - anchorY;
+        });
+      }
+      return next;
+    });
+  };
+
+  const handleResetZoom = () => {
+    setZoom(1);
+  };
+
+  const handleFitScreen = () => {
+    const container = containerRef.current;
+    if (!container) return;
+    const availableW = container.clientWidth - 40;
+    const availableH = container.clientHeight - 40;
+    const fitScale = Math.max(0.3, Math.min(1.2, Number(Math.min(availableW / 2800, availableH / 1700).toFixed(2))));
+    setZoom(fitScale);
+    container.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+  };
+
+  const handleCenterOnCursor = () => {
+    const container = containerRef.current;
+    if (!container) return;
+    const targetScrollLeft = mousePos.x * zoom - container.clientWidth / 2;
+    const targetScrollTop = mousePos.y * zoom - container.clientHeight / 2;
+    container.scrollTo({
+      left: Math.max(0, targetScrollLeft),
+      top: Math.max(0, targetScrollTop),
+      behavior: 'smooth'
+    });
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.15 : -0.15;
+      handleZoom(delta, { clientX: e.clientX, clientY: e.clientY });
+    }
+  };
 
   // Quick interactive pressure adjustment for FRL Unit
   const handleAdjustFrlPressure = (comp: BenchComponent, e: React.MouseEvent) => {
@@ -172,15 +238,24 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   // Handle canvas mouse move for active drawing line and dragging
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const svg = canvasRef.current;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const ctm = svg.getScreenCTM();
+    let x = e.clientX;
+    let y = e.clientY;
+    if (ctm) {
+      const svgP = pt.matrixTransform(ctm.inverse());
+      x = Math.max(0, Math.min(2800, Math.round(svgP.x)));
+      y = Math.max(0, Math.min(1700, Math.round(svgP.y)));
+    }
     setMousePos({ x, y });
 
     // Handle dragging connection control point (reposicionar / desviar / esticar cabo ou tubo)
     if (draggingConnectionId) {
-      const clampedX = Math.max(15, Math.min(1385, Math.round(x)));
-      const clampedY = Math.max(15, Math.min(835, Math.round(y)));
+      const clampedX = Math.max(15, Math.min(2785, Math.round(x)));
+      const clampedY = Math.max(15, Math.min(1685, Math.round(y)));
 
       onUpdateConnections(
         connections.map((c) => {
@@ -208,10 +283,10 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
       // 1. CASO ESPECIAL: CILINDRO PNEUMÁTICO SENDO ARRASTADO
       // Move o cilindro e sincroniza todos os sensores fixados no seu trilho
       if (draggedComp.type === 'double_acting_cylinder' || draggedComp.type === 'single_acting_cylinder') {
-        const finalCylX = Math.max(15, Math.min(1385 - draggedComp.width, Math.round(rawX / 10) * 10));
-        const clampedY = Math.max(238, Math.min(840 - draggedComp.height, rawY));
+        const finalCylX = Math.max(15, Math.min(2785 - draggedComp.width, Math.round(rawX / 10) * 10));
+        const clampedY = Math.max(238, Math.min(1680 - draggedComp.height, rawY));
         const grooveIndex = Math.round((clampedY - 240) / 48);
-        const finalCylY = Math.max(240, Math.min(840 - draggedComp.height, 240 + grooveIndex * 48));
+        const finalCylY = Math.max(240, Math.min(1680 - draggedComp.height, 240 + grooveIndex * 48));
 
         const deltaX = finalCylX - draggedComp.x;
         const deltaY = finalCylY - draggedComp.y;
@@ -305,10 +380,10 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
           if (lastSnappedCompIdRef.current === draggedComp.id) {
             lastSnappedCompIdRef.current = null;
           }
-          finalX = Math.max(15, Math.min(1385 - draggedComp.width, Math.round(rawX / 10) * 10));
-          const clampedY = Math.max(238, Math.min(840 - draggedComp.height, rawY));
+          finalX = Math.max(15, Math.min(2785 - draggedComp.width, Math.round(rawX / 10) * 10));
+          const clampedY = Math.max(238, Math.min(1680 - draggedComp.height, rawY));
           const grooveIndex = Math.round((clampedY - 240) / 48);
-          finalY = Math.max(240, Math.min(840 - draggedComp.height, 240 + grooveIndex * 48));
+          finalY = Math.max(240, Math.min(1680 - draggedComp.height, 240 + grooveIndex * 48));
           isSnapped = false;
           railCylinderId = undefined;
         }
@@ -336,7 +411,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
       // 3. CASO PADRÃO: DEMAIS COMPONENTES ELÉTRICOS OU PNEUMÁTICOS
       const isElectrical = draggedComp.category === 'electrical' || draggedComp.type === 'power_supply_24v';
-      const finalX = Math.max(15, Math.min(1385 - draggedComp.width, Math.round(rawX / 10) * 10));
+      const finalX = Math.max(15, Math.min(2785 - draggedComp.width, Math.round(rawX / 10) * 10));
       let finalY: number;
 
       if (isElectrical) {
@@ -348,9 +423,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
         }
       } else {
         // Componentes pneumáticos (válvulas, FRL, manifold, etc.) no perfil de alumínio ranhurado
-        const clampedY = Math.max(238, Math.min(840 - draggedComp.height, rawY));
+        const clampedY = Math.max(238, Math.min(1680 - draggedComp.height, rawY));
         const grooveIndex = Math.round((clampedY - 240) / 48);
-        finalY = Math.max(240, Math.min(840 - draggedComp.height, 240 + grooveIndex * 48));
+        finalY = Math.max(240, Math.min(1680 - draggedComp.height, 240 + grooveIndex * 48));
       }
 
       onUpdateComponents(
@@ -473,14 +548,14 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
       // Se estava retilíneo, afasta na vertical para dar folga natural
       newHandle = {
         x: midChord.x,
-        y: Math.max(20, Math.min(830, midChord.y + Math.max(15, delta))),
+        y: Math.max(20, Math.min(1680, midChord.y + Math.max(15, delta))),
       };
     } else {
       // Afasta ou aproxima do ponto médio da reta entre os bornes
       const scale = Math.max(0.1, (dist + delta) / dist);
       newHandle = {
-        x: Math.max(15, Math.min(1385, Math.round(midChord.x + vx * scale))),
-        y: Math.max(15, Math.min(835, Math.round(midChord.y + vy * scale))),
+        x: Math.max(15, Math.min(2785, Math.round(midChord.x + vx * scale))),
+        y: Math.max(15, Math.min(1685, Math.round(midChord.y + vy * scale))),
       };
     }
 
@@ -547,11 +622,23 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
     setSelectedConnectionId(null);
     setDraggingCompId(comp.id);
-    const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-    setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+    
+    const svg = canvasRef.current;
+    if (svg) {
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const ctm = svg.getScreenCTM();
+      if (ctm) {
+        const svgP = pt.matrixTransform(ctm.inverse());
+        setDragOffset({
+          x: svgP.x - comp.x,
+          y: svgP.y - comp.y,
+        });
+        return;
+      }
+    }
+    setDragOffset({ x: 0, y: 0 });
   };
 
   // Calculate coordinates for connection bezier path (handles component rotation)
@@ -837,14 +924,25 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
         </div>
 
         {/* SVG Interactive Workbench Canvas */}
-        <div className="flex-1 w-full h-full overflow-auto cursor-crosshair">
+        <div 
+          ref={containerRef}
+          className="flex-1 w-full h-full overflow-auto cursor-crosshair relative scroll-smooth"
+          onWheel={handleWheel}
+        >
           <svg
             ref={canvasRef}
             id="bench-svg-canvas"
-            width={1400}
-            height={850}
-            viewBox="0 0 1400 850"
-            className="w-[1400px] h-[850px] select-none"
+            width={2800}
+            height={1700}
+            viewBox="0 0 2800 1700"
+            style={{
+              width: `${2800 * zoom}px`,
+              height: `${1700 * zoom}px`,
+              minWidth: `${2800 * zoom}px`,
+              minHeight: `${1700 * zoom}px`,
+              display: 'block',
+            }}
+            className="select-none"
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onClick={() => {
@@ -1002,31 +1100,31 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             {/* ==================================================== */}
             <g id="top-electrical-rack">
               {/* Rack Interior Backplane */}
-              <rect x="0" y="0" width="1400" height="222" fill="#0f172a" />
+              <rect x="0" y="0" width="2800" height="222" fill="#0f172a" />
 
               {/* Top Mounting Rail (Trilho de Fixação em Alumínio Anodizado) */}
-              <rect x="10" y="6" width="1380" height="14" rx="2" fill="#94a3b8" stroke="#64748b" strokeWidth="1" />
-              <line x1="10" y1="7" x2="1390" y2="7" stroke="#e2e8f0" strokeWidth="1" />
+              <rect x="10" y="6" width="2780" height="14" rx="2" fill="#94a3b8" stroke="#64748b" strokeWidth="1" />
+              <line x1="10" y1="7" x2="2790" y2="7" stroke="#e2e8f0" strokeWidth="1" />
               {/* Screw holes along the top rail */}
-              {Array.from({ length: 35 }).map((_, i) => (
-                <circle key={`ts_${i}`} cx={25 + i * 39} cy="13" r="2.5" fill="#475569" stroke="#cbd5e1" strokeWidth="0.8" />
+              {Array.from({ length: 70 }).map((_, i) => (
+                <circle key={`ts_${i}`} cx={25 + i * 39.5} cy="13" r="2.5" fill="#475569" stroke="#cbd5e1" strokeWidth="0.8" />
               ))}
 
               {/* Bottom Mounting Rail of Electrical Rack */}
-              <rect x="10" y="202" width="1380" height="14" rx="2" fill="#94a3b8" stroke="#64748b" strokeWidth="1" />
-              <line x1="10" y1="203" x2="1390" y2="203" stroke="#e2e8f0" strokeWidth="1" />
+              <rect x="10" y="202" width="2780" height="14" rx="2" fill="#94a3b8" stroke="#64748b" strokeWidth="1" />
+              <line x1="10" y1="203" x2="2790" y2="203" stroke="#e2e8f0" strokeWidth="1" />
               {/* Screw holes along the bottom rail */}
-              {Array.from({ length: 35 }).map((_, i) => (
-                <circle key={`bs_${i}`} cx={25 + i * 39} cy="209" r="2.5" fill="#475569" stroke="#cbd5e1" strokeWidth="0.8" />
+              {Array.from({ length: 70 }).map((_, i) => (
+                <circle key={`bs_${i}`} cx={25 + i * 39.5} cy="209" r="2.5" fill="#475569" stroke="#cbd5e1" strokeWidth="0.8" />
               ))}
 
               {/* Vertical Module Guide Marks (indica baias modulares padronizadas lado a lado) */}
-              {Array.from({ length: 9 }).map((_, i) => (
+              {Array.from({ length: 19 }).map((_, i) => (
                 <line
                   key={`bg_${i}`}
-                  x1={240 + i * 140}
+                  x1={160 + i * 140}
                   y1="22"
-                  x2={240 + i * 140}
+                  x2={160 + i * 140}
                   y2="200"
                   stroke="#334155"
                   strokeWidth="1"
@@ -1040,10 +1138,13 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             {/* 2. VIGA DIVISÓRIA ESTRUTURAL (PERFIL DE ALUMÍNIO)    */}
             {/* ==================================================== */}
             <g id="structural-divider">
-              <rect x="0" y="222" width="1400" height="18" fill="#94a3b8" stroke="#64748b" strokeWidth="1" />
-              <line x1="0" y1="223" x2="1400" y2="223" stroke="#f8fafc" strokeWidth="1.2" />
-              <line x1="0" y1="227" x2="1400" y2="227" stroke="#cbd5e1" strokeWidth="0.8" />
-              <line x1="0" y1="239" x2="1400" y2="239" stroke="#475569" strokeWidth="1.2" />
+              <rect x="0" y="222" width="2800" height="18" fill="#94a3b8" stroke="#64748b" strokeWidth="1" />
+              <line x1="0" y1="223" x2="2800" y2="223" stroke="#f8fafc" strokeWidth="1.2" />
+              <line x1="0" y1="227" x2="2800" y2="227" stroke="#cbd5e1" strokeWidth="0.8" />
+              <line x1="0" y1="239" x2="2800" y2="239" stroke="#475569" strokeWidth="1.2" />
+              <text x="1400" y="234" fill="#334155" fontSize="8" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" textAnchor="middle" letterSpacing="0.8">
+                BANCADA DIDÁTICA INDUSTRIAL 2800x1700mm • PERFIL ESTRUTURAL DE ALUMÍNIO RANHURADO DIDACTIC
+              </text>
             </g>
 
             {/* ==================================================== */}
@@ -1051,12 +1152,12 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             {/* ==================================================== */}
             <g id="lower-pneumatic-panel">
               {/* Slotted Aluminum Profile Background (Perfil de Alumínio Anodizado Cinza Claro) */}
-              <rect x="0" y="240" width="1400" height="610" fill="url(#aluminum-slats)" />
+              <rect x="0" y="240" width="2800" height="1460" fill="url(#aluminum-slats)" />
             </g>
 
             {/* Workbench External Frame Border */}
-            <rect x="0" y="0" width="1400" height="850" fill="none" stroke="#64748b" strokeWidth="4" />
-            <rect x="2" y="2" width="1396" height="846" fill="none" stroke="#94a3b8" strokeWidth="1" opacity="0.6" />
+            <rect x="0" y="0" width="2800" height="1700" fill="none" stroke="#64748b" strokeWidth="4" />
+            <rect x="2" y="2" width="2796" height="1696" fill="none" stroke="#94a3b8" strokeWidth="1" opacity="0.6" />
 
             {/* ---------------------------------------------------- */}
             {/* COMPONENTS LAYER */}
@@ -1291,13 +1392,16 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           <text x="135" y="11" fill="#fecaca" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
                             BARRAMENTO +24V CC (ALIMENTAÇÃO) • IEC 60204-1
                           </text>
-                          <text x="560" y="11" fill="#fca5a5" fontSize="6.5" fontWeight="600" fontFamily="'JetBrains Mono', monospace" opacity="0.65">
+                          <text x="750" y="11" fill="#fca5a5" fontSize="6.5" fontWeight="600" fontFamily="'JetBrains Mono', monospace" opacity="0.65">
                             DISTRIBUIDOR EQUIPOTENCIAL 24VDC • MÁX. 10A
                           </text>
-                          <text x="960" y="11" fill="#fecaca" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
-                            RÉGUA SUPERIOR DE BORNES 24V
+                          <text x="1400" y="11" fill="#fecaca" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
+                            RÉGUA SUPERIOR DE BORNES 24V (2800mm) • 56 BORNES
                           </text>
-                          <text x="1270" y="11" fill="#fbbf24" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
+                          <text x="2100" y="11" fill="#fca5a5" fontSize="6.5" fontWeight="600" fontFamily="'JetBrains Mono', monospace" opacity="0.65">
+                            ISOLAÇÃO INDUSTRIAL POLIAMIDA 6.6
+                          </text>
+                          <text x="2670" y="11" fill="#fbbf24" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
                             FESTO DIDACTIC
                           </text>
                         </g>
@@ -1345,13 +1449,16 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           <text x="135" y="11" fill="#dbeafe" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
                             BARRAMENTO 0V CC (COMUM / GND) • IEC 60204-1
                           </text>
-                          <text x="560" y="11" fill="#bfdbfe" fontSize="6.5" fontWeight="600" fontFamily="'JetBrains Mono', monospace" opacity="0.65">
+                          <text x="750" y="11" fill="#bfdbfe" fontSize="6.5" fontWeight="600" fontFamily="'JetBrains Mono', monospace" opacity="0.65">
                             DISTRIBUIDOR EQUIPOTENCIAL 0VDC • REFERÊNCIA DE TERRA
                           </text>
-                          <text x="960" y="11" fill="#dbeafe" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
-                            RÉGUA INFERIOR DE BORNES 0V
+                          <text x="1400" y="11" fill="#dbeafe" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
+                            RÉGUA INFERIOR DE BORNES 0V (2800mm) • 56 BORNES
                           </text>
-                          <text x="1270" y="11" fill="#38bdf8" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
+                          <text x="2100" y="11" fill="#bfdbfe" fontSize="6.5" fontWeight="600" fontFamily="'JetBrains Mono', monospace" opacity="0.65">
+                            ISOLAÇÃO INDUSTRIAL POLIAMIDA 6.6
+                          </text>
+                          <text x="2670" y="11" fill="#38bdf8" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
                             FESTO DIDACTIC
                           </text>
                         </g>
@@ -3993,7 +4100,152 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                 })()
               )}
             </g>
+
+            {/* Precision Crosshair / Marked Cursor Position Guidelines */}
+            {showCrosshair && (
+              <g id="precision-cursor-crosshair" pointerEvents="none">
+                {/* Horizontal guide across the 2800 width */}
+                <line
+                  x1="0"
+                  y1={mousePos.y}
+                  x2="2800"
+                  y2={mousePos.y}
+                  stroke="#0284c7"
+                  strokeWidth="1"
+                  strokeDasharray="6 4"
+                  opacity="0.65"
+                />
+                {/* Vertical guide across the 1700 height */}
+                <line
+                  x1={mousePos.x}
+                  y1="0"
+                  x2={mousePos.x}
+                  y2="1700"
+                  stroke="#0284c7"
+                  strokeWidth="1"
+                  strokeDasharray="6 4"
+                  opacity="0.65"
+                />
+                {/* Outer Reticle Ring */}
+                <circle
+                  cx={mousePos.x}
+                  cy={mousePos.y}
+                  r="15"
+                  fill="none"
+                  stroke="#38bdf8"
+                  strokeWidth="1.2"
+                  opacity="0.85"
+                />
+                {/* Center target dot */}
+                <circle
+                  cx={mousePos.x}
+                  cy={mousePos.y}
+                  r="3"
+                  fill="#38bdf8"
+                />
+                {/* Floating Coordinate Tag beside mouse */}
+                <g transform={`translate(${mousePos.x > 2630 ? mousePos.x - 122 : mousePos.x + 18}, ${mousePos.y > 1650 ? mousePos.y - 32 : mousePos.y + 14})`}>
+                  <rect
+                    width="106"
+                    height="24"
+                    rx="4"
+                    fill="#090d16"
+                    stroke="#0284c7"
+                    strokeWidth="1"
+                    opacity="0.95"
+                  />
+                  <text
+                    x="8"
+                    y="16"
+                    fill="#38bdf8"
+                    fontSize="10"
+                    fontFamily="'JetBrains Mono', monospace"
+                    fontWeight="bold"
+                  >
+                    X:{mousePos.x} Y:{mousePos.y}
+                  </text>
+                </g>
+              </g>
+            )}
           </svg>
+        </div>
+
+        {/* Floating Zoom and Position Control Bar (Marcado pelo cursor do mouse) */}
+        <div className="absolute bottom-4 right-6 z-30 flex items-center gap-1.5 bg-slate-900/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-700/80 text-xs shadow-2xl select-none">
+          {/* Real-time Cursor Coordinates Readout */}
+          <div 
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300 font-mono text-[11px]"
+            title="Posição instantânea marcada pelo cursor do mouse na bancada (2800 x 1700 mm)"
+          >
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="text-slate-400">X:</span>
+            <span className="font-bold text-cyan-300">{mousePos.x}</span>
+            <span className="text-slate-400 ml-1">Y:</span>
+            <span className="font-bold text-cyan-300">{mousePos.y}</span>
+            <span className="text-slate-500 text-[10px]">mm</span>
+          </div>
+
+          {/* Precision Crosshair Toggle Button */}
+          <button
+            onClick={() => setShowCrosshair(!showCrosshair)}
+            className={`p-1.5 rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${
+              showCrosshair 
+                ? 'bg-cyan-950 border-cyan-500 text-cyan-300 shadow-sm shadow-cyan-900/50' 
+                : 'bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-slate-300 hover:text-white'
+            }`}
+            title={showCrosshair ? 'Desativar retícula de mira do cursor' : 'Ativar retícula e guias de precisão no cursor do mouse'}
+          >
+            <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline text-[11px] font-medium">Mira</span>
+          </button>
+
+          {/* Center Viewport on Mouse Position Button */}
+          <button
+            onClick={handleCenterOnCursor}
+            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1.5"
+            title="Centralizar a visão na posição marcada pelo cursor do mouse"
+          >
+            <LocateFixed className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline text-[11px] font-medium">Centralizar</span>
+          </button>
+
+          <div className="w-px h-5 bg-slate-700/80 mx-0.5" />
+
+          {/* Zoom Out Button */}
+          <button
+            onClick={() => handleZoom(-0.15)}
+            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+            title="Diminuir Zoom (-15%)"
+          >
+            <ZoomOut className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Zoom Level Indicator / Reset 100% */}
+          <button
+            onClick={handleResetZoom}
+            className="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-cyan-300 font-mono font-semibold text-[11px] transition cursor-pointer"
+            title="Clique para redefinir o zoom para 100% (1:1)"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+
+          {/* Zoom In Button */}
+          <button
+            onClick={() => handleZoom(0.15)}
+            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+            title="Aumentar Zoom (+15%)"
+          >
+            <ZoomIn className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Fit to Screen Button */}
+          <button
+            onClick={handleFitScreen}
+            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-cyan-300 transition cursor-pointer"
+            title="Ajustar painel inteiro à tela (Ver tudo 2800x1700)"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
         </div>
       </main>
 

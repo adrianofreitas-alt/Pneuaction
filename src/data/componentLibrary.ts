@@ -463,7 +463,7 @@ export function createTerminalStrip24V(id = 'terminal_strip_24v_bus'): BenchComp
     category: 'supply',
     x: 10,
     y: 3,
-    width: 1380,
+    width: 2780,
     height: 17,
     ports: [
       {
@@ -471,15 +471,15 @@ export function createTerminalStrip24V(id = 'terminal_strip_24v_bus'): BenchComp
         name: '+24V (IN / Fonte)',
         type: 'electrical',
         functionType: 'power_24v',
-        x: 2.2,
+        x: 1.1,
         y: 50,
       },
-      ...Array.from({ length: 28 }).map((_, i) => ({
+      ...Array.from({ length: 56 }).map((_, i) => ({
         id: `${id}_port_${i + 1}`,
         name: `+24V (${i + 1})`,
         type: 'electrical' as const,
         functionType: 'power_24v' as const,
-        x: Number((5.5 + i * ((98.5 - 5.5) / 27)).toFixed(2)),
+        x: Number((2.8 + i * ((99.0 - 2.8) / 55)).toFixed(2)),
         y: 50,
       }))
     ],
@@ -506,7 +506,7 @@ export function createTerminalStrip0V(id = 'terminal_strip_0v_bus'): BenchCompon
     category: 'supply',
     x: 10,
     y: 203,
-    width: 1380,
+    width: 2780,
     height: 17,
     ports: [
       {
@@ -514,15 +514,15 @@ export function createTerminalStrip0V(id = 'terminal_strip_0v_bus'): BenchCompon
         name: '0V (IN / Fonte)',
         type: 'electrical',
         functionType: 'ground_0v',
-        x: 2.2,
+        x: 1.1,
         y: 50,
       },
-      ...Array.from({ length: 28 }).map((_, i) => ({
+      ...Array.from({ length: 56 }).map((_, i) => ({
         id: `${id}_port_${i + 1}`,
         name: `0V (${i + 1})`,
         type: 'electrical' as const,
         functionType: 'ground_0v' as const,
-        x: Number((5.5 + i * ((98.5 - 5.5) / 27)).toFixed(2)),
+        x: Number((2.8 + i * ((99.0 - 2.8) / 55)).toFixed(2)),
         y: 50,
       }))
     ],
