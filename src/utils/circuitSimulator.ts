@@ -111,6 +111,9 @@ export interface CircuitEvaluationResult {
     outputNAactive: boolean;
     outputNFactive: boolean;
   }>;
+  relayStatuses?: Map<string, {
+    isCoilEnergized: boolean;
+  }>;
   solenoidY1Active: boolean;
   solenoidY2Active: boolean;
 }
@@ -274,31 +277,52 @@ export function evaluateCircuitElectricalState(
           }
         }
 
-        // Industrial Relay: Contacts 13-14 (NA) and 21-22 (NF)
+        // Industrial Relay: 3 Contatos NA (11-14, 21-24, 31-34) e 3 Contatos NF (11-12, 21-22, 31-32)
         if (comp.type === 'industrial_relay') {
-          const isRelayOn = comp.state.activated || false;
-          const p13 = comp.ports.find(p => p.name.includes('13'));
-          const p14 = comp.ports.find(p => p.name.includes('14'));
-          if (p13 && p14 && isRelayOn) {
-            if (nodes24V.has(p13.id) && !nodes24V.has(p14.id)) {
-              nodes24V.add(p14.id);
+          const pA1 = comp.ports.find(p => p.name.includes('A1'));
+          const pA2 = comp.ports.find(p => p.name.includes('A2'));
+          const isCoilEnergized = Boolean(pA1 && pA2 && nodes24V.has(pA1.id) && nodes0V.has(pA2.id));
+          const isRelayOn = isCoilEnergized || comp.state.activated || false;
+
+          const bridge = (portA?: { id: string }, portB?: { id: string }) => {
+            if (!portA || !portB) return;
+            if (nodes24V.has(portA.id) && !nodes24V.has(portB.id)) {
+              nodes24V.add(portB.id);
               changed = true;
-            } else if (nodes24V.has(p14.id) && !nodes24V.has(p13.id)) {
-              nodes24V.add(p13.id);
+            } else if (nodes24V.has(portB.id) && !nodes24V.has(portA.id)) {
+              nodes24V.add(portA.id);
               changed = true;
             }
+          };
+
+          // Contato 1: Comum (11), NA (14), NF (12)
+          const p11 = comp.ports.find(p => p.name.includes('11') || p.name.includes('13'));
+          const p14 = comp.ports.find(p => p.name.includes('14'));
+          const p12 = comp.ports.find(p => p.name.includes('12'));
+          if (isRelayOn) {
+            bridge(p11, p14);
+          } else {
+            bridge(p11, p12);
           }
 
+          // Contato 2: Comum (21), NA (24), NF (22)
           const p21 = comp.ports.find(p => p.name.includes('21'));
+          const p24 = comp.ports.find(p => p.name.includes('24'));
           const p22 = comp.ports.find(p => p.name.includes('22'));
-          if (p21 && p22 && !isRelayOn) {
-            if (nodes24V.has(p21.id) && !nodes24V.has(p22.id)) {
-              nodes24V.add(p22.id);
-              changed = true;
-            } else if (nodes24V.has(p22.id) && !nodes24V.has(p21.id)) {
-              nodes24V.add(p21.id);
-              changed = true;
-            }
+          if (isRelayOn) {
+            bridge(p21, p24);
+          } else {
+            bridge(p21, p22);
+          }
+
+          // Contato 3: Comum (31), NA (34), NF (32)
+          const p31 = comp.ports.find(p => p.name.includes('31'));
+          const p34 = comp.ports.find(p => p.name.includes('34'));
+          const p32 = comp.ports.find(p => p.name.includes('32'));
+          if (isRelayOn) {
+            bridge(p31, p34);
+          } else {
+            bridge(p31, p32);
           }
         }
       });
@@ -476,11 +500,21 @@ export function evaluateCircuitElectricalState(
     }
   }
 
+  // 5. Evaluate Relays Coil Status
+  const relayStatuses = new Map<string, { isCoilEnergized: boolean }>();
+  components.filter(c => c.type === 'industrial_relay').forEach(r => {
+    const pA1 = r.ports.find(p => p.name.includes('A1'));
+    const pA2 = r.ports.find(p => p.name.includes('A2'));
+    const isCoilEnergized = Boolean(pA1 && pA2 && nodes24V.has(pA1.id) && nodes0V.has(pA2.id));
+    relayStatuses.set(r.id, { isCoilEnergized });
+  });
+
   return {
     hasElectricalPower,
     nodes24V,
     nodes0V,
     sensorStatuses,
+    relayStatuses,
     solenoidY1Active,
     solenoidY2Active
   };

@@ -245,24 +245,31 @@ export default function App() {
             }
           });
 
-          // 4. Relay module evaluation (Preset 3 retention / comando)
+          // 4. Relay module evaluation (Elétrico via A1/A2 e Preset 3 retenção)
           const btnComp = nextComps.find(c => c.type === 'push_button_station');
           const relayComp = nextComps.find(c => c.type === 'industrial_relay');
           if (relayComp) {
-            let isRelayActive = relayComp.state.activated || false;
+            const relayStatus = circuitEval.relayStatuses?.get(relayComp.id);
+            const isCoilEnergized = relayStatus?.isCoilEnergized || false;
+
+            let isRelayActive = isCoilEnergized;
             if (!hasElectricalPower) {
               isRelayActive = false;
-            } else if (btnComp) {
+            } else if (!isCoilEnergized && btnComp) {
+              let currentActive = relayComp.state.activated || false;
               if (btnComp.state.buttonNApressed) {
-                isRelayActive = true;
+                currentActive = true;
               }
               if (btnComp.state.buttonNFpressed) {
-                isRelayActive = false;
+                currentActive = false;
               }
+              isRelayActive = currentActive;
             }
             relayComp.state.activated = isRelayActive;
             if (valve.type === 'valve_5_2_single_solenoid') {
-              valvePos = isRelayActive ? 'left' : 'right';
+              if (isRelayActive || circuitEval.solenoidY1Active) {
+                valvePos = 'left';
+              }
             }
           }
 

@@ -1055,6 +1055,40 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
               </linearGradient>
 
               {/* Terminal Strip +24V Polyamide Red Gradient */}
+              {/* Industrial Relay Faceplate & LED Gradients */}
+              <linearGradient id="relay-faceplate-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#f8fafc" />
+                <stop offset="15%" stopColor="#f1f5f9" />
+                <stop offset="60%" stopColor="#e2e8f0" />
+                <stop offset="100%" stopColor="#cbd5e1" />
+              </linearGradient>
+
+              <radialGradient id="relay-led-yellow-on" cx="40%" cy="40%" r="60%">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="25%" stopColor="#fef08a" />
+                <stop offset="65%" stopColor="#facc15" />
+                <stop offset="100%" stopColor="#ca8a04" />
+              </radialGradient>
+
+              <radialGradient id="relay-led-yellow-off" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#a16207" />
+                <stop offset="50%" stopColor="#713f12" />
+                <stop offset="100%" stopColor="#451a03" />
+              </radialGradient>
+
+              <radialGradient id="relay-led-yellow-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#facc15" stopOpacity="0.75" />
+                <stop offset="40%" stopColor="#eab308" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#ca8a04" stopOpacity="0" />
+              </radialGradient>
+
+              <linearGradient id="relay-bezel-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f8fafc" />
+                <stop offset="35%" stopColor="#cbd5e1" />
+                <stop offset="70%" stopColor="#64748b" />
+                <stop offset="100%" stopColor="#334155" />
+              </linearGradient>
+
               <linearGradient id="term-strip-24v-grad" x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stopColor="#ef4444" />
                 <stop offset="25%" stopColor="#dc2626" />
