@@ -77,6 +77,7 @@ export interface BenchComponent {
     voltageV?: number;
     fixedVoltageOnly?: boolean;
     currentAmperes?: number;
+    isPowered?: boolean;
     // Sensor parameters and diagnostics
     sensorTech?: SensorTechnology;
     sensorWires?: SensorWireCount;

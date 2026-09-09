@@ -397,6 +397,9 @@ export default function App() {
   };
 
   const handleDeleteComponent = (id: string) => {
+    const compToDelete = components.find(c => c.id === id);
+    if (compToDelete && compToDelete.type.startsWith('terminal_strip')) return;
+
     setComponents(prev => prev.filter(c => c.id !== id));
     setConnections(prev => prev.filter(cn => cn.fromComponentId !== id && cn.toComponentId !== id));
     if (selectedComponent?.id === id) {

@@ -1,5 +1,5 @@
 import { BenchComponent, VirtualConnection } from '../types';
-import { COMPONENT_TEMPLATES, createComponentFromTemplate } from './componentLibrary';
+import { COMPONENT_TEMPLATES, createComponentFromTemplate, createTerminalStrip24V, createTerminalStrip0V } from './componentLibrary';
 
 export interface PresetCircuit {
   id: string;
@@ -14,8 +14,12 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
     id: 'preset_auto_cycle',
     name: 'Ciclo Automático Contínuo A+ A- (Biestável 5/2 com Sensores Reed)',
     category: 'Eletropneumática Industrial',
-    description: 'Circuito industrial clássico com Cilindro Dupla Ação 1A (curso 200mm com haste estendida), Válvula 5/2 biestável (Y1/Y2), Sensores magnéticos de fim de curso 1S1 (recuado 0mm) e 1S2 (avançado 200mm) e Botão de Emergência NR-12.',
+    description: 'Circuito industrial clássico com Cilindro Dupla Ação 1A (curso 200mm com haste estendida), Válvula 5/2 biestável (Y1/Y2), Sensores magnéticos de fim de curso 1S1 (recuado 0mm) e 1S2 (avançado 200mm), réguas de bornes equipotenciais 24V/0V e Botão de Emergência NR-12.',
     build: () => {
+      // 0. Réguas de Bornes Elétricos Contínuas (Superior +24V e Inferior 0V)
+      const strip24 = createTerminalStrip24V();
+      const strip0V = createTerminalStrip0V();
+
       const frlTpl = COMPONENT_TEMPLATES.find(t => t.type === 'frl_unit')!;
       const manifoldTpl = COMPONENT_TEMPLATES.find(t => t.type === 'air_manifold')!;
       const psTpl = COMPONENT_TEMPLATES.find(t => t.type === 'power_supply_24v')!;
@@ -32,15 +36,12 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       const btn = createComponentFromTemplate(buttonTpl, 410, 20, 1);
 
       // 2. Componentes Pneumáticos na Placa Perfilada de Alumínio Ranhurado (Y >= 240)
-      // Unidade FRL fixada à esquerda e Manifold de distribuição acoplado ao lado (conforme foto da bancada)
       const frl = createComponentFromTemplate(frlTpl, 30, 250, 1);
       const manifold = createComponentFromTemplate(manifoldTpl, 185, 260, 1);
       const valve = createComponentFromTemplate(valve52Tpl, 380, 270, 1);
       const throttle = createComponentFromTemplate(throttleTpl, 610, 290, 1);
       const cyl = createComponentFromTemplate(cylTpl, 750, 270, 1);
 
-      // Sensores posicionados a 90° em relação ao cilindro no trilho guia ampliado (0mm e 200mm)
-      // Trilho afastado da haste com entreferro livre de ar: centro da tampa alinhado com o centro da esfera sem sobreposição nem contato
       const sensor1 = createComponentFromTemplate(sensorTpl, 970, 358, 1);
       sensor1.tag = '1S1';
       sensor1.state.detectionPosition = 0; // recuado (0mm)
@@ -57,7 +58,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       sensor2.state.snappedToRail = true;
       sensor2.state.railCylinderId = cyl.id;
 
-      const components: BenchComponent[] = [ps, emerg, btn, frl, manifold, valve, throttle, cyl, sensor1, sensor2];
+      const components: BenchComponent[] = [strip24, strip0V, ps, emerg, btn, frl, manifold, valve, throttle, cyl, sensor1, sensor2];
 
       // Connections:
       // FRL saída -> Manifold entrada
@@ -120,19 +121,46 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         active: false
       };
 
-      // Elétrica: Fonte 24V -> Emergência NF(21)
+      // -------------------------------------------------------------
+      // CONEXÕES ELÉTRICAS PADRÃO INDUSTRIAL COM RÉGUAS DE BORNES
+      // -------------------------------------------------------------
+      // 1. Interligação Fonte 24V -> Régua de Bornes Superior (+24V FONTE IN)
+      const c_ps_strip24: VirtualConnection = {
+        id: 'conn_e_ps_strip24',
+        type: 'electrical',
+        fromComponentId: ps.id,
+        fromPortId: ps.ports[0].id, // +24V (1)
+        toComponentId: strip24.id,
+        toPortId: strip24.ports[0].id, // ⚡ FONTE IN
+        voltageV: 24,
+        active: true
+      };
+
+      // 2. Interligação Fonte 0V -> Régua de Bornes Inferior (0V FONTE IN)
+      const c_ps_strip0V: VirtualConnection = {
+        id: 'conn_e_ps_strip0v',
+        type: 'electrical',
+        fromComponentId: ps.id,
+        fromPortId: ps.ports[5].id, // 0V (1)
+        toComponentId: strip0V.id,
+        toPortId: strip0V.ports[0].id, // ⏚ FONTE IN
+        voltageV: 0,
+        active: true
+      };
+
+      // 3. Régua +24V (Borne 1) -> Emergência NF(21)
       const c6: VirtualConnection = {
         id: 'conn_e1',
         type: 'electrical',
-        fromComponentId: ps.id,
-        fromPortId: ps.ports[0].id, // +24V
+        fromComponentId: strip24.id,
+        fromPortId: strip24.ports[1].id, // +24V (1)
         toComponentId: emerg.id,
         toPortId: emerg.ports[0].id, // NF 21
         voltageV: 24,
         active: true
       };
 
-      // Emergência NF(22) -> Botão NA(13)
+      // 4. Emergência NF(22) -> Botão NA(13)
       const c7: VirtualConnection = {
         id: 'conn_e2',
         type: 'electrical',
@@ -144,7 +172,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         active: true
       };
 
-      // Sensor 1S1 Sinal -> Solenoide Y1 (+)
+      // 5. Sensor 1S1 Sinal -> Solenoide Y1 (+)
       const c8: VirtualConnection = {
         id: 'conn_e3',
         type: 'electrical',
@@ -156,7 +184,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         active: false
       };
 
-      // Sensor 1S2 Sinal -> Solenoide Y2 (+)
+      // 6. Sensor 1S2 Sinal -> Solenoide Y2 (+)
       const c9: VirtualConnection = {
         id: 'conn_e4',
         type: 'electrical',
@@ -168,36 +196,37 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         active: false
       };
 
-      // 0V comum -> Y1 (-) e Y2 (-)
+      // 7. Régua 0V (Borne 1) -> Solenoide Y1 (-) A2
       const c10: VirtualConnection = {
         id: 'conn_e5',
         type: 'electrical',
-        fromComponentId: ps.id,
-        fromPortId: ps.ports[5].id, // 0V (1)
+        fromComponentId: strip0V.id,
+        fromPortId: strip0V.ports[1].id, // 0V (1)
         toComponentId: valve.id,
         toPortId: valve.ports[6].id, // Y1 (-) A2
         voltageV: 0,
         active: true
       };
 
+      // 8. Régua 0V (Borne 2) -> Solenoide Y2 (-) A2
       const c11: VirtualConnection = {
         id: 'conn_e6',
         type: 'electrical',
-        fromComponentId: ps.id,
-        fromPortId: ps.ports[6].id, // 0V (2)
+        fromComponentId: strip0V.id,
+        fromPortId: strip0V.ports[2].id, // 0V (2)
         toComponentId: valve.id,
         toPortId: valve.ports[8].id, // Y2 (-) A2
         voltageV: 0,
         active: true
       };
 
-      // Alimentação obrigatória dos sensores conforme norma IEC 60947-5-2:
-      // Sensor 1S1: BN (+24V) e BU (0V)
+      // 9. Alimentação dos sensores (IEC 60947-5-2):
+      // Sensor 1S1: BN (+24V da Régua) e BU (0V da Régua)
       const c12: VirtualConnection = {
         id: 'conn_e7_s1_24v',
         type: 'electrical',
-        fromComponentId: ps.id,
-        fromPortId: ps.ports[1].id, // +24V (2)
+        fromComponentId: strip24.id,
+        fromPortId: strip24.ports[2].id, // +24V (2)
         toComponentId: sensor1.id,
         toPortId: sensor1.ports[0].id, // BN (+24V)
         voltageV: 24,
@@ -207,20 +236,20 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       const c13: VirtualConnection = {
         id: 'conn_e8_s1_0v',
         type: 'electrical',
-        fromComponentId: ps.id,
-        fromPortId: ps.ports[7].id, // 0V (3)
+        fromComponentId: strip0V.id,
+        fromPortId: strip0V.ports[3].id, // 0V (3)
         toComponentId: sensor1.id,
         toPortId: sensor1.ports[1].id, // BU (0V)
         voltageV: 0,
         active: true
       };
 
-      // Sensor 1S2: BN (+24V) e BU (0V)
+      // Sensor 1S2: BN (+24V da Régua) e BU (0V da Régua)
       const c14: VirtualConnection = {
         id: 'conn_e9_s2_24v',
         type: 'electrical',
-        fromComponentId: ps.id,
-        fromPortId: ps.ports[2].id, // +24V (3)
+        fromComponentId: strip24.id,
+        fromPortId: strip24.ports[3].id, // +24V (3)
         toComponentId: sensor2.id,
         toPortId: sensor2.ports[0].id, // BN (+24V)
         voltageV: 24,
@@ -230,8 +259,8 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       const c15: VirtualConnection = {
         id: 'conn_e10_s2_0v',
         type: 'electrical',
-        fromComponentId: ps.id,
-        fromPortId: ps.ports[8].id, // 0V (4)
+        fromComponentId: strip0V.id,
+        fromPortId: strip0V.ports[4].id, // 0V (4)
         toComponentId: sensor2.id,
         toPortId: sensor2.ports[1].id, // BU (0V)
         voltageV: 0,
@@ -240,7 +269,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
 
       return {
         components,
-        connections: [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15]
+        connections: [c1, c2, c3, c4, c5, c_ps_strip24, c_ps_strip0V, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15]
       };
     }
   },
@@ -250,6 +279,8 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
     category: 'Pneumática Básica',
     description: 'Comando direto de avanço e recuo de cilindro com mola através de válvula botão 3/2 NF e regulador FRL na bancada ranhurada.',
     build: () => {
+      const strip24 = createTerminalStrip24V();
+      const strip0V = createTerminalStrip0V();
       const frlTpl = COMPONENT_TEMPLATES.find(t => t.type === 'frl_unit')!;
       const v32Tpl = COMPONENT_TEMPLATES.find(t => t.type === 'valve_3_2_button')!;
       const cylTpl = COMPONENT_TEMPLATES.find(t => t.type === 'single_acting_cylinder')!;
@@ -295,7 +326,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       };
 
       return {
-        components: [frl, v32, throttle, cyl],
+        components: [strip24, strip0V, frl, v32, throttle, cyl],
         connections: [c1, c2, c3]
       };
     }
@@ -304,8 +335,11 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
     id: 'preset_relay_seal',
     name: 'Comando com Relé K1 e Autorretenção (Selo Elétrico Industrial)',
     category: 'Eletropneumática com Relés',
-    description: 'Circuito com comando elétrico industrial de memória usando relé K1 com autorretenção pelos contatos 13-14, botão liga (NA), botão desliga (NF) e acionamento de solenoide 5/2 monoestável.',
+    description: 'Circuito com comando elétrico industrial de memória usando relé K1 com autorretenção pelos contatos 13-14, réguas de distribuição 24V/0V, botão liga (NA), botão desliga (NF) e acionamento de solenoide 5/2 monoestável.',
     build: () => {
+      const strip24 = createTerminalStrip24V();
+      const strip0V = createTerminalStrip0V();
+
       const frlTpl = COMPONENT_TEMPLATES.find(t => t.type === 'frl_unit')!;
       const psTpl = COMPONENT_TEMPLATES.find(t => t.type === 'power_supply_24v')!;
       const btnTpl = COMPONENT_TEMPLATES.find(t => t.type === 'push_button_station')!;
@@ -358,12 +392,35 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         active: true
       };
 
-      // Electrical: +24V -> Emergência NF -> Botões -> Relé A1
-      const c4: VirtualConnection = {
-        id: 'c_e1',
+      // Conexões com as réguas de bornes
+      const c_ps_strip24: VirtualConnection = {
+        id: 'c_e_ps_strip24',
         type: 'electrical',
         fromComponentId: ps.id,
         fromPortId: ps.ports[0].id,
+        toComponentId: strip24.id,
+        toPortId: strip24.ports[0].id,
+        voltageV: 24,
+        active: true
+      };
+
+      const c_ps_strip0v: VirtualConnection = {
+        id: 'c_e_ps_strip0v',
+        type: 'electrical',
+        fromComponentId: ps.id,
+        fromPortId: ps.ports[5].id,
+        toComponentId: strip0V.id,
+        toPortId: strip0V.ports[0].id,
+        voltageV: 0,
+        active: true
+      };
+
+      // Electrical: Régua +24V -> Emergência NF -> Botões -> Relé A1
+      const c4: VirtualConnection = {
+        id: 'c_e1',
+        type: 'electrical',
+        fromComponentId: strip24.id,
+        fromPortId: strip24.ports[1].id,
         toComponentId: emerg.id,
         toPortId: emerg.ports[0].id,
         voltageV: 24,
@@ -395,8 +452,8 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       const c7: VirtualConnection = {
         id: 'c_e4',
         type: 'electrical',
-        fromComponentId: ps.id,
-        fromPortId: ps.ports[5].id, // 0V (1)
+        fromComponentId: strip0V.id,
+        fromPortId: strip0V.ports[1].id, // 0V (1)
         toComponentId: relay.id,
         toPortId: relay.ports[1].id, // A2
         voltageV: 0,
@@ -418,8 +475,8 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       const c9: VirtualConnection = {
         id: 'c_e6',
         type: 'electrical',
-        fromComponentId: ps.id,
-        fromPortId: ps.ports[6].id, // 0V (2)
+        fromComponentId: strip0V.id,
+        fromPortId: strip0V.ports[2].id, // 0V (2)
         toComponentId: valve.id,
         toPortId: valve.ports[6].id, // Y1 (-) A2
         voltageV: 0,
@@ -427,8 +484,8 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
       };
 
       return {
-        components: [frl, ps, emerg, btn, relay, valve, cyl],
-        connections: [c1, c2, c3, c4, c5, c6, c7, c8, c9]
+        components: [strip24, strip0V, frl, ps, emerg, btn, relay, valve, cyl],
+        connections: [c1, c2, c3, c_ps_strip24, c_ps_strip0v, c4, c5, c6, c7, c8, c9]
       };
     }
   }
