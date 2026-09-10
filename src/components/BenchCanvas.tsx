@@ -3501,7 +3501,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         (c.fromComponentId === comp.id && c.fromPortId === a2Port.id) ||
                         (c.toComponentId === comp.id && c.toPortId === a2Port.id)
                       ));
-                      const isEnergized = Boolean(comp.state?.activated || (a1Active && a2Active));
+                      const isEnergized = Boolean(comp.state?.isCoilEnergized ?? comp.state?.activated);
 
                       // 4 Conjuntos de Contatos Reversíveis alinhados verticalmente (colunas x: 92, 150, 208, 266)
                       const contactCols = [
@@ -3827,7 +3827,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       const pA2Active = isPortActive(pA2);
 
                       const isPowered = Boolean(comp.state?.isPowered !== false && (comp.state?.isPowered || (p24VActive && p0VActive)));
-                      const isCoilEnergized = Boolean(comp.state?.activated || (pA1Active && pA2Active));
+                      const isCoilEnergized = Boolean(comp.state?.isCoilEnergized ?? (comp.state?.activated || (pA1Active && pA2Active)));
                       const isTiming = Boolean(comp.state?.isTiming);
                       const isSwitched = Boolean(comp.state?.isRelaySwitched);
                       const delayTime = comp.state?.timerDelaySec ?? 5.0;
@@ -5637,6 +5637,39 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                     <div className="p-2 rounded bg-amber-950/30 border border-amber-800/40 text-[10px] text-amber-300/90 leading-relaxed">
                       Fonte estritamente travada em 24V CC com barramento duplo de 5 saídas 24V e 5 retornos 0V para conexão didática rápida.
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Módulo Relé Auxiliar (4 Contatos Reversíveis COM, NF, NA) */}
+              {selectedComponent.type === 'industrial_relay' && (() => {
+                const isCoilEnergized = Boolean(selectedComponent.state.isCoilEnergized ?? selectedComponent.state.activated);
+
+                return (
+                  <div className="space-y-4">
+                    <div className="p-3 rounded-lg bg-slate-800/80 border border-slate-700/60 space-y-3">
+                      <div className="flex items-center justify-between text-xs border-b border-slate-700 pb-2">
+                        <span className="text-slate-400">Estado da Bobina (A1/A2):</span>
+                        <span className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] ${
+                          isCoilEnergized 
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                            : 'bg-slate-700/50 text-slate-400'
+                        }`}>
+                          {isCoilEnergized ? 'ENERGIZADA (A1=+24V, A2=0V)' : 'DESENERGIZADA (0V / Repouso)'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-400">Posição dos 4 Contatos:</span>
+                        <span className="font-mono text-cyan-400 font-bold">
+                          {isCoilEnergized ? 'COMUTADOS (COM ➔ NA)' : 'REPOUSO (COM ➔ NF)'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded bg-blue-950/30 border border-blue-800/40 text-[11px] text-blue-300/90 leading-relaxed">
+                      <strong>Lógica Eletromecânica:</strong> Os contatos comutam para NA quando a bobina for energizada (A2 ligado no 0V e A1 recebendo 24V). Ao cessar o sinal elétrico em A1, os contatos comutam imediatamente para a posição de repouso (NF).
                     </div>
                   </div>
                 );

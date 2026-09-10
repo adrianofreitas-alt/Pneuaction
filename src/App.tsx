@@ -245,45 +245,148 @@ export default function App() {
             }
           });
 
-          // 4. Relay module evaluation (Elétrico via A1/A2 e Preset 3 retenção)
-          const btnComp = nextComps.find(c => c.type === 'push_button_station');
-          const relayComp = nextComps.find(c => c.type === 'industrial_relay');
-          if (relayComp) {
-            const relayStatus = circuitEval.relayStatuses?.get(relayComp.id);
-            const isCoilEnergized = relayStatus?.isCoilEnergized || false;
+          // 4. Update Industrial Relays (Auxiliary Relay K1 - 4 Reversible Contacts COM/NF/NA)
+          // Bobina atua quando A2 estiver ligado no 0V e A1 receber +24V.
+          // Quando cessar o sinal elétrico em A1, os contatos voltam imediatamente à posição de repouso (NF).
+          nextComps.forEach((comp, idx) => {
+            if (comp.type === 'industrial_relay') {
+              const relayStatus = circuitEval.relayStatuses?.get(comp.id);
+              const isCoilEnergized = Boolean(relayStatus?.isCoilEnergized && hasElectricalPower);
+              const wasSwitched = Boolean(comp.state.isRelaySwitched ?? comp.state.activated);
 
-            let isRelayActive = isCoilEnergized;
-            if (!hasElectricalPower) {
-              isRelayActive = false;
-            } else if (!isCoilEnergized && btnComp) {
-              let currentActive = relayComp.state.activated || false;
-              if (btnComp.state.buttonNApressed) {
-                currentActive = true;
+              if (isCoilEnergized !== wasSwitched) {
+                benchAudio.playRelayClick();
               }
-              if (btnComp.state.buttonNFpressed) {
-                currentActive = false;
-              }
-              isRelayActive = currentActive;
-            }
-            relayComp.state.activated = isRelayActive;
-            if (valve.type === 'valve_5_2_single_solenoid') {
-              if (isRelayActive || circuitEval.solenoidY1Active) {
-                valvePos = 'left';
-              }
-            }
-          }
 
-          // 5. Valve solenoids electrical actuation
-          const y1Active = circuitEval.solenoidY1Active && !hasCoilBurn;
-          const y2Active = circuitEval.solenoidY2Active && !hasCoilBurn;
+              nextComps[idx] = {
+                ...comp,
+                state: {
+                  ...comp.state,
+                  isCoilEnergized,
+                  isRelaySwitched: isCoilEnergized,
+                  activated: isCoilEnergized,
+                }
+              };
+            }
+          });
+
+          // 5. Update Timer Relays (On-Delay & Off-Delay - 2 Reversible Contacts COM/NF/NA)
+          // Bobina atua quando A2 estiver ligado no 0V e A1 receber +24V, respeitando a automação de tempo.
+          // On-Delay (TON): Conta tempo com bobina energizada; comuta após decorrido o tempo. Cessa sinal A1 -> reseta imediatamente para repouso (NF).
+          // Off-Delay (TOF): Comuta instantaneamente ao energizar bobina. Cessa sinal A1 -> temporiza retardo no desligamento, voltando para repouso (NF) ao término.
+          nextComps.forEach((comp, idx) => {
+            if (comp.type === 'industrial_relay_on_delay') {
+              const status = circuitEval.relayStatuses?.get(comp.id);
+              const isPowered = Boolean(status?.isPowered && hasElectricalPower);
+              const isCoilEnergized = Boolean(status?.isCoilEnergized && isPowered);
+              const delaySec = Math.max(0.5, comp.state.timerDelaySec ?? 5.0);
+              let elapsed = comp.state.timerElapsedSec ?? 0.0;
+              let isSwitched = comp.state.isRelaySwitched ?? false;
+              let isTiming = false;
+
+              if (!isPowered) {
+                elapsed = 0.0;
+                isSwitched = false;
+                isTiming = false;
+              } else if (isCoilEnergized) {
+                if (!isSwitched) {
+                  isTiming = true;
+                  elapsed = Math.min(delaySec, Number((elapsed + 0.1).toFixed(2)));
+                  if (elapsed >= delaySec) {
+                    isSwitched = true;
+                    isTiming = false;
+                    benchAudio.playRelayClick();
+                  }
+                }
+              } else {
+                // Bobina desenergizada (sinal em A1 cessou) -> reseta e volta contatos para repouso
+                if (isSwitched) {
+                  benchAudio.playRelayClick();
+                }
+                elapsed = 0.0;
+                isSwitched = false;
+                isTiming = false;
+              }
+
+              const remaining = Math.max(0, Number((delaySec - elapsed).toFixed(1)));
+              nextComps[idx] = {
+                ...comp,
+                state: {
+                  ...comp.state,
+                  timerDelaySec: delaySec,
+                  timerElapsedSec: elapsed,
+                  timerRemainingSec: remaining,
+                  isTiming,
+                  isRelaySwitched: isSwitched,
+                  activated: isSwitched,
+                  isPowered,
+                  isCoilEnergized,
+                }
+              };
+            } else if (comp.type === 'industrial_relay_off_delay') {
+              const status = circuitEval.relayStatuses?.get(comp.id);
+              const isPowered = Boolean(status?.isPowered && hasElectricalPower);
+              const isCoilEnergized = Boolean(status?.isCoilEnergized && isPowered);
+              const delaySec = Math.max(0.5, comp.state.timerDelaySec ?? 5.0);
+              let elapsed = comp.state.timerElapsedSec ?? 0.0;
+              let isSwitched = comp.state.isRelaySwitched ?? false;
+              let isTiming = false;
+
+              if (!isPowered) {
+                elapsed = 0.0;
+                isSwitched = false;
+                isTiming = false;
+              } else if (isCoilEnergized) {
+                // Bobina energizada (A1 com 24V e A2 com 0V): comuta instantaneamente e mantém zerado
+                if (!isSwitched) {
+                  benchAudio.playRelayClick();
+                }
+                isSwitched = true;
+                elapsed = 0.0;
+                isTiming = false;
+              } else {
+                // Bobina desenergizada (sinal em A1 cessou) mas com alimentação: inicia retardo de desligamento
+                if (isSwitched) {
+                  isTiming = true;
+                  elapsed = Math.min(delaySec, Number((elapsed + 0.1).toFixed(2)));
+                  if (elapsed >= delaySec) {
+                    isSwitched = false;
+                    isTiming = false;
+                    elapsed = 0.0;
+                    benchAudio.playRelayClick();
+                  }
+                }
+              }
+
+              const remaining = Math.max(0, Number((delaySec - elapsed).toFixed(1)));
+              nextComps[idx] = {
+                ...comp,
+                state: {
+                  ...comp.state,
+                  timerDelaySec: delaySec,
+                  timerElapsedSec: elapsed,
+                  timerRemainingSec: remaining,
+                  isTiming,
+                  isRelaySwitched: isSwitched,
+                  activated: isSwitched,
+                  isPowered,
+                  isCoilEnergized,
+                }
+              };
+            }
+          });
+
+          // 6. Pass 2: Re-evaluate circuit to propagate switched relay contacts to solenoids and loads
+          const finalCircuitEval = evaluateCircuitElectricalState(nextComps, connections, isEmergencyActive);
+
+          // 7. Valve solenoids electrical actuation
+          const y1Active = finalCircuitEval.solenoidY1Active && !hasCoilBurn;
+          const y2Active = finalCircuitEval.solenoidY2Active && !hasCoilBurn;
 
           if (valve.type === 'valve_5_2_double_solenoid') {
             // Bistable valve spool memory:
             // Y1 energization drives spool to 'left' (Advance)
             // Y2 energization drives spool to 'right' (Retract)
-            // Em conformidade com a dinâmica pneumática industrial e detecção de proximidade:
-            // O êmbolo completa o curso mecânico total (atingindo 100% no avanço ou 0% no recuo,
-            // ou alcançando o centro do sensor que comanda a reversão) antes da contrapressão atuar.
             const activeY2Sensor = y2Active ? nextComps.find(c => c.type === 'reed_switch_sensor' && c.state.sensorDetected) : undefined;
             const activeY1Sensor = y1Active ? nextComps.find(c => c.type === 'reed_switch_sensor' && c.state.sensorDetected) : undefined;
             
@@ -291,14 +394,12 @@ export default function App() {
             const y1TargetX = activeY1Sensor ? activeY1Sensor.x + activeY1Sensor.width / 2 : undefined;
 
             if (y1Active && !y2Active && valvePos !== 'left') {
-              // Garante que o recuo atinja o início de curso (pos = 0% ou centro do sensor recuado 1S1)
               const readyToAdvance = y1TargetX !== undefined ? (sphereX <= y1TargetX || pos <= 0) : true;
               if (readyToAdvance) {
                 valvePos = 'left';
                 benchAudio.playExhaust(0.18, 0.25);
               }
             } else if (y2Active && !y1Active && valvePos !== 'right') {
-              // Garante que o avanço atinja o fim de curso (pos = 100% ou centro do sensor avançado 1S2)
               const readyToRetract = y2TargetX !== undefined ? (sphereX >= y2TargetX || pos >= 100) : true;
               if (readyToRetract) {
                 valvePos = 'right';
@@ -306,14 +407,17 @@ export default function App() {
               }
             }
           } else if (valve.type === 'valve_5_2_single_solenoid') {
+            // Válvula 5/2 vias simples solenoide com retorno por mola (spring return):
+            // Quando a solenoide Y1 é energizada, o carretel avança para 'left'.
+            // Quando a solenoide Y1 é desenergizada, a mola retorna o carretel para 'right'.
             if (y1Active) {
               valvePos = 'left';
-            } else if (!relayComp) {
+            } else {
               valvePos = 'right';
             }
           }
 
-          // 6. Cylinder physical displacement based on valve position
+          // 8. Cylinder physical displacement based on valve position
           if (!hasStuck) {
             if (valvePos === 'left') {
               // Chamber 4 pressurized -> Advance towards 100%
@@ -351,108 +455,6 @@ export default function App() {
             }
           };
         }
-
-        // --------------------------------------------------------------------
-        // Evaluate all Timer Relays (On-Delay & Off-Delay)
-        // --------------------------------------------------------------------
-        const powerSupplyComp = nextComps.find(c => c.type === 'power_supply_24v');
-        const isPowerSupplyOn = powerSupplyComp ? powerSupplyComp.state.activated !== false : true;
-        const hasElectricalPower = !isEmergencyActive && isPowerSupplyOn;
-        const timerCircuitEval = evaluateCircuitElectricalState(nextComps, connections, isEmergencyActive);
-
-        nextComps.forEach((comp, idx) => {
-          if (comp.type === 'industrial_relay_on_delay') {
-            const status = timerCircuitEval.relayStatuses?.get(comp.id);
-            const isPowered = (status?.isPowered ?? false) && hasElectricalPower;
-            const isCoilEnergized = (status?.isCoilEnergized ?? false) && isPowered;
-            const delaySec = Math.max(0.5, comp.state.timerDelaySec ?? 5.0);
-            let elapsed = comp.state.timerElapsedSec ?? 0.0;
-            let isSwitched = comp.state.isRelaySwitched ?? false;
-            let isTiming = false;
-
-            if (!isPowered) {
-              elapsed = 0.0;
-              isSwitched = false;
-              isTiming = false;
-            } else if (isCoilEnergized) {
-              if (!isSwitched) {
-                isTiming = true;
-                elapsed = Math.min(delaySec, Number((elapsed + 0.1).toFixed(2)));
-                if (elapsed >= delaySec) {
-                  isSwitched = true;
-                  isTiming = false;
-                  benchAudio.playRelayClick();
-                }
-              }
-            } else {
-              // Coil de-energized -> instantaneous reset
-              elapsed = 0.0;
-              isSwitched = false;
-              isTiming = false;
-            }
-
-            const remaining = Math.max(0, Number((delaySec - elapsed).toFixed(1)));
-            nextComps[idx] = {
-              ...comp,
-              state: {
-                ...comp.state,
-                timerDelaySec: delaySec,
-                timerElapsedSec: elapsed,
-                timerRemainingSec: remaining,
-                isTiming,
-                isRelaySwitched: isSwitched,
-                activated: isSwitched,
-                isPowered,
-              }
-            };
-          } else if (comp.type === 'industrial_relay_off_delay') {
-            const status = timerCircuitEval.relayStatuses?.get(comp.id);
-            const isPowered = (status?.isPowered ?? false) && hasElectricalPower;
-            const isCoilEnergized = (status?.isCoilEnergized ?? false) && isPowered;
-            const delaySec = Math.max(0.5, comp.state.timerDelaySec ?? 5.0);
-            let elapsed = comp.state.timerElapsedSec ?? 0.0;
-            let isSwitched = comp.state.isRelaySwitched ?? false;
-            let isTiming = false;
-
-            if (!isPowered) {
-              elapsed = 0.0;
-              isSwitched = false;
-              isTiming = false;
-            } else if (isCoilEnergized) {
-              // Energized: contacts switch immediately, timer is held in reset
-              isSwitched = true;
-              elapsed = 0.0;
-              isTiming = false;
-            } else {
-              // De-energized but still powered: starts counting down delay
-              if (isSwitched) {
-                isTiming = true;
-                elapsed = Math.min(delaySec, Number((elapsed + 0.1).toFixed(2)));
-                if (elapsed >= delaySec) {
-                  isSwitched = false;
-                  isTiming = false;
-                  elapsed = 0.0;
-                  benchAudio.playRelayClick();
-                }
-              }
-            }
-
-            const remaining = Math.max(0, Number((delaySec - elapsed).toFixed(1)));
-            nextComps[idx] = {
-              ...comp,
-              state: {
-                ...comp.state,
-                timerDelaySec: delaySec,
-                timerElapsedSec: elapsed,
-                timerRemainingSec: remaining,
-                isTiming,
-                isRelaySwitched: isSwitched,
-                activated: isSwitched,
-                isPowered,
-              }
-            };
-          }
-        });
 
         return nextComps;
       });

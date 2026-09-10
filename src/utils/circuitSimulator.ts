@@ -283,7 +283,7 @@ export function evaluateCircuitElectricalState(
           const pA1 = comp.ports.find(p => p.name.includes('A1'));
           const pA2 = comp.ports.find(p => p.name.includes('A2'));
           const isCoilEnergized = Boolean(pA1 && pA2 && nodes24V.has(pA1.id) && nodes0V.has(pA2.id));
-          const isRelayOn = isCoilEnergized || comp.state.activated || false;
+          const isRelayOn = isCoilEnergized || Boolean(comp.state?.isRelaySwitched);
 
           const bridge = (portA?: { id: string }, portB?: { id: string }) => {
             if (!portA || !portB) return;
