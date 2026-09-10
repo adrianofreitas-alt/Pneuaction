@@ -113,6 +113,7 @@ export interface CircuitEvaluationResult {
   }>;
   relayStatuses?: Map<string, {
     isCoilEnergized: boolean;
+    isPowered?: boolean;
   }>;
   solenoidY1Active: boolean;
   solenoidY2Active: boolean;
@@ -335,6 +336,42 @@ export function evaluateCircuitElectricalState(
             bridge(p41, p42);
           }
         }
+
+        // Timer Relays: On-Delay e Off-Delay (2 Contatos Reversíveis COM, NF, NA)
+        if (comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') {
+          const isSwitched = Boolean(comp.state?.isRelaySwitched);
+
+          const bridge = (portA?: { id: string }, portB?: { id: string }) => {
+            if (!portA || !portB) return;
+            if (nodes24V.has(portA.id) && !nodes24V.has(portB.id)) {
+              nodes24V.add(portB.id);
+              changed = true;
+            } else if (nodes24V.has(portB.id) && !nodes24V.has(portA.id)) {
+              nodes24V.add(portA.id);
+              changed = true;
+            }
+          };
+
+          // Contato 1: COM 1, NA 1, NF 1
+          const p11 = comp.ports.find(p => p.name.includes('COM 1'));
+          const p14 = comp.ports.find(p => p.name.includes('NA 1'));
+          const p12 = comp.ports.find(p => p.name.includes('NF 1'));
+          if (isSwitched) {
+            bridge(p11, p14);
+          } else {
+            bridge(p11, p12);
+          }
+
+          // Contato 2: COM 2, NA 2, NF 2
+          const p21 = comp.ports.find(p => p.name.includes('COM 2'));
+          const p24 = comp.ports.find(p => p.name.includes('NA 2'));
+          const p22 = comp.ports.find(p => p.name.includes('NF 2'));
+          if (isSwitched) {
+            bridge(p21, p24);
+          } else {
+            bridge(p21, p22);
+          }
+        }
       });
     }
   };
@@ -510,13 +547,22 @@ export function evaluateCircuitElectricalState(
     }
   }
 
-  // 5. Evaluate Relays Coil Status
-  const relayStatuses = new Map<string, { isCoilEnergized: boolean }>();
-  components.filter(c => c.type === 'industrial_relay').forEach(r => {
+  // 5. Evaluate Relays Coil and Power Status
+  const relayStatuses = new Map<string, { isCoilEnergized: boolean; isPowered?: boolean }>();
+  components.filter(c => c.type === 'industrial_relay' || c.type === 'industrial_relay_on_delay' || c.type === 'industrial_relay_off_delay').forEach(r => {
     const pA1 = r.ports.find(p => p.name.includes('A1'));
     const pA2 = r.ports.find(p => p.name.includes('A2'));
     const isCoilEnergized = Boolean(pA1 && pA2 && nodes24V.has(pA1.id) && nodes0V.has(pA2.id));
-    relayStatuses.set(r.id, { isCoilEnergized });
+
+    // Para relés temporizadores: verificar alimentação nos bornes 24VCC e 0V
+    let isPowered = true;
+    if (r.type === 'industrial_relay_on_delay' || r.type === 'industrial_relay_off_delay') {
+      const p24V = r.ports.find(p => p.name.includes('24V'));
+      const p0V = r.ports.find(p => p.name.includes('0V'));
+      isPowered = Boolean(p24V && p0V && nodes24V.has(p24V.id) && nodes0V.has(p0V.id));
+    }
+
+    relayStatuses.set(r.id, { isCoilEnergized, isPowered });
   });
 
   return {

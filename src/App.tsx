@@ -352,6 +352,108 @@ export default function App() {
           };
         }
 
+        // --------------------------------------------------------------------
+        // Evaluate all Timer Relays (On-Delay & Off-Delay)
+        // --------------------------------------------------------------------
+        const powerSupplyComp = nextComps.find(c => c.type === 'power_supply_24v');
+        const isPowerSupplyOn = powerSupplyComp ? powerSupplyComp.state.activated !== false : true;
+        const hasElectricalPower = !isEmergencyActive && isPowerSupplyOn;
+        const timerCircuitEval = evaluateCircuitElectricalState(nextComps, connections, isEmergencyActive);
+
+        nextComps.forEach((comp, idx) => {
+          if (comp.type === 'industrial_relay_on_delay') {
+            const status = timerCircuitEval.relayStatuses?.get(comp.id);
+            const isPowered = (status?.isPowered ?? false) && hasElectricalPower;
+            const isCoilEnergized = (status?.isCoilEnergized ?? false) && isPowered;
+            const delaySec = Math.max(0.5, comp.state.timerDelaySec ?? 5.0);
+            let elapsed = comp.state.timerElapsedSec ?? 0.0;
+            let isSwitched = comp.state.isRelaySwitched ?? false;
+            let isTiming = false;
+
+            if (!isPowered) {
+              elapsed = 0.0;
+              isSwitched = false;
+              isTiming = false;
+            } else if (isCoilEnergized) {
+              if (!isSwitched) {
+                isTiming = true;
+                elapsed = Math.min(delaySec, Number((elapsed + 0.1).toFixed(2)));
+                if (elapsed >= delaySec) {
+                  isSwitched = true;
+                  isTiming = false;
+                  benchAudio.playRelayClick();
+                }
+              }
+            } else {
+              // Coil de-energized -> instantaneous reset
+              elapsed = 0.0;
+              isSwitched = false;
+              isTiming = false;
+            }
+
+            const remaining = Math.max(0, Number((delaySec - elapsed).toFixed(1)));
+            nextComps[idx] = {
+              ...comp,
+              state: {
+                ...comp.state,
+                timerDelaySec: delaySec,
+                timerElapsedSec: elapsed,
+                timerRemainingSec: remaining,
+                isTiming,
+                isRelaySwitched: isSwitched,
+                activated: isSwitched,
+                isPowered,
+              }
+            };
+          } else if (comp.type === 'industrial_relay_off_delay') {
+            const status = timerCircuitEval.relayStatuses?.get(comp.id);
+            const isPowered = (status?.isPowered ?? false) && hasElectricalPower;
+            const isCoilEnergized = (status?.isCoilEnergized ?? false) && isPowered;
+            const delaySec = Math.max(0.5, comp.state.timerDelaySec ?? 5.0);
+            let elapsed = comp.state.timerElapsedSec ?? 0.0;
+            let isSwitched = comp.state.isRelaySwitched ?? false;
+            let isTiming = false;
+
+            if (!isPowered) {
+              elapsed = 0.0;
+              isSwitched = false;
+              isTiming = false;
+            } else if (isCoilEnergized) {
+              // Energized: contacts switch immediately, timer is held in reset
+              isSwitched = true;
+              elapsed = 0.0;
+              isTiming = false;
+            } else {
+              // De-energized but still powered: starts counting down delay
+              if (isSwitched) {
+                isTiming = true;
+                elapsed = Math.min(delaySec, Number((elapsed + 0.1).toFixed(2)));
+                if (elapsed >= delaySec) {
+                  isSwitched = false;
+                  isTiming = false;
+                  elapsed = 0.0;
+                  benchAudio.playRelayClick();
+                }
+              }
+            }
+
+            const remaining = Math.max(0, Number((delaySec - elapsed).toFixed(1)));
+            nextComps[idx] = {
+              ...comp,
+              state: {
+                ...comp.state,
+                timerDelaySec: delaySec,
+                timerElapsedSec: elapsed,
+                timerRemainingSec: remaining,
+                isTiming,
+                isRelaySwitched: isSwitched,
+                activated: isSwitched,
+                isPowered,
+              }
+            };
+          }
+        });
+
         return nextComps;
       });
 

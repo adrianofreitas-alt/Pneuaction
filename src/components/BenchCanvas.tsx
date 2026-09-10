@@ -292,6 +292,29 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
     );
   };
 
+  // Quick interactive delay time adjustment for Timer Relays (On-Delay and Off-Delay)
+  const handleAdjustTimerDelay = (compId: string, delta: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    benchAudio.playRelayClick();
+    onUpdateComponents(
+      components.map((c) => {
+        if (c.id === compId) {
+          const cur = c.state.timerDelaySec ?? 5.0;
+          const next = Math.max(0.5, Math.min(60.0, Number((cur + delta).toFixed(1))));
+          return {
+            ...c,
+            state: {
+              ...c.state,
+              timerDelaySec: next,
+              timerRemainingSec: next,
+            }
+          };
+        }
+        return c;
+      })
+    );
+  };
+
   // Manual condensation purge valve click for FRL Unit
   const handlePurgeFrl = (frlId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -3774,7 +3797,523 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                 fontFamily="'JetBrains Mono', monospace"
                                 textAnchor="middle"
                               >
-                                {isEnergized ? "NA FECHADO" : "NF FECHADO"}
+                                  {isEnergized ? "NA FECHADO" : "NF FECHADO"}
+                              </text>
+                            </g>
+                          ))}
+                        </g>
+                      );
+                    })()}
+
+                    {/* ---------------------------------------------------- */}
+                    {/* INDUSTRIAL TIMER RELAYS (ON-DELAY & OFF-DELAY) */}
+                    {/* ---------------------------------------------------- */}
+                    {(comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (() => {
+                      const isOnDelay = comp.type === 'industrial_relay_on_delay';
+                      const p24V = comp.ports.find(p => p.name.includes('24V'));
+                      const p0V = comp.ports.find(p => p.name.includes('0V'));
+                      const pA1 = comp.ports.find(p => p.name.includes('A1'));
+                      const pA2 = comp.ports.find(p => p.name.includes('A2'));
+
+                      const isPortActive = (port?: { id: string }) =>
+                        port && connections.some(c => c.active && (
+                          (c.fromComponentId === comp.id && c.fromPortId === port.id) ||
+                          (c.toComponentId === comp.id && c.toPortId === port.id)
+                        ));
+
+                      const p24VActive = isPortActive(p24V);
+                      const p0VActive = isPortActive(p0V);
+                      const pA1Active = isPortActive(pA1);
+                      const pA2Active = isPortActive(pA2);
+
+                      const isPowered = Boolean(comp.state?.isPowered !== false && (comp.state?.isPowered || (p24VActive && p0VActive)));
+                      const isCoilEnergized = Boolean(comp.state?.activated || (pA1Active && pA2Active));
+                      const isTiming = Boolean(comp.state?.isTiming);
+                      const isSwitched = Boolean(comp.state?.isRelaySwitched);
+                      const delayTime = comp.state?.timerDelaySec ?? 5.0;
+                      const remainingTime = comp.state?.timerRemainingSec ?? delayTime;
+
+                      // 2 Conjuntos de Contatos Reversíveis alinhados verticalmente (colunas x: 152, 212)
+                      const contactCols = [
+                        { id: 1, x: 152 },
+                        { id: 2, x: 212 },
+                      ];
+
+                      return (
+                        <g id={`timer-relay-module-${comp.id}`}>
+                          {/* ---------------------------------------------------- */}
+                          {/* COLUNA 1: ALIMENTAÇÃO 24VCC / 0V E DISPLAY DIGITAL */}
+                          {/* ---------------------------------------------------- */}
+                          <g>
+                            <rect
+                              x="8"
+                              y="30"
+                              width="52"
+                              height="142"
+                              rx="4"
+                              fill="#090f1d"
+                              stroke={isPowered ? "#0284c7" : "#1e293b"}
+                              strokeWidth={isPowered ? 1.4 : 1}
+                            />
+
+                            {/* Cabeçalho da Alimentação */}
+                            <text
+                              x="34"
+                              y="36"
+                              fill={isPowered ? "#38bdf8" : "#94a3b8"}
+                              fontSize="5.8"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono', monospace"
+                              textAnchor="middle"
+                            >
+                              ALIMENTAÇÃO
+                            </text>
+
+                            {/* Identificação Borne Superior 24V */}
+                            <text
+                              x="34"
+                              y="70"
+                              fill="#f87171"
+                              fontSize="5.5"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono', monospace"
+                              textAnchor="middle"
+                            >
+                              24VCC
+                            </text>
+
+                            {/* UNIDADE DE DISPLAY DIGITAL E CONTROLE */}
+                            <g transform="translate(10, 74)">
+                              {/* Moldura do display digital recessed */}
+                              <rect
+                                x="0"
+                                y="0"
+                                width="48"
+                                height="58"
+                                rx="3"
+                                fill="#040711"
+                                stroke={isTiming ? "#f59e0b" : isPowered ? "#0369a1" : "#1e293b"}
+                                strokeWidth="1.2"
+                              />
+
+                              {/* LEDs Indicadores de Status (PWR, TIMER, OUT) */}
+                              <g transform="translate(4, 7)">
+                                {/* LED PWR (Alimentação 24V) */}
+                                <circle cx="4" cy="0" r="2.6" fill={isPowered ? "#22c55e" : "#14532d"} stroke="#15803d" strokeWidth="0.6" />
+                                {isPowered && <circle cx="4" cy="0" r="4.5" fill="none" stroke="#4ade80" strokeWidth="0.8" opacity="0.8" />}
+                                <text x="4" y="6" fill={isPowered ? "#86efac" : "#475569"} fontSize="4" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" textAnchor="middle">
+                                  PWR
+                                </text>
+
+                                {/* LED TIMER (Contagem de Retardo) */}
+                                <circle cx="20" cy="0" r="2.6" fill={isTiming ? "#f59e0b" : "#78350f"} stroke="#d97706" strokeWidth="0.6" />
+                                {isTiming && <circle cx="20" cy="0" r="4.8" fill="none" stroke="#fbbf24" strokeWidth="0.8" className="animate-pulse" />}
+                                <text x="20" y="6" fill={isTiming ? "#fde047" : "#475569"} fontSize="4" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" textAnchor="middle">
+                                  TIM
+                                </text>
+
+                                {/* LED OUT (Contatos Comutados) */}
+                                <circle cx="36" cy="0" r="2.6" fill={isSwitched ? "#10b981" : "#064e3b"} stroke="#059669" strokeWidth="0.6" />
+                                {isSwitched && <circle cx="36" cy="0" r="4.8" fill="none" stroke="#34d399" strokeWidth="0.8" className="animate-pulse" />}
+                                <text x="36" y="6" fill={isSwitched ? "#6ee7b7" : "#475569"} fontSize="4" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" textAnchor="middle">
+                                  OUT
+                                </text>
+                              </g>
+
+                              {/* Visor Digital 7-Segmentos / LCD */}
+                              <rect
+                                x="3"
+                                y="17"
+                                width="42"
+                                height="21"
+                                rx="2"
+                                fill="#000000"
+                                stroke={isTiming ? "#d97706" : "#1e293b"}
+                                strokeWidth="0.8"
+                              />
+
+                              {/* Leitura do tempo no display */}
+                              <text
+                                x="24"
+                                y="31.5"
+                                fill={isTiming ? "#fbbf24" : isPowered ? "#38bdf8" : "#64748b"}
+                                fontSize="10"
+                                fontWeight="bold"
+                                fontFamily="'JetBrains Mono', monospace"
+                                textAnchor="middle"
+                                className={isTiming ? "animate-pulse" : ""}
+                              >
+                                {isTiming ? `${remainingTime.toFixed(1)}s` : `${delayTime.toFixed(1)}s`}
+                              </text>
+                              <text
+                                x="24"
+                                y="36.5"
+                                fill="#64748b"
+                                fontSize="3.6"
+                                fontWeight="bold"
+                                fontFamily="'JetBrains Mono', monospace"
+                                textAnchor="middle"
+                              >
+                                {isOnDelay ? "TON • RETARDO" : "TOF • RETARDO"}
+                              </text>
+
+                              {/* Botões interativos [+] e [-] para ajuste rápido de tempo */}
+                              <g
+                                transform="translate(4, 40)"
+                                className="cursor-pointer group/btn-minus"
+                                onClick={(e) => handleAdjustTimerDelay(comp.id, -0.5, e)}
+                              >
+                                <rect
+                                  x="0"
+                                  y="0"
+                                  width="18"
+                                  height="14"
+                                  rx="2"
+                                  fill="#0f172a"
+                                  stroke="#334155"
+                                  strokeWidth="0.8"
+                                  className="group-hover/btn-minus:stroke-sky-400 group-hover/btn-minus:fill-slate-800 transition-colors"
+                                />
+                                <text x="9" y="10.5" fill="#cbd5e1" fontSize="11" fontWeight="bold" textAnchor="middle" className="pointer-events-none">
+                                  -
+                                </text>
+                              </g>
+
+                              <g
+                                transform="translate(26, 40)"
+                                className="cursor-pointer group/btn-plus"
+                                onClick={(e) => handleAdjustTimerDelay(comp.id, +0.5, e)}
+                              >
+                                <rect
+                                  x="0"
+                                  y="0"
+                                  width="18"
+                                  height="14"
+                                  rx="2"
+                                  fill="#0f172a"
+                                  stroke="#334155"
+                                  strokeWidth="0.8"
+                                  className="group-hover/btn-plus:stroke-sky-400 group-hover/btn-plus:fill-slate-800 transition-colors"
+                                />
+                                <text x="9" y="10.5" fill="#cbd5e1" fontSize="11" fontWeight="bold" textAnchor="middle" className="pointer-events-none">
+                                  +
+                                </text>
+                              </g>
+                            </g>
+
+                            {/* Identificação Borne Inferior 0V */}
+                            <text
+                              x="34"
+                              y="139"
+                              fill="#60a5fa"
+                              fontSize="5.5"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono', monospace"
+                              textAnchor="middle"
+                            >
+                              0V (GND)
+                            </text>
+
+                            {/* Status da alimentação no rodapé */}
+                            <text
+                              x="34"
+                              y="169"
+                              fill={isPowered ? "#38bdf8" : "#64748b"}
+                              fontSize="5"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono', monospace"
+                              textAnchor="middle"
+                            >
+                              {isPowered ? "24V ON" : "SEM 24V"}
+                            </text>
+                          </g>
+
+                          {/* ---------------------------------------------------- */}
+                          {/* COLUNA 2: BOBINA DE COMANDO / GATILHO (A1, SIMBOLO IEC, A2) */}
+                          {/* ---------------------------------------------------- */}
+                          <g>
+                            <rect
+                              x="68"
+                              y="30"
+                              width="48"
+                              height="142"
+                              rx="4"
+                              fill="#090f1d"
+                              stroke={isCoilEnergized ? "#facc15" : "#1e293b"}
+                              strokeWidth={isCoilEnergized ? 1.4 : 1}
+                            />
+
+                            {/* Cabeçalho da Bobina de Comando */}
+                            <text
+                              x="92"
+                              y="36"
+                              fill={isCoilEnergized ? "#fde047" : "#94a3b8"}
+                              fontSize="6"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono', monospace"
+                              textAnchor="middle"
+                            >
+                              COMANDO
+                            </text>
+
+                            {/* Linha esquemática de controle: A1 (y=58) -> Símbolo IEC (y=89) */}
+                            <line
+                              x1="92"
+                              y1="70"
+                              x2="92"
+                              y2="88"
+                              stroke={isCoilEnergized ? "#facc15" : "#475569"}
+                              strokeWidth="1.5"
+                              strokeDasharray="3 1.5"
+                            />
+
+                            {/* Símbolo Esquemático IEC 60617 de Bobina Temporizada */}
+                            <g transform="translate(76, 89)">
+                              {/* Caixa retangular principal da bobina */}
+                              <rect
+                                x="0"
+                                y="0"
+                                width="32"
+                                height="26"
+                                rx="3"
+                                fill="#0f172a"
+                                stroke={isCoilEnergized ? "#facc15" : "#475569"}
+                                strokeWidth="1.2"
+                              />
+
+                              {/* Caixa esquerda com hachura IEC On-Delay ou preenchimento Off-Delay */}
+                              {isOnDelay ? (
+                                // IEC 60617 On-Delay (Caixa esquerda hachurada com X)
+                                <g>
+                                  <rect x="0" y="0" width="10" height="26" rx="2" fill="#1e293b" stroke={isCoilEnergized ? "#facc15" : "#475569"} strokeWidth="1" />
+                                  <line x1="0" y1="0" x2="10" y2="26" stroke={isCoilEnergized ? "#facc15" : "#64748b"} strokeWidth="1" />
+                                  <line x1="0" y1="26" x2="10" y2="0" stroke={isCoilEnergized ? "#facc15" : "#64748b"} strokeWidth="1" />
+                                </g>
+                              ) : (
+                                // IEC 60617 Off-Delay (Caixa esquerda totalmente preenchida)
+                                <g>
+                                  <rect x="0" y="0" width="10" height="26" rx="2" fill={isCoilEnergized ? "#facc15" : "#475569"} stroke={isCoilEnergized ? "#fde047" : "#64748b"} strokeWidth="1" />
+                                </g>
+                              )}
+
+                              {/* LED Indicador Amarelo no centro da bobina */}
+                              <g transform="translate(21, 13)">
+                                <circle cx="0" cy="0" r="6" fill="#1e293b" stroke="url(#relay-bezel-grad)" strokeWidth="1.2" />
+                                {isCoilEnergized && (
+                                  <circle cx="0" cy="0" r="14" fill="url(#relay-led-yellow-glow)" pointerEvents="none" />
+                                )}
+                                <circle
+                                  cx="0"
+                                  cy="0"
+                                  r="3.8"
+                                  fill={isCoilEnergized ? "url(#relay-led-yellow-on)" : "url(#relay-led-yellow-off)"}
+                                  stroke={isCoilEnergized ? "#facc15" : "#713f12"}
+                                  strokeWidth="0.8"
+                                />
+                                {isCoilEnergized && (
+                                  <circle cx="0" cy="0" r="5.5" fill="none" stroke="#fef08a" strokeWidth="0.8" opacity="0.8" className="animate-pulse" />
+                                )}
+                                <ellipse cx="-1" cy="-1" rx="0.9" ry="0.6" fill="#ffffff" opacity={isCoilEnergized ? 0.95 : 0.4} />
+                              </g>
+                            </g>
+
+                            {/* Status do LED de Comando */}
+                            <text
+                              x="92"
+                              y="123"
+                              fill={isCoilEnergized ? "#fde047" : "#64748b"}
+                              fontSize="5.2"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono', monospace"
+                              textAnchor="middle"
+                            >
+                              {isCoilEnergized ? "SINAL ON" : "SINAL OFF"}
+                            </text>
+
+                            {/* Linha esquemática: Símbolo (y=115) -> A2 (y=146) */}
+                            <line
+                              x1="92"
+                              y1="126"
+                              x2="92"
+                              y2="140"
+                              stroke={isCoilEnergized ? "#facc15" : "#475569"}
+                              strokeWidth="1.5"
+                              strokeDasharray="3 1.5"
+                            />
+
+                            {/* Status geral da bobina no rodapé */}
+                            <text
+                              x="92"
+                              y="169"
+                              fill={isCoilEnergized ? "#fde047" : "#64748b"}
+                              fontSize="5"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono', monospace"
+                              textAnchor="middle"
+                            >
+                              {isCoilEnergized ? "ENERGIZADO" : "STANDBY"}
+                            </text>
+                          </g>
+
+                          {/* ---------------------------------------------------- */}
+                          {/* COLUNAS 3 E 4: 2 CONTATOS REVERSÍVEIS (COM, NF, NA) */}
+                          {/* ---------------------------------------------------- */}
+                          {contactCols.map((col) => (
+                            <g key={col.id}>
+                              <rect
+                                x={col.x - 24}
+                                y="30"
+                                width="48"
+                                height="142"
+                                rx="4"
+                                fill="#070c18"
+                                stroke="#1e293b"
+                                strokeWidth="1"
+                              />
+
+                              {/* Cabeçalho do Contato */}
+                              <text
+                                x={col.x}
+                                y="36"
+                                fill="#94a3b8"
+                                fontSize="6.2"
+                                fontWeight="bold"
+                                fontFamily="'JetBrains Mono', monospace"
+                                textAnchor="middle"
+                              >
+                                CONTATO {col.id}
+                              </text>
+
+                              {/* Identificação de função COM (Top y=58) */}
+                              <text
+                                x={col.x}
+                                y="70"
+                                fill="#cbd5e1"
+                                fontSize="5.8"
+                                fontWeight="bold"
+                                fontFamily="'JetBrains Mono', monospace"
+                                textAnchor="middle"
+                              >
+                                COM
+                              </text>
+
+                              {/* Linha esquemática do COM até o pivô */}
+                              <line
+                                x1={col.x}
+                                y1="73"
+                                x2={col.x}
+                                y2="78"
+                                stroke="#64748b"
+                                strokeWidth="1.4"
+                              />
+                              <circle cx={col.x} cy="78" r="2.2" fill="#94a3b8" />
+
+                              {/* Palheta de Comutação Temporizada */}
+                              {!isSwitched ? (
+                                // Repouso: Conduz COM -> NF
+                                <g>
+                                  <line
+                                    x1={col.x}
+                                    y1="78"
+                                    x2={col.x}
+                                    y2="90"
+                                    stroke="#38bdf8"
+                                    strokeWidth="2.2"
+                                    strokeLinecap="round"
+                                  />
+                                  <circle cx={col.x} cy="90" r="2.2" fill="#38bdf8" />
+                                  <line
+                                    x1={col.x}
+                                    y1="78"
+                                    x2={col.x + 9}
+                                    y2="88"
+                                    stroke="#475569"
+                                    strokeWidth="1"
+                                    strokeDasharray="2 2"
+                                  />
+                                  <circle cx={col.x + 9} cy="88" r="1.8" fill="none" stroke="#64748b" strokeWidth="1" />
+                                </g>
+                              ) : (
+                                // Comutado (Retardo Atingido): Conduz COM -> NA
+                                <g>
+                                  <circle cx={col.x} cy="90" r="1.8" fill="none" stroke="#64748b" strokeWidth="1" />
+                                  <line
+                                    x1={col.x}
+                                    y1="78"
+                                    x2={col.x + 9}
+                                    y2="90"
+                                    stroke="#10b981"
+                                    strokeWidth="2.2"
+                                    strokeLinecap="round"
+                                  />
+                                  <circle cx={col.x + 9} cy="90" r="2.2" fill="#10b981" />
+                                  <line
+                                    x1={col.x + 9}
+                                    y1="90"
+                                    x2={col.x + 9}
+                                    y2="134"
+                                    stroke="#10b981"
+                                    strokeWidth="1.6"
+                                    strokeDasharray="3 1.5"
+                                  />
+                                  <line
+                                    x1={col.x + 9}
+                                    y1="134"
+                                    x2={col.x}
+                                    y2="137"
+                                    stroke="#10b981"
+                                    strokeWidth="1.6"
+                                  />
+                                </g>
+                              )}
+
+                              {/* Identificação de função NF (Middle y=102) */}
+                              <text
+                                x={col.x}
+                                y="114"
+                                fill={!isSwitched ? "#38bdf8" : "#64748b"}
+                                fontSize="5.8"
+                                fontWeight="bold"
+                                fontFamily="'JetBrains Mono', monospace"
+                                textAnchor="middle"
+                              >
+                                NF
+                              </text>
+
+                              <line
+                                x1={col.x}
+                                y1="117"
+                                x2={col.x}
+                                y2="124"
+                                stroke={!isSwitched ? "#38bdf8" : "#475569"}
+                                strokeWidth="1.2"
+                                strokeDasharray="2 1.5"
+                              />
+
+                              {/* Identificação de função NA (Bottom y=146) */}
+                              <text
+                                x={col.x}
+                                y="158"
+                                fill={isSwitched ? "#10b981" : "#64748b"}
+                                fontSize="5.8"
+                                fontWeight="bold"
+                                fontFamily="'JetBrains Mono', monospace"
+                                textAnchor="middle"
+                              >
+                                NA
+                              </text>
+
+                              {/* Status no rodapé */}
+                              <text
+                                x={col.x}
+                                y="169"
+                                fill={isSwitched ? "#10b981" : "#38bdf8"}
+                                fontSize="5"
+                                fontWeight="bold"
+                                fontFamily="'JetBrains Mono', monospace"
+                                textAnchor="middle"
+                              >
+                                {isSwitched ? "NA FECHADO" : "NF FECHADO"}
                               </text>
                             </g>
                           ))}
@@ -3881,6 +4420,46 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         }
                       }
 
+                      // Auto-ajuste para os Módulos Relés Temporizadores On-Delay e Off-Delay:
+                      // Posiciona bornes nas 4 colunas verticais:
+                      // 1. 24VCC / 0V (x: 13.08%)
+                      // 2. A1 / A2 (x: 35.38%)
+                      // 3. Contato 1 COM/NF/NA (x: 58.46%)
+                      // 4. Contato 2 COM/NF/NA (x: 81.54%)
+                      if (comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') {
+                        if (port.name.includes('24V')) {
+                          portX = 13.08;
+                          portY = 32.22;
+                        } else if (port.name.includes('0V')) {
+                          portX = 13.08;
+                          portY = 81.11;
+                        } else if (port.name.includes('A1')) {
+                          portX = 35.38;
+                          portY = 32.22;
+                        } else if (port.name.includes('A2')) {
+                          portX = 35.38;
+                          portY = 81.11;
+                        } else if (port.name.includes('COM 1')) {
+                          portX = 58.46;
+                          portY = 32.22;
+                        } else if (port.name.includes('NF 1')) {
+                          portX = 58.46;
+                          portY = 56.67;
+                        } else if (port.name.includes('NA 1')) {
+                          portX = 58.46;
+                          portY = 81.11;
+                        } else if (port.name.includes('COM 2')) {
+                          portX = 81.54;
+                          portY = 32.22;
+                        } else if (port.name.includes('NF 2')) {
+                          portX = 81.54;
+                          portY = 56.67;
+                        } else if (port.name.includes('NA 2')) {
+                          portX = 81.54;
+                          portY = 81.11;
+                        }
+                      }
+
                       const px = (comp.width * portX) / 100;
                       const py = (comp.height * portY) / 100;
                       const isPneumatic = port.type === 'pneumatic';
@@ -3904,8 +4483,12 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       let labelText = port.name.split(' ')[0];
                       if (isExhaust) {
                         labelText = '';
-                      } else if (comp.type === 'industrial_relay') {
-                        if (port.name.includes('A1')) {
+                      } else if (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') {
+                        if (port.name.includes('24V')) {
+                          labelText = '24V';
+                        } else if (port.name.includes('0V') && !port.name.includes('A2')) {
+                          labelText = '0V';
+                        } else if (port.name.includes('A1')) {
                           labelText = 'A1';
                         } else if (port.name.includes('A2')) {
                           labelText = 'A2';
@@ -3937,7 +4520,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                       const isBottom = py > comp.height / 2;
                       let textY = isExhaust ? 26 : isButtonStation ? 13 : isFRL ? -15 : (isBottom ? -13 : 18);
-                      if (comp.type === 'industrial_relay') {
+                      if (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') {
                         textY = -11;
                       } else if (isTerminalStripComp) {
                         if (comp.type === 'terminal_strip_24v') {
@@ -4107,10 +4690,10 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                   isPneumatic ? '#0284c7' :
                                   isGround ? '#1e3a8a' :
                                   isButtonStation && (port.name.includes('13') || port.name.includes('14')) ? '#059669' :
-                                  comp.type === 'industrial_relay' && (port.name.includes('NF') || port.name.includes('12') || port.name.includes('22') || port.name.includes('32') || port.name.includes('42')) ? '#0284c7' :
-                                  comp.type === 'industrial_relay' && (port.name.includes('NA') || port.name.includes('14') || port.name.includes('24') || port.name.includes('34') || port.name.includes('44')) ? '#059669' :
-                                  comp.type === 'industrial_relay' && (port.name.includes('COM') || port.name.includes('11') || port.name.includes('21') || port.name.includes('31') || port.name.includes('41')) ? '#d97706' :
-                                  comp.type === 'industrial_relay' && port.name.includes('A2') ? '#1e3a8a' :
+                                  (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('NF') || port.name.includes('12') || port.name.includes('22') || port.name.includes('32') || port.name.includes('42')) ? '#0284c7' :
+                                  (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('NA') || port.name.includes('14') || port.name.includes('24') || port.name.includes('34') || port.name.includes('44')) ? '#059669' :
+                                  (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('COM') || port.name.includes('11') || port.name.includes('21') || port.name.includes('31') || port.name.includes('41')) ? '#d97706' :
+                                  (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('A2') || (port.name.includes('0V') && !port.name.includes('24V'))) ? '#1e3a8a' :
                                   '#dc2626'
                                 }
                                 strokeWidth={isStripInPort ? 1.2 : 0.8}
@@ -4125,10 +4708,10 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                   isPneumatic ? '#38bdf8' :
                                   isGround ? '#93c5fd' :
                                   isButtonStation && (port.name.includes('13') || port.name.includes('14')) ? '#34d399' :
-                                  comp.type === 'industrial_relay' && (port.name.includes('NF') || port.name.includes('12') || port.name.includes('22') || port.name.includes('32') || port.name.includes('42')) ? '#38bdf8' :
-                                  comp.type === 'industrial_relay' && (port.name.includes('NA') || port.name.includes('14') || port.name.includes('24') || port.name.includes('34') || port.name.includes('44')) ? '#34d399' :
-                                  comp.type === 'industrial_relay' && (port.name.includes('COM') || port.name.includes('11') || port.name.includes('21') || port.name.includes('31') || port.name.includes('41')) ? '#fef08a' :
-                                  comp.type === 'industrial_relay' && port.name.includes('A2') ? '#93c5fd' :
+                                  (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('NF') || port.name.includes('12') || port.name.includes('22') || port.name.includes('32') || port.name.includes('42')) ? '#38bdf8' :
+                                  (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('NA') || port.name.includes('14') || port.name.includes('24') || port.name.includes('34') || port.name.includes('44')) ? '#34d399' :
+                                  (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('COM') || port.name.includes('11') || port.name.includes('21') || port.name.includes('31') || port.name.includes('41')) ? '#fef08a' :
+                                  (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('A2') || (port.name.includes('0V') && !port.name.includes('24V'))) ? '#93c5fd' :
                                   '#fca5a5'
                                 }
                                 fontSize={isTerminalStripComp ? (isStripInPort ? "6.5" : "6") : "7.5"}
@@ -5054,6 +5637,125 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                     <div className="p-2 rounded bg-amber-950/30 border border-amber-800/40 text-[10px] text-amber-300/90 leading-relaxed">
                       Fonte estritamente travada em 24V CC com barramento duplo de 5 saídas 24V e 5 retornos 0V para conexão didática rápida.
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Relés Temporizadores (On-Delay e Off-Delay) */}
+              {(selectedComponent.type === 'industrial_relay_on_delay' || selectedComponent.type === 'industrial_relay_off_delay') && (() => {
+                const isOnDelay = selectedComponent.type === 'industrial_relay_on_delay';
+                const delaySec = selectedComponent.state.timerDelaySec ?? 5.0;
+                const remainingSec = selectedComponent.state.timerRemainingSec ?? delaySec;
+                const isTiming = Boolean(selectedComponent.state.isTiming);
+                const isSwitched = Boolean(selectedComponent.state.isRelaySwitched);
+                const isPowered = selectedComponent.state.isPowered !== false;
+
+                const handleSetDelay = (val: number) => {
+                  const clamped = Math.max(0.5, Math.min(60.0, Number(val.toFixed(1))));
+                  onUpdateComponents(
+                    components.map(c =>
+                      c.id === selectedComponent.id
+                        ? { ...c, state: { ...c.state, timerDelaySec: clamped, timerRemainingSec: clamped } }
+                        : c
+                    )
+                  );
+                };
+
+                return (
+                  <div className="space-y-3 bg-slate-950/60 p-3 rounded-xl border border-sky-900/50">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                      <span className="text-[11px] font-semibold text-slate-300">
+                        {isOnDelay ? 'Temporizador On-Delay (TON)' : 'Temporizador Off-Delay (TOF)'}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono border ${
+                        isSwitched
+                          ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
+                          : isTiming
+                          ? 'bg-amber-950 text-amber-400 border-amber-800'
+                          : 'bg-slate-900 text-slate-400 border-slate-800'
+                      }`}>
+                        {isSwitched ? 'COMUTADO' : isTiming ? 'TEMPORIZANDO' : 'REPOUSO'}
+                      </span>
+                    </div>
+
+                    {/* Display do Tempo */}
+                    <div className="p-3 rounded-lg bg-slate-900/90 border border-slate-800 text-center">
+                      <span className="text-[10px] text-slate-400 font-mono">TEMPO PROGRAMADO / RESTANTE</span>
+                      <p className={`text-2xl font-mono font-black tracking-wider mt-0.5 ${
+                        isTiming ? 'text-amber-400 animate-pulse' : 'text-sky-400'
+                      }`}>
+                        {isTiming ? `${remainingSec.toFixed(1)} s` : `${delaySec.toFixed(1)} s`}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        {isOnDelay
+                          ? 'Comuta após decorrido o tempo de energização da bobina'
+                          : 'Comuta instantaneamente e retarda o desligamento após desenergizar'}
+                      </p>
+                    </div>
+
+                    {/* Slider de Ajuste de Tempo */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-slate-400 font-medium">Ajuste de Tempo (Retardo T):</span>
+                        <span className="font-mono text-cyan-400 font-bold">{delaySec.toFixed(1)} s</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="30.0"
+                        step="0.5"
+                        value={delaySec}
+                        onChange={(e) => handleSetDelay(parseFloat(e.target.value))}
+                        className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                      />
+                      <div className="flex justify-between text-[9px] font-mono text-slate-500">
+                        <span>0.5 s</span>
+                        <span>10.0 s</span>
+                        <span>20.0 s</span>
+                        <span>30.0 s</span>
+                      </div>
+                    </div>
+
+                    {/* Botões de Predefinição Rápida */}
+                    <div className="grid grid-cols-4 gap-1 pt-1">
+                      {[1.0, 3.0, 5.0, 10.0].map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => handleSetDelay(t)}
+                          className={`py-1 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${
+                            delaySec === t
+                              ? 'bg-cyan-950 text-cyan-300 border-cyan-600'
+                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                          }`}
+                        >
+                          {t.toFixed(1)}s
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Resumo dos Bornes e Contatos */}
+                    <div className="space-y-1.5 text-[11px] p-2 rounded bg-slate-900/50 border border-slate-800">
+                      <div className="flex justify-between items-center text-slate-300">
+                        <span>Alimentação Contínua:</span>
+                        <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded border ${
+                          isPowered ? 'bg-emerald-950 text-emerald-400 border-emerald-800' : 'bg-red-950 text-red-400 border-red-800'
+                        }`}>
+                          {isPowered ? '24VCC / 0V OK' : 'SEM ALIMENTAÇÃO'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-300">
+                        <span>Comando da Bobina:</span>
+                        <span className="font-mono text-amber-300 font-semibold">Bornes A1 / A2</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-300">
+                        <span>Contatos Disponíveis:</span>
+                        <span className="font-mono text-cyan-400 font-semibold">2x (COM, NF, NA)</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400 pt-1 border-t border-slate-800/80">
+                        <span>Norma Aplicável:</span>
+                        <span className="font-mono text-slate-200">IEC 61812-1 / DIN EN 61812</span>
+                      </div>
                     </div>
                   </div>
                 );

@@ -87,6 +87,12 @@ export interface BenchComponent {
     powerErrorDetail?: string;
     outputNAactive?: boolean;
     outputNFactive?: boolean;
+    // Timer Relay (On-Delay / Off-Delay) parameters
+    timerDelaySec?: number; // Tempo programado no display (ex: 5.0 s)
+    timerElapsedSec?: number; // Tempo decorrido na contagem (s)
+    timerRemainingSec?: number; // Tempo restante exibido no display (s)
+    isTiming?: boolean; // Se o temporizador está atualmente contando
+    isRelaySwitched?: boolean; // Se os contatos 1 e 2 estão comutados (COM->NA)
     // Physical parameters
     boreDiameterMm?: number; // Diâmetro do êmbolo (ex: 32mm)
     rodDiameterMm?: number;  // Diâmetro da haste (ex: 12mm)

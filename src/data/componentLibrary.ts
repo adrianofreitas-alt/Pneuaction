@@ -372,6 +372,66 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     }
   },
   {
+    type: 'industrial_relay_on_delay',
+    name: 'Módulo Relé Temporizador On-Delay (Display + 2 Contatos COM / NF / NA)',
+    category: 'electrical',
+    width: 260,
+    height: 180,
+    tagPrefix: 'KT',
+    description: 'Relé temporizador industrial On-Delay (temporizado no acionamento) com display digital para ajuste de tempo (0.5s a 60.0s), bornes de alimentação 24VCC e 0V, comando de bobina A1/A2, 2 contatos reversíveis (COM, NF e NA alinhados na vertical) e LEDs de PWR, TIMER e OUT.',
+    defaultPorts: [
+      { name: '+24V', type: 'electrical', functionType: 'power_24v', x: 13.08, y: 32.22 },
+      { name: '0V', type: 'electrical', functionType: 'ground_0v', x: 13.08, y: 81.11 },
+      { name: 'A1', type: 'electrical', functionType: 'signal_in', x: 35.38, y: 32.22 },
+      { name: 'A2', type: 'electrical', functionType: 'ground_0v', x: 35.38, y: 81.11 },
+      { name: 'COM 1', type: 'electrical', functionType: 'signal_in', x: 58.46, y: 32.22 },
+      { name: 'NF 1', type: 'electrical', functionType: 'signal_out', x: 58.46, y: 56.67 },
+      { name: 'NA 1', type: 'electrical', functionType: 'signal_out', x: 58.46, y: 81.11 },
+      { name: 'COM 2', type: 'electrical', functionType: 'signal_in', x: 81.54, y: 32.22 },
+      { name: 'NF 2', type: 'electrical', functionType: 'signal_out', x: 81.54, y: 56.67 },
+      { name: 'NA 2', type: 'electrical', functionType: 'signal_out', x: 81.54, y: 81.11 },
+    ],
+    defaultState: {
+      activated: false,
+      timerDelaySec: 5.0,
+      timerElapsedSec: 0.0,
+      timerRemainingSec: 5.0,
+      isTiming: false,
+      isRelaySwitched: false,
+      temperatureC: 25
+    }
+  },
+  {
+    type: 'industrial_relay_off_delay',
+    name: 'Módulo Relé Temporizador Off-Delay (Display + 2 Contatos COM / NF / NA)',
+    category: 'electrical',
+    width: 260,
+    height: 180,
+    tagPrefix: 'KT',
+    description: 'Relé temporizador industrial Off-Delay (temporizado no desligamento) com display digital para ajuste de tempo (0.5s a 60.0s), bornes de alimentação contínua 24VCC e 0V, sinal de comando A1/A2, 2 contatos reversíveis (COM, NF e NA alinhados na vertical) e LEDs de PWR, TIMER e OUT.',
+    defaultPorts: [
+      { name: '+24V', type: 'electrical', functionType: 'power_24v', x: 13.08, y: 32.22 },
+      { name: '0V', type: 'electrical', functionType: 'ground_0v', x: 13.08, y: 81.11 },
+      { name: 'A1', type: 'electrical', functionType: 'signal_in', x: 35.38, y: 32.22 },
+      { name: 'A2', type: 'electrical', functionType: 'ground_0v', x: 35.38, y: 81.11 },
+      { name: 'COM 1', type: 'electrical', functionType: 'signal_in', x: 58.46, y: 32.22 },
+      { name: 'NF 1', type: 'electrical', functionType: 'signal_out', x: 58.46, y: 56.67 },
+      { name: 'NA 1', type: 'electrical', functionType: 'signal_out', x: 58.46, y: 81.11 },
+      { name: 'COM 2', type: 'electrical', functionType: 'signal_in', x: 81.54, y: 32.22 },
+      { name: 'NF 2', type: 'electrical', functionType: 'signal_out', x: 81.54, y: 56.67 },
+      { name: 'NA 2', type: 'electrical', functionType: 'signal_out', x: 81.54, y: 81.11 },
+    ],
+    defaultState: {
+      activated: false,
+      timerDelaySec: 5.0,
+      timerElapsedSec: 0.0,
+      timerRemainingSec: 5.0,
+      isTiming: false,
+      isRelaySwitched: false,
+      temperatureC: 25
+    }
+  },
+  {
     type: 'reed_switch_sensor',
     name: 'Sensor Industrial de Proximidade (Tubular M18 - 90°)',
     category: 'sensors',
