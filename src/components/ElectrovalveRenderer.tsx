@@ -270,7 +270,7 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           </text>
         </g>
 
-        {/* Port 1 (P) - Entrada de Ar Comprimido Principal (Engate Festo QS) */}
+        {/* Port 1 (P) - Entrada de Ar Comprimido Principal (Engate Rápido QS) */}
         <g transform="translate(125, 126)">
           <rect x="-12" y="0" width="24" height="14" rx="2" fill="#64748b" stroke="#334155" strokeWidth="1" />
           <circle cx="0" cy="14" r="9.5" fill="#1e293b" stroke="#ef4444" strokeWidth="1.8" />

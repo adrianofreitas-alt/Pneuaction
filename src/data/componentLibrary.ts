@@ -27,7 +27,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     width: 148,
     height: 190,
     tagPrefix: '0Z',
-    description: 'Unidade industrial de tratamento de ar comprimido modular (FRL) padrão Festo/SMC com regulador de pressão, anel de trava vermelho de segurança, manômetro analógico (MPa/bar), filtro centrífugo 5µm com elemento de bronze sinterizado e dreno manual, e lubrificador de ar com cúpula visor de gotejamento.',
+    description: 'Unidade industrial de tratamento de ar comprimido modular (FRL) padrão industrial com regulador de pressão, anel de trava vermelho de segurança, manômetro analógico (MPa/bar), filtro centrífugo 5µm com elemento de bronze sinterizado e dreno manual, e lubrificador de ar com cúpula visor de gotejamento.',
     defaultPorts: [
       { name: 'P', type: 'pneumatic', functionType: 'pressure', x: 8, y: 39 },
       { name: 'S', type: 'pneumatic', functionType: 'pressure', x: 92, y: 39 },
@@ -64,12 +64,12 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   },
   {
     type: 'power_supply_24v',
-    name: 'Módulo Fonte de Alimentação 24V CC',
+    name: 'Módulo Fonte de Alimentação 24V',
     category: 'electrical',
     width: 210,
     height: 180,
     tagPrefix: '0G',
-    description: 'Fonte industrial estabilizada 24V CC com chave geral Liga/Desliga, voltímetro digital e barramento de distribuição quíntuplo (5x bornes +24V e 5x bornes 0V GND).',
+    description: 'Fonte industrial estabilizada 24V com chave geral Liga/Desliga, voltímetro digital e barramento de distribuição quíntuplo (5x bornes +24V e 5x bornes 0V GND).',
     defaultPorts: [
       { name: '+24V (1)', type: 'electrical', functionType: 'power_24v', x: 16.2, y: 53.0 },
       { name: '+24V (2)', type: 'electrical', functionType: 'power_24v', x: 34.3, y: 53.0 },
@@ -173,7 +173,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     width: 250,
     height: 160,
     tagPrefix: '1V',
-    description: 'Eletroválvula direcional industrial 5/2 vias duplo solenoide 24VDC com corpo em vidro transparente para visualização interna do carretel usinado deslizante, anéis O-ring, fluxo de ar dinâmico, bobinas com conector DIN transparente, LED e botoeira manual azul.',
+    description: 'Eletroválvula direcional industrial 5/2 vias duplo solenoide 24V com corpo em vidro transparente para visualização interna do carretel usinado deslizante, anéis O-ring, fluxo de ar dinâmico, bobinas com conector DIN transparente, LED e botoeira manual azul.',
     defaultPorts: [
       { name: '1 (P)', type: 'pneumatic', functionType: 'pressure', x: 50, y: 88 },
       { name: '2 (B)', type: 'pneumatic', functionType: 'work_b', x: 62, y: 19 },
@@ -411,7 +411,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   },
   {
     type: 'terminal_strip_24v',
-    name: 'Régua de Bornes Elétricos +24V CC (Barramento Superior)',
+    name: 'Régua de Bornes Elétricos +24V (Barramento Superior)',
     category: 'supply',
     width: 1380,
     height: 17,
@@ -435,7 +435,7 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
   },
   {
     type: 'terminal_strip_0v',
-    name: 'Régua de Bornes Elétricos 0V CC GND (Barramento Inferior)',
+    name: 'Régua de Bornes Elétricos 0V GND (Barramento Inferior)',
     category: 'supply',
     width: 1380,
     height: 17,
@@ -463,7 +463,7 @@ export function createTerminalStrip24V(id = 'terminal_strip_24v_bus'): BenchComp
   return {
     id,
     type: 'terminal_strip_24v',
-    name: 'Régua de Bornes +24V CC',
+    name: 'Régua de Bornes +24V',
     tag: '+24V',
     category: 'supply',
     x: 10,
@@ -506,7 +506,7 @@ export function createTerminalStrip0V(id = 'terminal_strip_0v_bus'): BenchCompon
   return {
     id,
     type: 'terminal_strip_0v',
-    name: 'Régua de Bornes 0V CC (GND)',
+    name: 'Régua de Bornes 0V (GND)',
     tag: '0V',
     category: 'supply',
     x: 10,

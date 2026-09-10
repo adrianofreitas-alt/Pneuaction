@@ -1320,18 +1320,18 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           {comp.tag}
                         </text>
 
-                        {/* Festo Didactic brand badge for electrical rack modules */}
+                        {/* Technical Standard text for electrical rack modules */}
                         {isElectrical && (
                           <text
-                            x={comp.width - 50}
+                            x={comp.width - 55}
                             y="17"
-                            fill="#38bdf8"
-                            fontSize="8"
-                            fontWeight="bold"
+                            fill="#94a3b8"
+                            fontSize="7.5"
+                            fontWeight="600"
                             letterSpacing="0.5"
                             fontFamily="'JetBrains Mono', monospace"
                           >
-                            FESTO
+                            IEC 60204
                           </text>
                         )}
 
@@ -1389,10 +1389,10 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                           {/* Marcações Técnicas Serigrafadas */}
                           <text x="135" y="11" fill="#fecaca" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
-                            BARRAMENTO +24V CC (ALIMENTAÇÃO) • IEC 60204-1
+                            BARRAMENTO +24V (ALIMENTAÇÃO) • IEC 60204-1
                           </text>
                           <text x="750" y="11" fill="#fca5a5" fontSize="6.5" fontWeight="600" fontFamily="'JetBrains Mono', monospace" opacity="0.65">
-                            DISTRIBUIDOR EQUIPOTENCIAL 24VDC • MÁX. 10A
+                            DISTRIBUIDOR EQUIPOTENCIAL +24V • MÁX. 10A
                           </text>
                           <text x="1400" y="11" fill="#fecaca" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
                             RÉGUA SUPERIOR DE BORNES 24V (2800mm) • 56 BORNES
@@ -1400,15 +1400,12 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           <text x="2100" y="11" fill="#fca5a5" fontSize="6.5" fontWeight="600" fontFamily="'JetBrains Mono', monospace" opacity="0.65">
                             ISOLAÇÃO INDUSTRIAL POLIAMIDA 6.6
                           </text>
-                          <text x="2670" y="11" fill="#fbbf24" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
-                            FESTO DIDACTIC
-                          </text>
                         </g>
                       );
                     })()}
 
                     {/* ==================================================== */}
-                    {/* RÉGUA DE BORNES 0V CC GND (BARRAMENTO INFERIOR)       */}
+                    {/* RÉGUA DE BORNES 0V GND (BARRAMENTO INFERIOR)          */}
                     {/* ==================================================== */}
                     {comp.type === 'terminal_strip_0v' && (() => {
                       const isStripGrounded = connections.some(
@@ -1446,19 +1443,16 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                           {/* Marcações Técnicas Serigrafadas */}
                           <text x="135" y="11" fill="#dbeafe" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
-                            BARRAMENTO 0V CC (COMUM / GND) • IEC 60204-1
+                            BARRAMENTO 0V (COMUM / GND) • IEC 60204-1
                           </text>
                           <text x="750" y="11" fill="#bfdbfe" fontSize="6.5" fontWeight="600" fontFamily="'JetBrains Mono', monospace" opacity="0.65">
-                            DISTRIBUIDOR EQUIPOTENCIAL 0VDC • REFERÊNCIA DE TERRA
+                            DISTRIBUIDOR EQUIPOTENCIAL 0V • REFERÊNCIA DE TERRA
                           </text>
                           <text x="1400" y="11" fill="#dbeafe" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" opacity="0.85">
                             RÉGUA INFERIOR DE BORNES 0V (2800mm) • 56 BORNES
                           </text>
                           <text x="2100" y="11" fill="#bfdbfe" fontSize="6.5" fontWeight="600" fontFamily="'JetBrains Mono', monospace" opacity="0.65">
                             ISOLAÇÃO INDUSTRIAL POLIAMIDA 6.6
-                          </text>
-                          <text x="2670" y="11" fill="#38bdf8" fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
-                            FESTO DIDACTIC
                           </text>
                         </g>
                       );
@@ -3434,7 +3428,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             <rect x="0" y="0" width="182" height="44" rx="4" fill="#1c1917" stroke="#7f1d1d" strokeWidth="1" />
                             <rect x="0" y="0" width="182" height="12" rx="3" fill="#7f1d1d" />
                             <text x="8" y="9" fill="#fecaca" fontSize="7.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
-                              5x SAÍDAS: 24V CC
+                              5x SAÍDAS: 24V
                             </text>
                             <text x="174" y="9" fill="#fca5a5" fontSize="6.5" fontWeight="bold" textAnchor="end" fontFamily="'JetBrains Mono'">
                               ALIMENTAÇÃO [+]
@@ -3468,67 +3462,248 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       );
                     })()}
 
-                    {/* 9. INDUSTRIAL RELAY MODULE (K1) */}
+                    {/* 9. INDUSTRIAL RELAY MODULE (K1) - 3 CONTATOS NA + 3 CONTATOS NF */}
                     {comp.type === 'industrial_relay' && (() => {
-                      const isEnergized = comp.state.activated === true;
+                      const a1Port = comp.ports.find(p => p.name.includes('A1'));
+                      const a2Port = comp.ports.find(p => p.name.includes('A2'));
+                      const a1Active = a1Port && connections.some(c => c.active && (
+                        (c.fromComponentId === comp.id && c.fromPortId === a1Port.id) ||
+                        (c.toComponentId === comp.id && c.toPortId === a1Port.id)
+                      ));
+                      const a2Active = a2Port && connections.some(c => c.active && (
+                        (c.fromComponentId === comp.id && c.fromPortId === a2Port.id) ||
+                        (c.toComponentId === comp.id && c.toPortId === a2Port.id)
+                      ));
+                      const isEnergized = Boolean(comp.state?.activated || (a1Active && a2Active));
+
+                      // Coordenadas dos centros das linhas de contatos (3 contatos NA + 3 contatos NF)
+                      const contactRows = [
+                        { id: 1, y: 89.7, com: '11', nf: '12', na: '14' },
+                        { id: 2, y: 140.3, com: '21', nf: '22', na: '24' },
+                        { id: 3, y: 190.9, com: '31', nf: '32', na: '34' },
+                      ];
+
                       return (
-                        <g transform="translate(15, 26)">
-                          {/* Relay Base Socket Chassis */}
-                          <rect x="0" y="0" width="130" height="144" rx="6" fill="#090f1d" stroke="#334155" strokeWidth="1.2" />
-                          
-                          {/* DIN Rail Clip indicator */}
-                          <rect x="35" y="138" width="60" height="4" rx="1" fill="#475569" />
+                        <g id={`relay-module-internal-${comp.id}`}>
+                          {/* ---------------------------------------------------- */}
+                          {/* SEÇÃO 1: BOBINA DE COMANDO COM LED AMARELO ENTRE A1 E A2 */}
+                          {/* ---------------------------------------------------- */}
+                          <g transform="translate(0, 0)">
+                            {/* Compartimento da Bobina */}
+                            <rect
+                              x="8"
+                              y="25"
+                              width="154"
+                              height="34"
+                              rx="5"
+                              fill="#090f1d"
+                              stroke={isEnergized ? "#facc15" : "#1e293b"}
+                              strokeWidth={isEnergized ? 1.4 : 1}
+                            />
 
-                          {/* Transparent Polycarbonate Cover */}
-                          <rect x="18" y="8" width="94" height="124" rx="4" fill="#030712" fillOpacity="0.7" stroke={isEnergized ? "#10b981" : "#1e293b"} strokeWidth="1.2" />
+                            {/* Linha serigráfica de condução A1 -> Bobina -> A2 */}
+                            <line x1="37.4" y1="39.1" x2="68" y2="39.1" stroke={isEnergized ? "#facc15" : "#475569"} strokeWidth="1.5" strokeDasharray="3 1.5" />
+                            <line x1="102" y1="39.1" x2="132.6" y2="39.1" stroke={isEnergized ? "#facc15" : "#475569"} strokeWidth="1.5" strokeDasharray="3 1.5" />
 
-                          {/* Coil Symbol & Internal Windings */}
-                          <rect x="42" y="14" width="46" height="24" rx="3" fill="#1e293b" stroke="#475569" strokeWidth="1" />
-                          <line x1="42" y1="14" x2="88" y2="38" stroke="#64748b" strokeWidth="1" />
-                          <text x="65" y="30" fill="#cbd5e1" fontSize="9" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
-                            24V CC
-                          </text>
+                            {/* Símbolo esquemático retangular da bobina eletromagnética IEC */}
+                            <rect
+                              x="68"
+                              y="31"
+                              width="34"
+                              height="16"
+                              rx="3"
+                              fill="#0f172a"
+                              stroke={isEnergized ? "#facc15" : "#475569"}
+                              strokeWidth="1.2"
+                            />
 
-                          {/* Status LED */}
-                          <g transform="translate(65, 48)">
-                            <circle cx="0" cy="0" r="4.5" fill={isEnergized ? "#10b981" : "#334155"} stroke={isEnergized ? "#34d399" : "#1e293b"} strokeWidth="1" />
-                            {isEnergized && (
-                              <circle cx="0" cy="0" r="7.5" fill="none" stroke="#10b981" strokeWidth="1" opacity="0.6" className="animate-pulse" />
-                            )}
-                            <text x="0" y="11" fill={isEnergized ? "#34d399" : "#64748b"} fontSize="7" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="middle">
-                              {isEnergized ? "LIGADO" : "DESLIGADO"}
+                            {/* LED AMARELO INDUSTRIAL CENTRALIZADO ENTRE A1 E A2 */}
+                            <g transform="translate(85, 39.1)">
+                              {/* Anel do Bezel metálico usinado */}
+                              <circle cx="0" cy="0" r="7.5" fill="#1e293b" stroke="url(#relay-bezel-grad)" strokeWidth="1.4" />
+                              <circle cx="0" cy="0" r="5.5" fill="#0b0f19" stroke="#334155" strokeWidth="0.8" />
+
+                              {/* Halo de irradiação difusa quando energizado */}
+                              {isEnergized && (
+                                <circle cx="0" cy="0" r="15" fill="url(#relay-led-yellow-glow)" pointerEvents="none" />
+                              )}
+
+                              {/* Lente circular do LED Amarelo */}
+                              <circle
+                                cx="0"
+                                cy="0"
+                                r="4.2"
+                                fill={isEnergized ? "url(#relay-led-yellow-on)" : "url(#relay-led-yellow-off)"}
+                                stroke={isEnergized ? "#facc15" : "#713f12"}
+                                strokeWidth="0.8"
+                              />
+
+                              {/* Anel dinâmico pulsante de luz quando energizado */}
+                              {isEnergized && (
+                                <circle cx="0" cy="0" r="6.5" fill="none" stroke="#fef08a" strokeWidth="0.8" opacity="0.8" className="animate-pulse" />
+                              )}
+
+                              {/* Brilho especular (reflexo de lente) */}
+                              <ellipse cx="-1.2" cy="-1.2" rx="1.2" ry="0.8" fill="#ffffff" opacity={isEnergized ? 0.95 : 0.4} />
+                            </g>
+
+                            {/* Identificação serigrafada da Bobina e Status do LED */}
+                            <text
+                              x="85"
+                              y="30"
+                              fill={isEnergized ? "#facc15" : "#94a3b8"}
+                              fontSize="6"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono', monospace"
+                              textAnchor="middle"
+                            >
+                              LED BOBINA
+                            </text>
+                            <text
+                              x="85"
+                              y="53"
+                              fill={isEnergized ? "#fde047" : "#64748b"}
+                              fontSize="5.5"
+                              fontWeight="900"
+                              fontFamily="'JetBrains Mono', monospace"
+                              textAnchor="middle"
+                            >
+                              {isEnergized ? "ATIVADA" : "DESLIGADA"}
+                            </text>
+
+                            {/* Identificação dos bornes da bobina */}
+                            <text x="37.4" y="53" fill="#ef4444" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" textAnchor="middle">
+                              A1 (+)
+                            </text>
+                            <text x="132.6" y="53" fill="#3b82f6" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono', monospace" textAnchor="middle">
+                              A2 (-)
                             </text>
                           </g>
 
-                          {/* Contact Scheme 1: NA (11-14) */}
-                          <g transform="translate(26, 68)">
-                            <rect x="0" y="0" width="78" height="22" rx="3" fill="#0f172a" stroke="#1e293b" strokeWidth="1" />
-                            <text x="6" y="14" fill="#94a3b8" fontSize="7.5" fontWeight="bold" fontFamily="'JetBrains Mono'">11</text>
-                            <text x="72" y="14" fill="#94a3b8" fontSize="7.5" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="end">14 (NA)</text>
-                            {/* Contact Blade */}
-                            {isEnergized ? (
-                              <line x1="22" y1="11" x2="52" y2="11" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
-                            ) : (
-                              <line x1="22" y1="11" x2="48" y2="6" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" />
-                            )}
-                            <circle cx="22" cy="11" r="2" fill="#38bdf8" />
-                            <circle cx="52" cy="11" r="2" fill={isEnergized ? "#10b981" : "#64748b"} />
-                          </g>
+                          {/* ---------------------------------------------------- */}
+                          {/* SEÇÃO 2: TRÊS CONTATOS NA E TRÊS CONTATOS NF         */}
+                          {/* ---------------------------------------------------- */}
+                          {contactRows.map((row) => (
+                            <g key={row.id}>
+                              {/* Painel do conjunto de contato reversível */}
+                              <rect
+                                x="8"
+                                y={row.y - 18}
+                                width="154"
+                                height="38"
+                                rx="4"
+                                fill="#070c18"
+                                stroke={isEnergized ? "#1e293b" : "#1e293b"}
+                                strokeWidth="1"
+                              />
 
-                          {/* Contact Scheme 2: NF (21-22) */}
-                          <g transform="translate(26, 96)">
-                            <rect x="0" y="0" width="78" height="22" rx="3" fill="#0f172a" stroke="#1e293b" strokeWidth="1" />
-                            <text x="6" y="14" fill="#94a3b8" fontSize="7.5" fontWeight="bold" fontFamily="'JetBrains Mono'">21</text>
-                            <text x="72" y="14" fill="#94a3b8" fontSize="7.5" fontWeight="bold" fontFamily="'JetBrains Mono'" textAnchor="end">22 (NF)</text>
-                            {/* Contact Blade */}
-                            {!isEnergized ? (
-                              <line x1="22" y1="11" x2="52" y2="11" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" />
-                            ) : (
-                              <line x1="22" y1="11" x2="48" y2="6" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" />
-                            )}
-                            <circle cx="22" cy="11" r="2" fill="#38bdf8" />
-                            <circle cx="52" cy="11" r="2" fill={!isEnergized ? "#38bdf8" : "#64748b"} />
-                          </g>
+                              {/* Cabeçalho do contato */}
+                              <text
+                                x="12"
+                                y={row.y - 9}
+                                fill="#64748b"
+                                fontSize="5.8"
+                                fontWeight="bold"
+                                fontFamily="'JetBrains Mono', monospace"
+                              >
+                                CONTATO {row.id} ({row.com})
+                              </text>
+                              <text
+                                x="158"
+                                y={row.y - 9}
+                                fill={isEnergized ? "#10b981" : "#38bdf8"}
+                                fontSize="5.5"
+                                fontWeight="bold"
+                                fontFamily="'JetBrains Mono', monospace"
+                                textAnchor="end"
+                              >
+                                {isEnergized ? "NA ATIVO (FECHADO)" : "NF EM REPOUSO (FECHADO)"}
+                              </text>
+
+                              {/* Linha esquemática condutora desde o Comum */}
+                              <line x1="37.4" y1={row.y} x2="55" y2={row.y} stroke="#64748b" strokeWidth="1.4" />
+                              <circle cx="55" cy={row.y} r="2.2" fill="#94a3b8" />
+
+                              {/* Linha até o terminal NF (centro x=85.0) */}
+                              <line x1="85.0" y1={row.y} x2="85.0" y2={row.y - 4} stroke={!isEnergized ? "#38bdf8" : "#475569"} strokeWidth="1.2" />
+
+                              {/* Linha até o terminal NA (direita x=132.6) */}
+                              <line x1="114" y1={row.y} x2="132.6" y2={row.y} stroke={isEnergized ? "#10b981" : "#475569"} strokeWidth="1.2" />
+                              <circle cx="114" cy={row.y} r="1.8" fill={isEnergized ? "#10b981" : "none"} stroke={isEnergized ? "#10b981" : "#64748b"} strokeWidth="1" />
+
+                              {/* Palheta de Comutação Dinâmica (Chave Reversível NA / NF) */}
+                              {!isEnergized ? (
+                                // Estado Desenergizado: Conecta Comum -> NF (FECHADO)
+                                <g>
+                                  <line
+                                    x1="55"
+                                    y1={row.y}
+                                    x2="85.0"
+                                    y2={row.y}
+                                    stroke="#38bdf8"
+                                    strokeWidth="2.2"
+                                    strokeLinecap="round"
+                                  />
+                                  {/* Ponto de contato fechado NF */}
+                                  <circle cx="85.0" cy={row.y} r="2.4" fill="#38bdf8" />
+                                  {/* Contato aberto NA */}
+                                  <circle cx="114" cy={row.y} r="2" fill="none" stroke="#64748b" strokeWidth="1.2" />
+                                </g>
+                              ) : (
+                                // Estado Energizado: Comuta Comum -> NA (FECHADO)
+                                <g>
+                                  <line
+                                    x1="55"
+                                    y1={row.y}
+                                    x2="114"
+                                    y2={row.y}
+                                    stroke="#10b981"
+                                    strokeWidth="2.2"
+                                    strokeLinecap="round"
+                                  />
+                                  {/* Ponto de contato fechado NA */}
+                                  <circle cx="114" cy={row.y} r="2.5" fill="#10b981" />
+                                  {/* Contato aberto NF */}
+                                  <circle cx="85.0" cy={row.y} r="2" fill="none" stroke="#64748b" strokeWidth="1.2" />
+                                </g>
+                              )}
+
+                              {/* Legendas de identificação sob cada terminal elétrico */}
+                              <text
+                                x="37.4"
+                                y={row.y + 14}
+                                fill="#cbd5e1"
+                                fontSize="6.2"
+                                fontWeight="bold"
+                                fontFamily="'JetBrains Mono', monospace"
+                                textAnchor="middle"
+                              >
+                                {row.com} COM
+                              </text>
+                              <text
+                                x="85.0"
+                                y={row.y + 14}
+                                fill={!isEnergized ? "#38bdf8" : "#94a3b8"}
+                                fontSize="6.2"
+                                fontWeight="bold"
+                                fontFamily="'JetBrains Mono', monospace"
+                                textAnchor="middle"
+                              >
+                                {row.nf} NF
+                              </text>
+                              <text
+                                x="132.6"
+                                y={row.y + 14}
+                                fill={isEnergized ? "#10b981" : "#94a3b8"}
+                                fontSize="6.2"
+                                fontWeight="bold"
+                                fontFamily="'JetBrains Mono', monospace"
+                                textAnchor="middle"
+                              >
+                                {row.na} NA
+                              </text>
+                            </g>
+                          ))}
                         </g>
                       );
                     })()}
@@ -3628,7 +3803,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                       const isBottom = py > comp.height / 2;
                       let textY = isExhaust ? 26 : isButtonStation ? 13 : isFRL ? -15 : (isBottom ? -13 : 18);
-                      if (isTerminalStripComp) {
+                      if (comp.type === 'industrial_relay') {
+                        textY = -14;
+                      } else if (isTerminalStripComp) {
                         if (comp.type === 'terminal_strip_24v') {
                           textY = isStripInPort ? 16 : 14;
                         } else {
@@ -4602,7 +4779,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             ? 'bg-emerald-900/80 text-emerald-300 border border-emerald-700'
                             : 'bg-amber-900/80 text-amber-300 border border-amber-700'
                         }`}>
-                          {isPowerOk ? '24V CC OK' : '0V / FALHA'}
+                          {isPowerOk ? '24V OK' : '0V / FALHA'}
                         </span>
                       </div>
 
@@ -4618,7 +4795,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           <p className="text-slate-400 text-[9.5px]">
                             {currentWires === '2_wires'
                               ? 'Conecte BN (+24V) na fonte e BU (Carga) na solenoide com retorno ao 0V.'
-                              : 'Conecte o borne BN (+24V) e o borne BU (0V) à fonte de 24V CC.'}
+                              : 'Conecte o borne BN (+24V) e o borne BU (0V) à fonte de 24V.'}
                           </p>
                         </div>
                       )}

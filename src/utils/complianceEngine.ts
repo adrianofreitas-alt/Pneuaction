@@ -115,9 +115,9 @@ export function evaluateTechnicalCompliance(
       id: 'iec60204_pelv',
       standard: 'IEC 60204-1',
       clause: 'Seção 6.4 - Circuitos PELV/SELV',
-      title: 'Tensão de Comando Estrita em 24V CC (PELV)',
+      title: 'Tensão de Comando Estrita em 24V (PELV)',
       status: 'passed',
-      details: 'Fonte de alimentação fixada estritamente em 24V CC estabilizado, com proteção contra sobretensão e isolamento galvânico conforme NR-12.',
+      details: 'Fonte de alimentação fixada estritamente em 24V estabilizado, com proteção contra sobretensão e isolamento galvânico conforme NR-12.',
       recommendation: 'Garantir conexão equipotencial do terminal 0V ao aterramento de proteção da bancada.'
     });
   } else {
@@ -127,8 +127,8 @@ export function evaluateTechnicalCompliance(
       clause: 'Seção 6.4',
       title: 'Fonte Estabilizada de 24V Não Identificada',
       status: 'warning',
-      details: 'Não há módulo de alimentação fixa 24V CC regulada inserido no circuito.',
-      recommendation: 'Incluir a fonte industrial fixa 24V CC (PELV) para garantir a segurança operacional.'
+      details: 'Não há módulo de alimentação fixa 24V regulada inserido no circuito.',
+      recommendation: 'Incluir a fonte industrial fixa 24V (PELV) para garantir a segurança operacional.'
     });
   }
 
