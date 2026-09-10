@@ -69,6 +69,10 @@ export interface BenchComponent {
     flowThrottlePercent?: number; // 1 to 100%
     contactClosed?: boolean;
     ledActive?: boolean;
+    led1Active?: boolean;
+    led2Active?: boolean;
+    led3Active?: boolean;
+    led4Active?: boolean;
     buzzerActive?: boolean;
     sensorDetected?: boolean;
     buttonNApressed?: boolean;

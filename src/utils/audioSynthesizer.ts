@@ -5,6 +5,9 @@
 
 class BenchAudio {
   private ctx: AudioContext | null = null;
+  private buzzerOsc: OscillatorNode | null = null;
+  private buzzerGain: GainNode | null = null;
+  private isBuzzerRunning = false;
 
   private initCtx() {
     if (!this.ctx && typeof window !== 'undefined') {
@@ -109,6 +112,61 @@ class BenchAudio {
       osc.start();
       osc.stop(this.ctx.currentTime + 0.23);
     } catch {}
+  }
+
+  /**
+   * Continuous industrial acoustic buzzer (horn/piezo)
+   * Starts sounding when energized with 24V and 0V
+   */
+  public startBuzzer() {
+    if (this.isBuzzerRunning) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+      this.isBuzzerRunning = true;
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sawtooth';
+      // 880 Hz gives an unmistakable industrial acoustic buzzer / horn timbre
+      osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+
+      gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start();
+      this.buzzerOsc = osc;
+      this.buzzerGain = gain;
+    } catch {
+      // Audio autoplay restrictions gracefully ignored
+    }
+  }
+
+  /**
+   * Immediately silences the acoustic buzzer when de-energized
+   */
+  public stopBuzzer() {
+    if (!this.isBuzzerRunning && !this.buzzerOsc) return;
+    this.isBuzzerRunning = false;
+    try {
+      if (this.buzzerGain && this.ctx) {
+        this.buzzerGain.gain.linearRampToValueAtTime(0.0001, this.ctx.currentTime + 0.02);
+      }
+      if (this.buzzerOsc && this.ctx) {
+        const osc = this.buzzerOsc;
+        setTimeout(() => {
+          try {
+            osc.stop();
+            osc.disconnect();
+          } catch {}
+        }, 30);
+      }
+    } catch {}
+    this.buzzerOsc = null;
+    this.buzzerGain = null;
   }
 }
 

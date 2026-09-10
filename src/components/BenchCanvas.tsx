@@ -898,25 +898,18 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
       {/* Center: Aluminum Workbench Canvas */}
       <main className="flex-1 relative flex flex-col bg-[#0b101b] overflow-hidden">
-        {/* Canvas Contextual Badges: Only shown during interactive actions (e.g. connecting ports or selected module) */}
-        {(connectingStart || selectedComponent) && (
+        {/* Canvas Contextual Badges: Only shown during interactive actions (e.g. connecting ports) */}
+        {connectingStart && (
           <div className="absolute top-3 left-4 z-20 flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-xs shadow-lg">
-            {selectedComponent && (
-              <span className="flex items-center gap-1 text-cyan-300 font-medium">
-                Selecionado: <strong className="font-mono text-white">{selectedComponent.tag}</strong> ({(selectedComponent.rotation || 0)}°)
-              </span>
-            )}
-            {connectingStart && (
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-cyan-950 border border-cyan-700 text-cyan-300 animate-pulse">
-                <span>Conectando {connectingStart.port.name}... Clique no destino ou ESC</span>
-                <button
-                  onClick={() => setConnectingStart(null)}
-                  className="hover:text-white ml-1"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-cyan-950 border border-cyan-700 text-cyan-300 animate-pulse">
+              <span>Conectando {connectingStart.port.name}... Clique no destino ou ESC</span>
+              <button
+                onClick={() => setConnectingStart(null)}
+                className="hover:text-white ml-1"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         )}
 
