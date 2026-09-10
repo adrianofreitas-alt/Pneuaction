@@ -438,13 +438,30 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         active: true
       };
 
+      const portA1 = relay.ports.find(p => p.name.includes('A1'))?.id || relay.ports[0].id;
+      const portA2 = relay.ports.find(p => p.name.includes('A2'))?.id || relay.ports[1].id;
+      const portCom11 = relay.ports.find(p => p.name.includes('11'))?.id || relay.ports[2].id;
+      const portNA14 = relay.ports.find(p => p.name.includes('14'))?.id || relay.ports[4].id;
+
+      // Alimentação de +24V no Comum 11 do Relé Industrial
+      const c_relay_feed: VirtualConnection = {
+        id: 'c_e_relay_feed',
+        type: 'electrical',
+        fromComponentId: strip24.id,
+        fromPortId: strip24.ports[2].id, // 24V (2)
+        toComponentId: relay.id,
+        toPortId: portCom11, // 11 (Comum 1)
+        voltageV: 24,
+        active: true
+      };
+
       const c6: VirtualConnection = {
         id: 'c_e3',
         type: 'electrical',
         fromComponentId: btn.id,
         fromPortId: btn.ports[1].id, // NA 14
         toComponentId: relay.id,
-        toPortId: relay.ports[0].id, // A1
+        toPortId: portA1, // A1
         voltageV: 0,
         active: false
       };
@@ -455,7 +472,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         fromComponentId: strip0V.id,
         fromPortId: strip0V.ports[1].id, // 0V (1)
         toComponentId: relay.id,
-        toPortId: relay.ports[1].id, // A2
+        toPortId: portA2, // A2
         voltageV: 0,
         active: true
       };
@@ -465,7 +482,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         id: 'c_e5',
         type: 'electrical',
         fromComponentId: relay.id,
-        fromPortId: relay.ports[3].id, // NA 14
+        fromPortId: portNA14, // NA 14
         toComponentId: valve.id,
         toPortId: valve.ports[5].id, // Y1 (+) A1
         voltageV: 0,
@@ -485,7 +502,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
 
       return {
         components: [strip24, strip0V, frl, ps, emerg, btn, relay, valve, cyl],
-        connections: [c1, c2, c3, c_ps_strip24, c_ps_strip0v, c4, c5, c6, c7, c8, c9]
+        connections: [c1, c2, c3, c_ps_strip24, c_ps_strip0v, c4, c5, c_relay_feed, c6, c7, c8, c9]
       };
     }
   }
