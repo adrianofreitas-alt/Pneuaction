@@ -440,17 +440,17 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
 
       const portA1 = relay.ports.find(p => p.name.includes('A1'))?.id || relay.ports[0].id;
       const portA2 = relay.ports.find(p => p.name.includes('A2'))?.id || relay.ports[1].id;
-      const portCom11 = relay.ports.find(p => p.name.includes('11'))?.id || relay.ports[2].id;
-      const portNA14 = relay.ports.find(p => p.name.includes('14'))?.id || relay.ports[4].id;
+      const portCom1 = relay.ports.find(p => p.name.includes('COM') || p.name.includes('11'))?.id || relay.ports[2].id;
+      const portNA1 = relay.ports.find(p => p.name.includes('NA') || p.name.includes('14'))?.id || relay.ports[4].id;
 
-      // Alimentação de +24V no Comum 11 do Relé Industrial
+      // Alimentação de +24V no Comum do Contato 1 do Relé Industrial
       const c_relay_feed: VirtualConnection = {
         id: 'c_e_relay_feed',
         type: 'electrical',
         fromComponentId: strip24.id,
         fromPortId: strip24.ports[2].id, // 24V (2)
         toComponentId: relay.id,
-        toPortId: portCom11, // 11 (Comum 1)
+        toPortId: portCom1, // COM 1
         voltageV: 24,
         active: true
       };
@@ -482,7 +482,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         id: 'c_e5',
         type: 'electrical',
         fromComponentId: relay.id,
-        fromPortId: portNA14, // NA 14
+        fromPortId: portNA1, // NA 1
         toComponentId: valve.id,
         toPortId: valve.ports[5].id, // Y1 (+) A1
         voltageV: 0,

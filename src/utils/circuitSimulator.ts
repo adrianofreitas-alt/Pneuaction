@@ -277,7 +277,7 @@ export function evaluateCircuitElectricalState(
           }
         }
 
-        // Industrial Relay: 3 Contatos NA (11-14, 21-24, 31-34) e 3 Contatos NF (11-12, 21-22, 31-32)
+        // Industrial Relay: 4 Contatos Reversíveis (COM, NA, NF)
         if (comp.type === 'industrial_relay') {
           const pA1 = comp.ports.find(p => p.name.includes('A1'));
           const pA2 = comp.ports.find(p => p.name.includes('A2'));
@@ -295,34 +295,44 @@ export function evaluateCircuitElectricalState(
             }
           };
 
-          // Contato 1: Comum (11), NA (14), NF (12)
-          const p11 = comp.ports.find(p => p.name.includes('11') || p.name.includes('13'));
-          const p14 = comp.ports.find(p => p.name.includes('14'));
-          const p12 = comp.ports.find(p => p.name.includes('12'));
+          // Contato 1: COM, NA, NF
+          const p11 = comp.ports.find(p => p.name.includes('COM 1') || p.name.includes('11') || p.name.includes('13') || (p.name.includes('COM') && !p.name.includes('2') && !p.name.includes('3') && !p.name.includes('4')));
+          const p14 = comp.ports.find(p => p.name.includes('NA 1') || p.name.includes('14') || (p.name.includes('NA') && !p.name.includes('2') && !p.name.includes('3') && !p.name.includes('4')));
+          const p12 = comp.ports.find(p => p.name.includes('NF 1') || p.name.includes('12') || (p.name.includes('NF') && !p.name.includes('2') && !p.name.includes('3') && !p.name.includes('4')));
           if (isRelayOn) {
             bridge(p11, p14);
           } else {
             bridge(p11, p12);
           }
 
-          // Contato 2: Comum (21), NA (24), NF (22)
-          const p21 = comp.ports.find(p => p.name.includes('21'));
-          const p24 = comp.ports.find(p => p.name.includes('24'));
-          const p22 = comp.ports.find(p => p.name.includes('22'));
+          // Contato 2: COM, NA, NF
+          const p21 = comp.ports.find(p => p.name.includes('COM 2') || p.name.includes('21'));
+          const p24 = comp.ports.find(p => p.name.includes('NA 2') || p.name.includes('24'));
+          const p22 = comp.ports.find(p => p.name.includes('NF 2') || p.name.includes('22'));
           if (isRelayOn) {
             bridge(p21, p24);
           } else {
             bridge(p21, p22);
           }
 
-          // Contato 3: Comum (31), NA (34), NF (32)
-          const p31 = comp.ports.find(p => p.name.includes('31'));
-          const p34 = comp.ports.find(p => p.name.includes('34'));
-          const p32 = comp.ports.find(p => p.name.includes('32'));
+          // Contato 3: COM, NA, NF
+          const p31 = comp.ports.find(p => p.name.includes('COM 3') || p.name.includes('31'));
+          const p34 = comp.ports.find(p => p.name.includes('NA 3') || p.name.includes('34'));
+          const p32 = comp.ports.find(p => p.name.includes('NF 3') || p.name.includes('32'));
           if (isRelayOn) {
             bridge(p31, p34);
           } else {
             bridge(p31, p32);
+          }
+
+          // Contato 4: COM, NA, NF
+          const p41 = comp.ports.find(p => p.name.includes('COM 4') || p.name.includes('41'));
+          const p44 = comp.ports.find(p => p.name.includes('NA 4') || p.name.includes('44'));
+          const p42 = comp.ports.find(p => p.name.includes('NF 4') || p.name.includes('42'));
+          if (isRelayOn) {
+            bridge(p41, p44);
+          } else {
+            bridge(p41, p42);
           }
         }
       });

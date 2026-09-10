@@ -1175,7 +1175,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             <g id="components-layer">
               {components.map((comp) => {
                 if (comp.type === 'industrial_relay') {
-                  if (comp.width !== 250) comp.width = 250;
+                  if (comp.width !== 300) comp.width = 300;
                   if (comp.height !== 180) comp.height = 180;
                 }
                 const isSelected = selectedComponent?.id === comp.id;
@@ -3480,11 +3480,12 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       ));
                       const isEnergized = Boolean(comp.state?.activated || (a1Active && a2Active));
 
-                      // 3 Conjuntos de Contatos Reversíveis alinhados verticalmente (colunas x: 95, 155, 215)
+                      // 4 Conjuntos de Contatos Reversíveis alinhados verticalmente (colunas x: 92, 150, 208, 266)
                       const contactCols = [
-                        { id: 1, x: 95, com: '11', nf: '12', na: '14' },
-                        { id: 2, x: 155, com: '21', nf: '22', na: '24' },
-                        { id: 3, x: 215, com: '31', nf: '32', na: '34' },
+                        { id: 1, x: 92 },
+                        { id: 2, x: 150 },
+                        { id: 3, x: 208 },
+                        { id: 4, x: 266 },
                       ];
 
                       return (
@@ -3495,9 +3496,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           <g>
                             {/* Compartimento da Bobina */}
                             <rect
-                              x="8"
+                              x="11"
                               y="30"
-                              width="52"
+                              width="46"
                               height="142"
                               rx="4"
                               fill="#090f1d"
@@ -3518,24 +3519,11 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                               BOBINA
                             </text>
 
-                            {/* Subtítulo A1 */}
-                            <text
-                              x="35"
-                              y="70"
-                              fill="#fca5a5"
-                              fontSize="5.5"
-                              fontWeight="bold"
-                              fontFamily="'JetBrains Mono', monospace"
-                              textAnchor="middle"
-                            >
-                              (+) 24V
-                            </text>
-
                             {/* Linha esquemática de controle: A1 (y=58) -> LED / Bobina (y=102) */}
                             <line
-                              x1="35"
-                              y1="74"
-                              x2="35"
+                              x1="34"
+                              y1="70"
+                              x2="34"
                               y2="88"
                               stroke={isEnergized ? "#facc15" : "#475569"}
                               strokeWidth="1.5"
@@ -3544,7 +3532,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                             {/* Símbolo esquemático retangular da bobina eletromagnética IEC em torno do LED */}
                             <rect
-                              x="20"
+                              x="19"
                               y="89"
                               width="30"
                               height="26"
@@ -3555,7 +3543,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                             />
 
                             {/* LED AMARELO INDUSTRIAL CENTRALIZADO ENTRE A1 E A2 */}
-                            <g transform="translate(35, 102)">
+                            <g transform="translate(34, 102)">
                               {/* Anel do Bezel metálico usinado */}
                               <circle cx="0" cy="0" r="8" fill="#1e293b" stroke="url(#relay-bezel-grad)" strokeWidth="1.4" />
                               <circle cx="0" cy="0" r="6" fill="#0b0f19" stroke="#334155" strokeWidth="0.8" />
@@ -3586,7 +3574,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                             {/* Status do LED */}
                             <text
-                              x="35"
+                              x="34"
                               y="123"
                               fill={isEnergized ? "#fde047" : "#64748b"}
                               fontSize="5.5"
@@ -3599,31 +3587,18 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                             {/* Linha esquemática de controle: LED / Bobina (y=102) -> A2 (y=146) */}
                             <line
-                              x1="35"
+                              x1="34"
                               y1="126"
-                              x2="35"
-                              y2="135"
+                              x2="34"
+                              y2="140"
                               stroke={isEnergized ? "#facc15" : "#475569"}
                               strokeWidth="1.5"
                               strokeDasharray="3 1.5"
                             />
 
-                            {/* Subtítulo A2 */}
-                            <text
-                              x="35"
-                              y="158"
-                              fill="#93c5fd"
-                              fontSize="5.5"
-                              fontWeight="bold"
-                              fontFamily="'JetBrains Mono', monospace"
-                              textAnchor="middle"
-                            >
-                              (-) 0V GND
-                            </text>
-
                             {/* Status geral da bobina no rodapé */}
                             <text
-                              x="35"
+                              x="34"
                               y="169"
                               fill={isEnergized ? "#fde047" : "#64748b"}
                               fontSize="5"
@@ -3636,19 +3611,19 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           </g>
 
                           {/* ---------------------------------------------------- */}
-                          {/* COLUNAS 1, 2, 3: TRÊS CONTATOS ALINHADOS NA VERTICAL */}
+                          {/* COLUNAS 1, 2, 3, 4: QUATRO CONTATOS REVERSÍVEIS NA VERTICAL */}
                           {/* ---------------------------------------------------- */}
                           {contactCols.map((col) => (
                             <g key={col.id}>
                               {/* Painel da coluna vertical do contato */}
                               <rect
-                                x={col.x - 26}
+                                x={col.x - 23}
                                 y="30"
-                                width="52"
+                                width="46"
                                 height="142"
                                 rx="4"
                                 fill="#070c18"
-                                stroke={isEnergized ? "#1e293b" : "#1e293b"}
+                                stroke="#1e293b"
                                 strokeWidth="1"
                               />
 
@@ -3670,12 +3645,12 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                 x={col.x}
                                 y="70"
                                 fill="#cbd5e1"
-                                fontSize="5.5"
+                                fontSize="5.8"
                                 fontWeight="bold"
                                 fontFamily="'JetBrains Mono', monospace"
                                 textAnchor="middle"
                               >
-                                {col.com} COM
+                                COM
                               </text>
 
                               {/* Linha esquemática desde o borne Comum até o pivô */}
@@ -3708,13 +3683,13 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                   <line
                                     x1={col.x}
                                     y1="78"
-                                    x2={col.x + 10}
+                                    x2={col.x + 9}
                                     y2="88"
                                     stroke="#475569"
                                     strokeWidth="1"
                                     strokeDasharray="2 2"
                                   />
-                                  <circle cx={col.x + 10} cy="88" r="1.8" fill="none" stroke="#64748b" strokeWidth="1" />
+                                  <circle cx={col.x + 9} cy="88" r="1.8" fill="none" stroke="#64748b" strokeWidth="1" />
                                 </g>
                               ) : (
                                 // Estado Ativo (Energizado): Chave comuta COM -> NA (FECHADO)
@@ -3725,24 +3700,24 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                   <line
                                     x1={col.x}
                                     y1="78"
-                                    x2={col.x + 10}
+                                    x2={col.x + 9}
                                     y2="90"
                                     stroke="#10b981"
                                     strokeWidth="2.2"
                                     strokeLinecap="round"
                                   />
-                                  <circle cx={col.x + 10} cy="90" r="2.2" fill="#10b981" />
+                                  <circle cx={col.x + 9} cy="90" r="2.2" fill="#10b981" />
                                   <line
-                                    x1={col.x + 10}
+                                    x1={col.x + 9}
                                     y1="90"
-                                    x2={col.x + 10}
+                                    x2={col.x + 9}
                                     y2="134"
                                     stroke="#10b981"
                                     strokeWidth="1.6"
                                     strokeDasharray="3 1.5"
                                   />
                                   <line
-                                    x1={col.x + 10}
+                                    x1={col.x + 9}
                                     y1="134"
                                     x2={col.x}
                                     y2="137"
@@ -3757,12 +3732,12 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                 x={col.x}
                                 y="114"
                                 fill={!isEnergized ? "#38bdf8" : "#64748b"}
-                                fontSize="5.5"
+                                fontSize="5.8"
                                 fontWeight="bold"
                                 fontFamily="'JetBrains Mono', monospace"
                                 textAnchor="middle"
                               >
-                                {col.nf} NF
+                                NF
                               </text>
 
                               {/* Linha esquemática condutora abaixo do NF */}
@@ -3781,12 +3756,12 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                 x={col.x}
                                 y="158"
                                 fill={isEnergized ? "#10b981" : "#64748b"}
-                                fontSize="5.5"
+                                fontSize="5.8"
                                 fontWeight="bold"
                                 fontFamily="'JetBrains Mono', monospace"
                                 textAnchor="middle"
                               >
-                                {col.na} NA
+                                NA
                               </text>
 
                               {/* Status do contato no rodapé */}
@@ -3859,40 +3834,49 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       }
 
                       // Auto-ajuste para o Módulo Relé Industrial Auxiliar:
-                      // Posiciona bornes nas 4 colunas verticais (A1/LED/A2, Contato 1, Contato 2, Contato 3)
+                      // Posiciona bornes nas 5 colunas verticais (A1/LED/A2, Contato 1, Contato 2, Contato 3, Contato 4)
                       if (comp.type === 'industrial_relay') {
                         if (port.name.includes('A1')) {
-                          portX = 14.0;
+                          portX = 11.33;
                           portY = 32.22;
                         } else if (port.name.includes('A2')) {
-                          portX = 14.0;
+                          portX = 11.33;
                           portY = 81.11;
-                        } else if (port.name.includes('11')) {
-                          portX = 38.0;
+                        } else if (port.name.includes('COM 1') || port.name.includes('11') || (port.name.includes('COM') && !port.name.includes('2') && !port.name.includes('3') && !port.name.includes('4'))) {
+                          portX = 30.67;
                           portY = 32.22;
-                        } else if (port.name.includes('12')) {
-                          portX = 38.0;
+                        } else if (port.name.includes('NF 1') || port.name.includes('12') || (port.name.includes('NF') && !port.name.includes('2') && !port.name.includes('3') && !port.name.includes('4'))) {
+                          portX = 30.67;
                           portY = 56.67;
-                        } else if (port.name.includes('14')) {
-                          portX = 38.0;
+                        } else if (port.name.includes('NA 1') || port.name.includes('14') || (port.name.includes('NA') && !port.name.includes('2') && !port.name.includes('3') && !port.name.includes('4'))) {
+                          portX = 30.67;
                           portY = 81.11;
-                        } else if (port.name.includes('21')) {
-                          portX = 62.0;
+                        } else if (port.name.includes('COM 2') || port.name.includes('21')) {
+                          portX = 50.00;
                           portY = 32.22;
-                        } else if (port.name.includes('22')) {
-                          portX = 62.0;
+                        } else if (port.name.includes('NF 2') || port.name.includes('22')) {
+                          portX = 50.00;
                           portY = 56.67;
-                        } else if (port.name.includes('24')) {
-                          portX = 62.0;
+                        } else if (port.name.includes('NA 2') || port.name.includes('24')) {
+                          portX = 50.00;
                           portY = 81.11;
-                        } else if (port.name.includes('31')) {
-                          portX = 86.0;
+                        } else if (port.name.includes('COM 3') || port.name.includes('31')) {
+                          portX = 69.33;
                           portY = 32.22;
-                        } else if (port.name.includes('32')) {
-                          portX = 86.0;
+                        } else if (port.name.includes('NF 3') || port.name.includes('32')) {
+                          portX = 69.33;
                           portY = 56.67;
-                        } else if (port.name.includes('34')) {
-                          portX = 86.0;
+                        } else if (port.name.includes('NA 3') || port.name.includes('34')) {
+                          portX = 69.33;
+                          portY = 81.11;
+                        } else if (port.name.includes('COM 4') || port.name.includes('41')) {
+                          portX = 88.67;
+                          portY = 32.22;
+                        } else if (port.name.includes('NF 4') || port.name.includes('42')) {
+                          portX = 88.67;
+                          portY = 56.67;
+                        } else if (port.name.includes('NA 4') || port.name.includes('44')) {
+                          portX = 88.67;
                           portY = 81.11;
                         }
                       }
@@ -3920,6 +3904,18 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       let labelText = port.name.split(' ')[0];
                       if (isExhaust) {
                         labelText = '';
+                      } else if (comp.type === 'industrial_relay') {
+                        if (port.name.includes('A1')) {
+                          labelText = 'A1';
+                        } else if (port.name.includes('A2')) {
+                          labelText = 'A2';
+                        } else if (port.name.includes('COM') || port.name.includes('Comum') || port.name.includes('11') || port.name.includes('21') || port.name.includes('31') || port.name.includes('41')) {
+                          labelText = 'COM';
+                        } else if (port.name.includes('NF') || port.name.includes('12') || port.name.includes('22') || port.name.includes('32') || port.name.includes('42')) {
+                          labelText = 'NF';
+                        } else if (port.name.includes('NA') || port.name.includes('14') || port.name.includes('24') || port.name.includes('34') || port.name.includes('44')) {
+                          labelText = 'NA';
+                        }
                       } else if (isElectrovalve) {
                         if (port.name.includes('Y1')) {
                           labelText = 'Y1';
@@ -4111,8 +4107,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                   isPneumatic ? '#0284c7' :
                                   isGround ? '#1e3a8a' :
                                   isButtonStation && (port.name.includes('13') || port.name.includes('14')) ? '#059669' :
-                                  comp.type === 'industrial_relay' && (port.name.includes('12') || port.name.includes('22') || port.name.includes('32')) ? '#0284c7' :
-                                  comp.type === 'industrial_relay' && (port.name.includes('14') || port.name.includes('24') || port.name.includes('34')) ? '#059669' :
+                                  comp.type === 'industrial_relay' && (port.name.includes('NF') || port.name.includes('12') || port.name.includes('22') || port.name.includes('32') || port.name.includes('42')) ? '#0284c7' :
+                                  comp.type === 'industrial_relay' && (port.name.includes('NA') || port.name.includes('14') || port.name.includes('24') || port.name.includes('34') || port.name.includes('44')) ? '#059669' :
+                                  comp.type === 'industrial_relay' && (port.name.includes('COM') || port.name.includes('11') || port.name.includes('21') || port.name.includes('31') || port.name.includes('41')) ? '#d97706' :
                                   comp.type === 'industrial_relay' && port.name.includes('A2') ? '#1e3a8a' :
                                   '#dc2626'
                                 }
@@ -4128,8 +4125,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                   isPneumatic ? '#38bdf8' :
                                   isGround ? '#93c5fd' :
                                   isButtonStation && (port.name.includes('13') || port.name.includes('14')) ? '#34d399' :
-                                  comp.type === 'industrial_relay' && (port.name.includes('12') || port.name.includes('22') || port.name.includes('32')) ? '#38bdf8' :
-                                  comp.type === 'industrial_relay' && (port.name.includes('14') || port.name.includes('24') || port.name.includes('34')) ? '#34d399' :
+                                  comp.type === 'industrial_relay' && (port.name.includes('NF') || port.name.includes('12') || port.name.includes('22') || port.name.includes('32') || port.name.includes('42')) ? '#38bdf8' :
+                                  comp.type === 'industrial_relay' && (port.name.includes('NA') || port.name.includes('14') || port.name.includes('24') || port.name.includes('34') || port.name.includes('44')) ? '#34d399' :
+                                  comp.type === 'industrial_relay' && (port.name.includes('COM') || port.name.includes('11') || port.name.includes('21') || port.name.includes('31') || port.name.includes('41')) ? '#fef08a' :
                                   comp.type === 'industrial_relay' && port.name.includes('A2') ? '#93c5fd' :
                                   '#fca5a5'
                                 }
