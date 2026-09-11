@@ -109,7 +109,7 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         active: true
       };
 
-      // Válvula 2(B) -> Cilindro 2 (Recuo)
+      // Válvula 2(B) -> Cilindro 2 (Recuo) - Linha de exaustão inicial
       const c5: VirtualConnection = {
         id: 'conn_p5',
         type: 'pneumatic',
@@ -118,7 +118,8 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         toComponentId: cyl.id,
         toPortId: cyl.ports[1].id, // 2 Recuo
         pressureBar: 0,
-        active: false
+        active: true,
+        isExhaust: true
       };
 
       // -------------------------------------------------------------

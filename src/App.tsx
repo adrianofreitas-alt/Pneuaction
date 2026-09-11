@@ -524,15 +524,17 @@ export default function App() {
 
           // 10. Avaliação dos fluxos nas conexões (tubos pneumáticos e cabos elétricos)
           // Apenas conexões com fluxo de ar ou corrente elétrica ativa recebem traços brancos (active: true).
-          // Se não houver fluxo/corrente, permanecem na cor sólida original do tubo e dos cabos elétricos.
-          const activeConnIds = evaluateConnectionFlows(connectionsRef.current, nextComps, finalCircuitEval, isSimulating);
+          // Conexões com fluxo de exaustão do cilindro para a eletroválvula recebem isExhaust: true (amarelo #fef08a a #eab308).
+          // Conexões de alimentação da eletroválvula para o cilindro mantêm isExhaust: false (azul Festo #0284c7).
+          const { activeConnIds, exhaustConnIds } = evaluateConnectionFlows(connectionsRef.current, nextComps, finalCircuitEval, isSimulating);
           setConnections(prevConns => {
             let changed = false;
             const nextConns = prevConns.map(c => {
               const isActive = activeConnIds.has(c.id);
-              if (c.active !== isActive) {
+              const isExhaust = exhaustConnIds.has(c.id);
+              if (c.active !== isActive || c.isExhaust !== isExhaust) {
                 changed = true;
-                return { ...c, active: isActive };
+                return { ...c, active: isActive, isExhaust };
               }
               return c;
             });

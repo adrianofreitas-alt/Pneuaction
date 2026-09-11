@@ -5038,6 +5038,11 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                   // Cabo 0V (GND) em Azul Escuro para não confundir com mangueiras pneumáticas azuis claras
                   strokeColor = isGroundWire ? '#172554' : '#ef4444';
                   highlightColor = isGroundWire ? '#2563eb' : '#f87171';
+                } else if (conn.isExhaust) {
+                  // Fluxo de ar vindo do cilindro pneumático para a eletroválvula em exaustão:
+                  // Tubulação em tom amarelo (#fef08a a #eab308)
+                  strokeColor = '#eab308';
+                  highlightColor = '#fef08a';
                 }
 
                 return (
@@ -5149,18 +5154,26 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         const getPneumaticRank = (c?: BenchComponent, portId?: string) => {
                           if (!c) return 2;
                           if (c.type === 'frl_unit' || c.type === 'air_supply') return 0;
-                          if (c.type === 'manifold_distributor') return 1;
+                          if (c.type === 'manifold_distributor' || c.type === 'air_manifold') return 1;
                           if (c.type.startsWith('valve_')) {
                             const isPInlet = portId?.includes('-p-') || portId?.endsWith('-p') || portId?.includes('-1') || portId?.endsWith('-1');
                             return isPInlet ? 1.5 : 2;
                           }
-                          if (c.type === 'flow_control_valve' || c.type === 'flow_control') return 3;
-                          if (c.type.startsWith('cylinder_')) return 4;
+                          if (c.type === 'flow_control_valve' || c.type === 'flow_control_throttle' || c.type.includes('throttle')) return 3;
+                          if (c.type.includes('cylinder') || c.category === 'actuators') return 4;
                           return 2;
                         };
                         const sRank = getPneumaticRank(sourceComp, conn.fromPortId);
                         const tRank = getPneumaticRank(targetComp, conn.toPortId);
-                        if (sRank > tRank) isFlowReversed = true;
+                        if (conn.isExhaust) {
+                          // No fluxo de exaustão: o ar se move do cilindro pneumático (rank 4) em direção à eletroválvula (rank 2)
+                          // Se da origem para o destino o rank for menor (sRank < tRank), o ar real flui do destino para a origem,
+                          // necessitando a animação invertida dash-reverse.
+                          if (sRank < tRank) isFlowReversed = true;
+                        } else {
+                          // No fluxo de alimentação: o ar se move da eletroválvula em direção ao cilindro
+                          if (sRank > tRank) isFlowReversed = true;
+                        }
                       } else {
                         const getElectricalRank = (c?: BenchComponent, portId?: string) => {
                           if (!c) return 2;
@@ -5205,9 +5218,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       // Engate Rápido Pneumático Festo QS conectado no círculo de origem
                       <g transform={`translate(${x1}, ${y1})`} className="pointer-events-none">
                         <circle r="7.5" fill="#334155" stroke="#94a3b8" strokeWidth="1.2" />
-                        <circle r="5.2" fill="#0284c7" stroke="#0369a1" strokeWidth="0.8" />
-                        <circle r="3" fill="#38bdf8" />
-                        <circle r="1.5" fill="#0284c7" />
+                        <circle r="5.2" fill={conn.isExhaust ? '#ca8a04' : '#0284c7'} stroke={conn.isExhaust ? '#a16207' : '#0369a1'} strokeWidth="0.8" />
+                        <circle r="3" fill={conn.isExhaust ? '#fef08a' : '#38bdf8'} />
+                        <circle r="1.5" fill={conn.isExhaust ? '#eab308' : '#0284c7'} />
                       </g>
                     ) : (
                       // Plugue Banana 4mm conectado no borne circular de origem
@@ -5223,9 +5236,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       // Engate Rápido Pneumático Festo QS conectado no círculo de destino
                       <g transform={`translate(${x2}, ${y2})`} className="pointer-events-none">
                         <circle r="7.5" fill="#334155" stroke="#94a3b8" strokeWidth="1.2" />
-                        <circle r="5.2" fill="#0284c7" stroke="#0369a1" strokeWidth="0.8" />
-                        <circle r="3" fill="#38bdf8" />
-                        <circle r="1.5" fill="#0284c7" />
+                        <circle r="5.2" fill={conn.isExhaust ? '#ca8a04' : '#0284c7'} stroke={conn.isExhaust ? '#a16207' : '#0369a1'} strokeWidth="0.8" />
+                        <circle r="3" fill={conn.isExhaust ? '#fef08a' : '#38bdf8'} />
+                        <circle r="1.5" fill={conn.isExhaust ? '#eab308' : '#0284c7'} />
                       </g>
                     ) : (
                       // Plugue Banana 4mm conectado no borne circular de destino

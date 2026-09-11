@@ -124,6 +124,7 @@ export interface VirtualConnection {
   toPortId: string;
   color?: string;
   active?: boolean;
+  isExhaust?: boolean;
   pressureBar?: number;
   voltageV?: number;
   flowRateLmin?: number;

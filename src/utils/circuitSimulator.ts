@@ -576,10 +576,17 @@ export function evaluateCircuitElectricalState(
   };
 }
 
+export interface ConnectionFlowResult {
+  activeConnIds: Set<string>;
+  exhaustConnIds: Set<string>;
+}
+
 /**
  * Determina se cada conexão física (tubo pneumático ou cabo elétrico)
  * possui fluxo de ar ativo ou circulação contínua de corrente elétrica.
  * Conexões com fluxo ativo exibem os traços brancos animados (stroke="#ffffff").
+ * Conexões de exaustão de ar do cilindro para a eletroválvula são identificadas
+ * para coloração amarela (#fef08a a #eab308) com traços no fluxo correto.
  * Conexões sem fluxo ou sem circulação de corrente permanecem na cor sólida original
  * do tubo de poliuretano e do isolamento do cabo elétrico, sem traços brancos.
  */
@@ -588,9 +595,10 @@ export function evaluateConnectionFlows(
   components: BenchComponent[],
   circuitEval: ReturnType<typeof evaluateCircuitElectricalState>,
   isSimulating: boolean
-): Set<string> {
+): ConnectionFlowResult {
   const activeConnIds = new Set<string>();
-  if (!isSimulating) return activeConnIds;
+  const exhaustConnIds = new Set<string>();
+  if (!isSimulating) return { activeConnIds, exhaustConnIds };
 
   const { nodes24V, nodes0V, hasElectricalPower } = circuitEval;
 
@@ -1034,8 +1042,130 @@ export function evaluateConnectionFlows(
         }
       });
     }
+
+    // 2.3 Identificação dos pórticos das eletroválvulas em estado de EXAUSTÃO
+    const exhaustPortIds = new Set<string>();
+
+    components.forEach(comp => {
+      // Eletroválvula 5/2 (duplo ou simples solenoide):
+      if (comp.type === 'valve_5_2_double_solenoid' || comp.type === 'valve_5_2_single_solenoid') {
+        const portP = comp.ports.find(p => p.name.includes('1') || p.name.includes('(P)') || p.functionType === 'pressure');
+        const port4 = comp.ports.find(p => p.name.includes('4') || p.name.includes('(A)') || p.functionType === 'work_a');
+        const port2 = comp.ports.find(p => p.name.includes('2') || p.name.includes('(B)') || p.functionType === 'work_b');
+
+        if (portP && pressurizedPorts.has(portP.id)) {
+          const valvePos = comp.state.valvePosition || 'left';
+          // Se carretel está à esquerda (alimenta 4): pórtico 2(B) está internamente conectado ao escape 3(R)
+          if (valvePos === 'left' && port2) {
+            exhaustPortIds.add(port2.id);
+          }
+          // Se carretel está à direita (alimenta 2): pórtico 4(A) está internamente conectado ao escape 5(S)
+          else if (valvePos === 'right' && port4) {
+            exhaustPortIds.add(port4.id);
+          }
+        }
+      }
+
+      // Válvula Direcional 3/2 Botão Pulsador:
+      if (comp.type === 'valve_3_2_button') {
+        const portP = comp.ports.find(p => p.name.includes('1') || p.name.includes('(P)'));
+        const port2 = comp.ports.find(p => p.name.includes('2') || p.name.includes('(A)'));
+        if (portP && pressurizedPorts.has(portP.id) && !comp.state.activated && port2) {
+          // Quando em repouso com pressão em 1, pórtico 2 comunica com o escape 3
+          exhaustPortIds.add(port2.id);
+        }
+      }
+    });
+
+    // 2.4 Rastreamento da linha de exaustão conectando a eletroválvula ao cilindro pneumático
+    // Apenas as tubulações que interligam o pórtico de escape da válvula a uma câmara de cilindro
+    // (diretamente ou via estranguladores / válvulas de escape rápido) são classificadas como exaustão!
+    if (exhaustPortIds.size > 0) {
+      const pneuGraph = new Map<string, Array<{ neighborPortId: string; connId: string | null }>>();
+      const addPneuEdge = (pA: string, pB: string, cId: string | null) => {
+        if (!pneuGraph.has(pA)) pneuGraph.set(pA, []);
+        if (!pneuGraph.has(pB)) pneuGraph.set(pB, []);
+        pneuGraph.get(pA)!.push({ neighborPortId: pB, connId: cId });
+        pneuGraph.get(pB)!.push({ neighborPortId: pA, connId: cId });
+      };
+
+      // Conexões físicas pneumáticas
+      connections.forEach(conn => {
+        if (conn.type === 'pneumatic') {
+          addPneuEdge(conn.fromPortId, conn.toPortId, conn.id);
+        }
+      });
+
+      // Passagens internas em componentes intermediários (válvula estranguladora / escape rápido)
+      components.forEach(comp => {
+        if (comp.type === 'flow_control_throttle') {
+          if (comp.ports[0] && comp.ports[1]) {
+            addPneuEdge(comp.ports[0].id, comp.ports[1].id, null);
+          }
+        } else if (comp.type === 'quick_exhaust_valve') {
+          const p1 = comp.ports.find(p => p.name.includes('1'));
+          const p2 = comp.ports.find(p => p.name.includes('2'));
+          if (p1 && p2) {
+            addPneuEdge(p1.id, p2.id, null);
+          }
+        }
+      });
+
+      // Identificar todos os pórticos pertencentes a cilindros
+      const cylinderPortIds = new Set<string>();
+      components.forEach(c => {
+        if (c.type.includes('cylinder') || c.category === 'actuators') {
+          c.ports.forEach(p => {
+            if (p.type === 'pneumatic') {
+              cylinderPortIds.add(p.id);
+            }
+          });
+        }
+      });
+
+      // Para cada pórtico de escape da eletroválvula, fazer BFS para encontrar conexões até o cilindro
+      exhaustPortIds.forEach(startExhaustPort => {
+        const queue: string[] = [startExhaustPort];
+        const visited = new Set<string>([startExhaustPort]);
+        const parentMap = new Map<string, { prevPort: string; connId: string | null }>();
+
+        const reachedCylinderPorts: string[] = [];
+
+        while (queue.length > 0) {
+          const curr = queue.shift()!;
+          if (cylinderPortIds.has(curr)) {
+            reachedCylinderPorts.push(curr);
+          }
+
+          const edges = pneuGraph.get(curr) || [];
+          for (const edge of edges) {
+            if (!visited.has(edge.neighborPortId)) {
+              visited.add(edge.neighborPortId);
+              parentMap.set(edge.neighborPortId, { prevPort: curr, connId: edge.connId });
+              if (!cylinderPortIds.has(edge.neighborPortId)) {
+                queue.push(edge.neighborPortId);
+              }
+            }
+          }
+        }
+
+        // Se alcançou um cilindro pneumático, marca todos os tubos do trajeto como exaustão ativa!
+        reachedCylinderPorts.forEach(cylPort => {
+          let curr = cylPort;
+          while (curr !== startExhaustPort) {
+            const info = parentMap.get(curr);
+            if (!info) break;
+            if (info.connId) {
+              exhaustConnIds.add(info.connId);
+              activeConnIds.add(info.connId);
+            }
+            curr = info.prevPort;
+          }
+        });
+      });
+    }
   }
 
-  return activeConnIds;
+  return { activeConnIds, exhaustConnIds };
 }
 
