@@ -1053,13 +1053,17 @@ export function evaluateConnectionFlows(
         const port4 = comp.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'work_a' || p.name.startsWith('4') || p.name.includes('(A)')));
         const port2 = comp.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'work_b' || p.name.startsWith('2') || p.name.includes('(B)')));
 
-        if (portP && pressurizedPorts.has(portP.id)) {
-          const valvePos = comp.state.valvePosition || 'left';
-          // Se carretel está à esquerda (alimenta 4): pórtico 2(B) está internamente conectado ao escape 3(R)
+        const isPressurized = (portP && pressurizedPorts.has(portP.id)) || (comp.state?.pressureP ?? 0) > 0 || !components.some(c => c.type === 'frl_unit' || c.type === 'air_manifold');
+
+        if (isPressurized) {
+          const valvePos = comp.state.valvePosition || (comp.type === 'valve_5_2_single_solenoid' ? 'right' : 'left');
+          // Se carretel está em 'left' (ar entra pela conexão 4 na câmara traseira 1 do cilindro):
+          // O tubo da conexão 2 da eletroválvula que liga a conexão 2 do cilindro fica em EXAUSTÃO (amarelo)
           if (valvePos === 'left' && port2) {
             exhaustPortIds.add(port2.id);
           }
-          // Se carretel está à direita (alimenta 2): pórtico 4(A) está internamente conectado ao escape 5(S)
+          // Se carretel está em 'right' (ar entra pela conexão 2 na câmara dianteira 2 do cilindro):
+          // O tubo da conexão 4 da eletroválvula que liga a conexão 1 do cilindro fica em EXAUSTÃO (amarelo)
           else if (valvePos === 'right' && port4) {
             exhaustPortIds.add(port4.id);
           }
@@ -1133,16 +1137,15 @@ export function evaluateConnectionFlows(
 
         while (queue.length > 0) {
           const curr = queue.shift()!;
-          if (cylinderPortIds.has(curr)) {
-            reachedCylinderPorts.push(curr);
-          }
 
           const edges = pneuGraph.get(curr) || [];
           for (const edge of edges) {
             if (!visited.has(edge.neighborPortId)) {
               visited.add(edge.neighborPortId);
               parentMap.set(edge.neighborPortId, { prevPort: curr, connId: edge.connId });
-              if (!cylinderPortIds.has(edge.neighborPortId)) {
+              if (cylinderPortIds.has(edge.neighborPortId)) {
+                reachedCylinderPorts.push(edge.neighborPortId);
+              } else {
                 queue.push(edge.neighborPortId);
               }
             }

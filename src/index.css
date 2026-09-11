@@ -7,7 +7,7 @@ body {
 
 @keyframes dash {
   from {
-    stroke-dashoffset: 24;
+    stroke-dashoffset: 48;
   }
   to {
     stroke-dashoffset: 0;
@@ -19,7 +19,7 @@ body {
     stroke-dashoffset: 0;
   }
   to {
-    stroke-dashoffset: 24;
+    stroke-dashoffset: 48;
   }
 }
 

@@ -377,9 +377,10 @@ export const PRESET_CIRCUITS: PresetCircuit[] = [
         fromComponentId: valve.id,
         fromPortId: valve.ports[2].id, // 4 (A)
         toComponentId: cyl.id,
-        toPortId: cyl.ports[0].id, // Avanço
+        toPortId: cyl.ports[0].id, // Avanço (Câmara Traseira 1)
         pressureBar: 0,
-        active: false
+        active: true,
+        isExhaust: true
       };
 
       const c3: VirtualConnection = {
