@@ -1519,8 +1519,74 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       });
                       const isNearSensor = Boolean(actuatedSensor);
 
+                      // Avaliação dinâmica das câmaras (Traseira/Avanço e Dianteira/Recuo)
+                      const portRear = comp.ports.find(p => p.type === 'pneumatic' && (p.name.includes('1') || p.name.includes('Avanço')));
+                      const portFront = comp.ports.find(p => p.type === 'pneumatic' && (p.name.includes('2') || p.name.includes('Recuo')));
+
+                      const rearConn = connections.find(c => c.active && (c.fromPortId === portRear?.id || c.toPortId === portRear?.id));
+                      const frontConn = connections.find(c => c.active && (c.fromPortId === portFront?.id || c.toPortId === portFront?.id));
+
+                      const isRearExhaust = Boolean(rearConn?.isExhaust);
+                      const isRearPressurized = Boolean(rearConn && !rearConn.isExhaust);
+
+                      const isFrontExhaust = Boolean(frontConn?.isExhaust);
+                      const isFrontPressurized = Boolean(frontConn && !frontConn.isExhaust);
+
+                      const rearChamberW = Math.max(0, pistonX - (barrelX + 14));
+                      const frontChamberX = pistonX + 18;
+                      const frontChamberW = Math.max(0, (barrelX + 14 + barrelWidth) - frontChamberX);
+
                       return (
                         <g>
+                          {/* Rótulos didáticos e status dinâmico das duas câmaras pneumáticas */}
+                          <g>
+                            {/* Badge Câmara Traseira */}
+                            <rect
+                              x={barrelX + 14}
+                              y={barrelY - 14}
+                              width={96}
+                              height={11}
+                              rx="2"
+                              fill={isRearExhaust ? '#422006' : isRearPressurized ? '#082f49' : '#0f172a'}
+                              stroke={isRearExhaust ? '#eab308' : isRearPressurized ? '#0284c7' : '#334155'}
+                              strokeWidth="0.8"
+                            />
+                            <text
+                              x={barrelX + 62}
+                              y={barrelY - 6}
+                              textAnchor="middle"
+                              fill={isRearExhaust ? '#fef08a' : isRearPressurized ? '#38bdf8' : '#94a3b8'}
+                              fontSize="6.5"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono', monospace"
+                            >
+                              {isRearExhaust ? 'TRASEIRA: EXAUSTÃO' : isRearPressurized ? 'TRASEIRA: ALIMENTAÇÃO' : 'CÂMARA TRASEIRA'}
+                            </text>
+
+                            {/* Badge Câmara Dianteira */}
+                            <rect
+                              x={barrelX + barrelWidth - 92}
+                              y={barrelY - 14}
+                              width={96}
+                              height={11}
+                              rx="2"
+                              fill={isFrontExhaust ? '#422006' : isFrontPressurized ? '#082f49' : '#0f172a'}
+                              stroke={isFrontExhaust ? '#eab308' : isFrontPressurized ? '#0284c7' : '#334155'}
+                              strokeWidth="0.8"
+                            />
+                            <text
+                              x={barrelX + barrelWidth - 44}
+                              y={barrelY - 6}
+                              textAnchor="middle"
+                              fill={isFrontExhaust ? '#fef08a' : isFrontPressurized ? '#38bdf8' : '#94a3b8'}
+                              fontSize="6.5"
+                              fontWeight="bold"
+                              fontFamily="'JetBrains Mono', monospace"
+                            >
+                              {isFrontExhaust ? 'DIANTEIRA: EXAUSTÃO' : isFrontPressurized ? 'DIANTEIRA: ALIMENTAÇÃO' : 'CÂMARA DIANTEIRA'}
+                            </text>
+                          </g>
+
                           {/* Cylinder Tie-Rods (Tirantes ISO 15552) */}
                           <line x1={barrelX} y1={barrelY + 4} x2={barrelX + barrelWidth + 14} y2={barrelY + 4} stroke="#475569" strokeWidth="2.5" />
                           <line x1={barrelX} y1={barrelY + barrelH - 4} x2={barrelX + barrelWidth + 14} y2={barrelY + barrelH - 4} stroke="#475569" strokeWidth="2.5" />
@@ -1530,6 +1596,86 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
                           {/* Cylinder Barrel Extrusion (Camisa Anodizada) */}
                           <rect x={barrelX + 14} y={barrelY} width={barrelWidth} height={barrelH} rx="2" fill="#0b1329" stroke="#334155" strokeWidth="1.5" />
+
+                          {/* 1. Preenchimento de Ar da Câmara Traseira (Avanço) */}
+                          {rearChamberW > 2 && (
+                            <g>
+                              <rect
+                                x={barrelX + 14}
+                                y={barrelY + 2}
+                                width={rearChamberW}
+                                height={barrelH - 4}
+                                fill={isRearExhaust ? '#eab308' : isRearPressurized ? '#0284c7' : '#0f172a'}
+                                fillOpacity={isRearExhaust ? 0.32 : isRearPressurized ? 0.42 : 0.15}
+                              />
+                              {isRearPressurized && (
+                                <line
+                                  x1={barrelX + 16}
+                                  y1={centerY}
+                                  x2={barrelX + 14 + rearChamberW - 4}
+                                  y2={centerY}
+                                  stroke="#38bdf8"
+                                  strokeWidth="1.5"
+                                  strokeDasharray="4 3"
+                                  className="animate-[dash_1s_linear_infinite]"
+                                  opacity="0.85"
+                                />
+                              )}
+                              {isRearExhaust && (
+                                <line
+                                  x1={barrelX + 16}
+                                  y1={centerY}
+                                  x2={barrelX + 14 + rearChamberW - 4}
+                                  y2={centerY}
+                                  stroke="#fef08a"
+                                  strokeWidth="1.5"
+                                  strokeDasharray="4 3"
+                                  className="animate-[dash-reverse_1s_linear_infinite]"
+                                  opacity="0.95"
+                                />
+                              )}
+                            </g>
+                          )}
+
+                          {/* 2. Preenchimento de Ar da Câmara Dianteira (Recuo) */}
+                          {frontChamberW > 2 && (
+                            <g>
+                              <rect
+                                x={frontChamberX}
+                                y={barrelY + 2}
+                                width={frontChamberW}
+                                height={barrelH - 4}
+                                fill={isFrontExhaust ? '#eab308' : isFrontPressurized ? '#0284c7' : '#0f172a'}
+                                fillOpacity={isFrontExhaust ? 0.32 : isFrontPressurized ? 0.42 : 0.15}
+                              />
+                              {isFrontPressurized && (
+                                <line
+                                  x1={frontChamberX + 4}
+                                  y1={centerY}
+                                  x2={frontChamberX + frontChamberW - 4}
+                                  y2={centerY}
+                                  stroke="#38bdf8"
+                                  strokeWidth="1.5"
+                                  strokeDasharray="4 3"
+                                  className="animate-[dash-reverse_1s_linear_infinite]"
+                                  opacity="0.85"
+                                />
+                              )}
+                              {isFrontExhaust && (
+                                <line
+                                  x1={frontChamberX + 4}
+                                  y1={centerY}
+                                  x2={frontChamberX + frontChamberW - 4}
+                                  y2={centerY}
+                                  stroke="#fef08a"
+                                  strokeWidth="1.5"
+                                  strokeDasharray="4 3"
+                                  className="animate-[dash_1s_linear_infinite]"
+                                  opacity="0.95"
+                                />
+                              )}
+                            </g>
+                          )}
                           
                           {/* Barrel Profile Grooves */}
                           <line x1={barrelX + 14} y1={barrelY + 12} x2={barrelX + 14 + barrelWidth} y2={barrelY + 12} stroke="#1e293b" strokeWidth="1" />
@@ -4851,33 +4997,51 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                               {/* Orifício central de escape */}
                               <circle cx="0" cy="0" r="2.2" fill="#78350f" />
                             </g>
-                          ) : isPneumatic ? (
-                            // Engate Rápido Pneumático Festo QS
-                            <g>
-                              {/* Base metálica sextavada do engate rápido */}
-                              <circle
-                                r="8.5"
-                                fill="#1e293b"
-                                stroke="#94a3b8"
-                                strokeWidth="1.5"
-                                className="transition-colors group-hover/port:stroke-sky-400"
-                              />
-                              {/* Anilha de extração / colar azul Festo */}
-                              <circle
-                                r="6"
-                                fill="#0284c7"
-                                stroke="#0369a1"
-                                strokeWidth="0.8"
-                              />
-                              {/* Orifício central de inserção do tubo de 4mm/6mm */}
-                              <circle
-                                r="3.5"
-                                fill={isConnected ? '#38bdf8' : '#090d16'}
-                                stroke={isConnected ? '#0284c7' : '#1e293b'}
-                                strokeWidth="0.8"
-                              />
-                            </g>
-                          ) : comp.type === 'reed_switch_sensor' ? (
+                          ) : isPneumatic ? (() => {
+                            const portConn = connections.find(
+                              (c) =>
+                                (c.fromComponentId === comp.id && c.fromPortId === port.id) ||
+                                (c.toComponentId === comp.id && c.toPortId === port.id)
+                            );
+                            const isPortExhaust = Boolean(portConn?.active && portConn?.isExhaust);
+                            const isPortActiveFeed = Boolean(portConn?.active && !portConn?.isExhaust);
+
+                            return (
+                              // Engate Rápido Pneumático Festo QS
+                              <g>
+                                {/* Base metálica sextavada do engate rápido */}
+                                <circle
+                                  r="8.5"
+                                  fill="#1e293b"
+                                  stroke={isPortExhaust ? '#eab308' : isPortActiveFeed ? '#38bdf8' : '#94a3b8'}
+                                  strokeWidth="1.5"
+                                  className="transition-colors group-hover/port:stroke-sky-400"
+                                />
+                                {/* Anilha de extração / colar - azul Festo na alimentação, amarela na exaustão */}
+                                <circle
+                                  r="6"
+                                  fill={isPortExhaust ? '#ca8a04' : '#0284c7'}
+                                  stroke={isPortExhaust ? '#eab308' : '#0369a1'}
+                                  strokeWidth="0.8"
+                                />
+                                {/* Orifício central de inserção do tubo de 4mm/6mm */}
+                                <circle
+                                  r="3.5"
+                                  fill={
+                                    isPortExhaust
+                                      ? '#fef08a'
+                                      : isPortActiveFeed
+                                      ? '#38bdf8'
+                                      : isConnected
+                                      ? '#0284c7'
+                                      : '#090d16'
+                                  }
+                                  stroke={isPortExhaust ? '#ca8a04' : isConnected ? '#0284c7' : '#1e293b'}
+                                  strokeWidth="0.8"
+                                />
+                              </g>
+                            );
+                          })() : comp.type === 'reed_switch_sensor' ? (
                             // Círculo de Conexão do Fio do Sensor (Identificado pela cor do fio)
                             <g>
                               {/* Anel Externo colorido identificado pelo fio (BN, BU, BK, WH) */}

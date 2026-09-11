@@ -957,9 +957,9 @@ export function evaluateConnectionFlows(
         // Válvula Direcional 5/2 (Duplo ou Simples Solenoide):
         // Orifício 1(P) comuta internamente para 4(A) (carretel 'left') ou 2(B) (carretel 'right')
         if (comp.type === 'valve_5_2_double_solenoid' || comp.type === 'valve_5_2_single_solenoid') {
-          const portP = comp.ports.find(p => p.name.includes('1') || p.name.includes('(P)') || p.functionType === 'pressure');
-          const port4 = comp.ports.find(p => p.name.includes('4') || p.name.includes('(A)') || p.functionType === 'work_a');
-          const port2 = comp.ports.find(p => p.name.includes('2') || p.name.includes('(B)') || p.functionType === 'work_b');
+          const portP = comp.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'pressure' || p.name.startsWith('1') || p.name.includes('(P)')));
+          const port4 = comp.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'work_a' || p.name.startsWith('4') || p.name.includes('(A)')));
+          const port2 = comp.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'work_b' || p.name.startsWith('2') || p.name.includes('(B)')));
 
           if (portP && pressurizedPorts.has(portP.id)) {
             const valvePos = comp.state.valvePosition || 'left';
@@ -1049,9 +1049,9 @@ export function evaluateConnectionFlows(
     components.forEach(comp => {
       // Eletroválvula 5/2 (duplo ou simples solenoide):
       if (comp.type === 'valve_5_2_double_solenoid' || comp.type === 'valve_5_2_single_solenoid') {
-        const portP = comp.ports.find(p => p.name.includes('1') || p.name.includes('(P)') || p.functionType === 'pressure');
-        const port4 = comp.ports.find(p => p.name.includes('4') || p.name.includes('(A)') || p.functionType === 'work_a');
-        const port2 = comp.ports.find(p => p.name.includes('2') || p.name.includes('(B)') || p.functionType === 'work_b');
+        const portP = comp.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'pressure' || p.name.startsWith('1') || p.name.includes('(P)')));
+        const port4 = comp.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'work_a' || p.name.startsWith('4') || p.name.includes('(A)')));
+        const port2 = comp.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'work_b' || p.name.startsWith('2') || p.name.includes('(B)')));
 
         if (portP && pressurizedPorts.has(portP.id)) {
           const valvePos = comp.state.valvePosition || 'left';
