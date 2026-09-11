@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Maximize, Minimize } from 'lucide-react';
+import { Maximize, Minimize, Check } from 'lucide-react';
 import { 
   BenchComponent, 
   VirtualConnection, 
@@ -45,6 +45,11 @@ export default function App() {
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState<boolean>(true);
   const [testDurationSeconds, setTestDurationSeconds] = useState<number>(0);
+
+  // Project Management & Save State
+  const [projectName, setProjectName] = useState<string>('Novo Projeto Eletropneumático');
+  const [isSavedRecently, setIsSavedRecently] = useState<boolean>(false);
+  const [saveSuccessNotification, setSaveSuccessNotification] = useState<string | null>(null);
 
   // Zoom and Cursor Position state (controlados na barra do Header)
   const [zoom, setZoom] = useState<number>(1);
@@ -611,6 +616,7 @@ export default function App() {
     setConnections(built.connections);
     setFaults([]);
     setSelectedComponent(null);
+    setProjectName(preset.name);
     benchAudio.playRelayClick();
   };
 
@@ -885,6 +891,90 @@ export default function App() {
     }
   };
 
+  // Salvar Projeto com Nome Personalizado
+  const handleSaveProject = () => {
+    const finalName = projectName.trim() || 'Novo Projeto Eletropneumático';
+    const sanitizedFileName = finalName
+      .replace(/[\\/:*?"<>|]/g, '')
+      .trim()
+      .replace(/\s+/g, '_');
+
+    const projectPayload = {
+      projectName: finalName,
+      savedAt: new Date().toISOString(),
+      version: '2.0',
+      components,
+      connections,
+      metrics
+    };
+
+    // 1. Armazenamento local para recuperação rápida
+    try {
+      const raw = localStorage.getItem('eletropneumatica_saved_projects');
+      const list = raw ? JSON.parse(raw) : [];
+      const entry = {
+        id: `proj_${Date.now()}`,
+        name: finalName,
+        savedAt: new Date().toLocaleString('pt-BR'),
+        componentsCount: components.length,
+        connectionsCount: connections.length,
+        data: projectPayload
+      };
+      const updated = [entry, ...list.filter((item: any) => item.name !== finalName)];
+      localStorage.setItem('eletropneumatica_saved_projects', JSON.stringify(updated.slice(0, 25)));
+      localStorage.setItem('eletropneumatica_last_project', finalName);
+    } catch (err) {
+      console.warn('Erro ao salvar no localStorage:', err);
+    }
+
+    // 2. Download do arquivo .json do projeto para o disco
+    const jsonContent = JSON.stringify(projectPayload, null, 2);
+    downloadFile(`${sanitizedFileName || 'Projeto_Eletropneumatico'}.json`, jsonContent, 'application/json');
+
+    // 3. Notificação visual e efeito sonoro
+    benchAudio.playRelayClick();
+    setIsSavedRecently(true);
+    setSaveSuccessNotification(`Projeto "${finalName}" salvo com sucesso!`);
+    setTimeout(() => {
+      setIsSavedRecently(false);
+      setSaveSuccessNotification(null);
+    }, 3000);
+  };
+
+  // Carregar arquivo de projeto .json existente
+  const handleLoadProjectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+
+        if (parsed.components && Array.isArray(parsed.components)) {
+          setComponents(parsed.components);
+          if (parsed.connections && Array.isArray(parsed.connections)) {
+            setConnections(parsed.connections);
+          }
+          const loadedName = parsed.projectName || file.name.replace(/\.[^/.]+$/, '');
+          setProjectName(loadedName);
+          setFaults([]);
+          setSelectedComponent(null);
+          benchAudio.playRelayClick();
+          setSaveSuccessNotification(`Projeto "${loadedName}" carregado com sucesso!`);
+          setTimeout(() => setSaveSuccessNotification(null), 3000);
+        } else {
+          alert('O arquivo selecionado não possui a estrutura válida de um projeto eletropneumático.');
+        }
+      } catch (err) {
+        console.error('Erro ao processar arquivo de projeto:', err);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const currentSelectedComp = selectedComponent
     ? components.find(c => c.id === selectedComponent.id) || selectedComponent
     : null;
@@ -921,6 +1011,11 @@ export default function App() {
           onCenterOnCursor={() => zoomControlsRef.current?.centerOnCursor()}
           isFullscreen={isFullscreen}
           onToggleFullscreen={handleToggleFullscreen}
+          projectName={projectName}
+          onProjectNameChange={setProjectName}
+          onSaveProject={handleSaveProject}
+          isSavedRecently={isSavedRecently}
+          onLoadProjectFile={handleLoadProjectFile}
         />
       )}
 
@@ -1005,6 +1100,19 @@ export default function App() {
         onDismiss={() => setLatestCriticalFault(null)}
         onNavigateDiagnostics={() => setCurrentTab('telemetry')}
       />
+
+      {/* Notificação Toast de Projeto Salvo com Sucesso */}
+      {saveSuccessNotification && (
+        <div
+          id="toast-save-project-notification"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-slate-900/95 text-emerald-300 border border-emerald-500/80 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-md text-xs font-semibold animate-fade-in"
+        >
+          <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-400">
+            <Check className="w-3.5 h-3.5 text-emerald-300" />
+          </div>
+          <span>{saveSuccessNotification}</span>
+        </div>
+      )}
     </div>
   );
 }

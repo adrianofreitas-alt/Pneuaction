@@ -18,7 +18,10 @@ import {
   ZoomOut,
   Maximize2,
   Maximize,
-  Minimize
+  Minimize,
+  Save,
+  Check,
+  FolderOpen
 } from 'lucide-react';
 import { PRESET_CIRCUITS } from '../data/presets';
 import { BenchComponent } from '../types';
@@ -51,6 +54,11 @@ interface HeaderProps {
   onCenterOnCursor?: () => void;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  projectName: string;
+  onProjectNameChange: (name: string) => void;
+  onSaveProject: () => void;
+  isSavedRecently?: boolean;
+  onLoadProjectFile?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -81,6 +89,11 @@ export const Header: React.FC<HeaderProps> = ({
   onCenterOnCursor,
   isFullscreen = false,
   onToggleFullscreen,
+  projectName,
+  onProjectNameChange,
+  onSaveProject,
+  isSavedRecently = false,
+  onLoadProjectFile,
 }) => {
   return (
     <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 text-slate-100">
@@ -290,8 +303,8 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Right: Presets, CAD, Report */}
-        <div className="flex items-center gap-2">
+        {/* Right: Presets, CAD, Report, Salvar Projeto */}
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Preset Selector */}
           <div className="relative">
             <select
@@ -372,6 +385,64 @@ export const Header: React.FC<HeaderProps> = ({
             <FileText className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Relatório</span>
           </button>
+
+          {/* Botão para Salvar o Projeto e Campo para Digitar o Nome do Novo Projeto (ao lado direito do botão Relatório) */}
+          <div className="flex items-center gap-1.5 bg-slate-950/80 border border-slate-700/80 rounded-lg p-1 shadow-sm">
+            <input
+              id="input-project-name"
+              type="text"
+              value={projectName}
+              onChange={(e) => onProjectNameChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  onSaveProject();
+                }
+              }}
+              placeholder="Nome do novo projeto..."
+              aria-label="Nome do novo projeto"
+              title="Digite o nome do novo projeto"
+              className="bg-slate-900 text-xs text-slate-100 placeholder-slate-500 px-2.5 py-1 rounded-md border border-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 w-36 sm:w-48 transition-all font-medium"
+            />
+            <button
+              id="btn-save-project"
+              type="button"
+              onClick={onSaveProject}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer whitespace-nowrap active:scale-95 shadow-sm border ${
+                isSavedRecently
+                  ? 'bg-emerald-700 text-white border-emerald-500 shadow-emerald-950/50'
+                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-emerald-500/60 shadow-emerald-950/30'
+              }`}
+              title="Salvar projeto com o nome digitado (Download JSON e armazenamento local)"
+            >
+              {isSavedRecently ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-200" />
+                  <span>Salvo!</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Salvar Projeto</span>
+                </>
+              )}
+            </button>
+
+            {onLoadProjectFile && (
+              <label
+                id="btn-load-project"
+                className="p-1 rounded-md text-slate-400 hover:text-emerald-400 hover:bg-slate-800/80 cursor-pointer transition border border-transparent hover:border-slate-700"
+                title="Abrir arquivo de projeto salvo (.json)"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  onChange={onLoadProjectFile}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
         </div>
       </div>
 
