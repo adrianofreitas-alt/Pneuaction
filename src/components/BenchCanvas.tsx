@@ -5125,7 +5125,8 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         strokeWidth={strokeWidth * 0.45}
                         strokeDasharray={isPneumatic ? '6 10' : '4 8'}
                         strokeLinecap="round"
-                        className="animate-[dash_1s_linear_infinite] pointer-events-none"
+                        style={{ animation: 'dash 1s linear infinite' }}
+                        className="pointer-events-none"
                       />
                     )}
 

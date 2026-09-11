@@ -578,9 +578,10 @@ export function evaluateCircuitElectricalState(
 
 /**
  * Determina se cada conexão física (tubo pneumático ou cabo elétrico)
- * possui fluxo de ar ativo ou corrente elétrica circulando.
- * Apenas conexões com fluxo/corrente devem exibir os traços brancos animados (flow dashes).
- * Caso contrário, os tubos e cabos devem permanecer puramente na sua cor sólida original.
+ * possui fluxo de ar ativo ou circulação contínua de corrente elétrica.
+ * Conexões com fluxo ativo exibem os traços brancos animados (stroke="#ffffff").
+ * Conexões sem fluxo ou sem circulação de corrente permanecem na cor sólida original
+ * do tubo de poliuretano e do isolamento do cabo elétrico, sem traços brancos.
  */
 export function evaluateConnectionFlows(
   connections: VirtualConnection[],
@@ -592,166 +593,449 @@ export function evaluateConnectionFlows(
   if (!isSimulating) return activeConnIds;
 
   const { nodes24V, nodes0V, hasElectricalPower } = circuitEval;
-  const compMap = new Map<string, BenchComponent>(components.map(c => [c.id, c]));
 
-  const getPortInfo = (compId: string, portId: string) => {
-    const comp = compMap.get(compId);
-    const port = comp?.ports.find(p => p.id === portId);
-    return { comp, port };
-  };
-
-  // 1. CORRENTE ELÉTRICA NOS CABOS ELÉTRICOS
-  // Um condutor elétrico transporta corrente apenas quando faz parte de um circuito fechado
-  // energizando uma carga conectada entre +24V e 0V.
+  // =========================================================================
+  // 1. AVALIAÇÃO NÓ A NÓ DE CONDUÇÃO ELÉTRICA CONTÍNUA (MALHA FECHADA)
+  // =========================================================================
   if (hasElectricalPower) {
-    const activeLoadPorts24V = new Set<string>();
-    const activeLoadPorts0V = new Set<string>();
+    // 1.1 Localizar os bornes de saída de alimentação (+24V e 0V) da Fonte
+    const powerSupply = components.find(c => c.type === 'power_supply_24v');
+    const source24Ports = new Set<string>();
+    const ground0Ports = new Set<string>();
+
+    if (powerSupply) {
+      powerSupply.ports.forEach(p => {
+        if (p.functionType === 'power_24v' || p.name.includes('+24V')) {
+          source24Ports.add(p.id);
+        }
+        if (p.functionType === 'ground_0v' || p.name.includes('0V')) {
+          ground0Ports.add(p.id);
+        }
+      });
+    }
+
+    // 1.2 Mapear todas as cargas ativas (possuem 24V no polo positivo E 0V no polo negativo)
+    const activeLoads: Array<{ posPortId: string; negPortId: string }> = [];
 
     components.forEach(comp => {
-      // 1.1 Bobina de Relé Auxiliar K1
+      // Bobina de Relé K1
       if (comp.type === 'industrial_relay') {
         const pA1 = comp.ports.find(p => p.name.includes('A1'));
         const pA2 = comp.ports.find(p => p.name.includes('A2'));
         if (pA1 && pA2 && nodes24V.has(pA1.id) && nodes0V.has(pA2.id)) {
-          activeLoadPorts24V.add(pA1.id);
-          activeLoadPorts0V.add(pA2.id);
+          activeLoads.push({ posPortId: pA1.id, negPortId: pA2.id });
         }
       }
 
-      // 1.2 Relés Temporizadores TON / TOF
+      // Relés Temporizadores TON / TOF
       if (comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') {
         const pA1 = comp.ports.find(p => p.name.includes('A1'));
         const pA2 = comp.ports.find(p => p.name.includes('A2'));
         if (pA1 && pA2 && nodes24V.has(pA1.id) && nodes0V.has(pA2.id)) {
-          activeLoadPorts24V.add(pA1.id);
-          activeLoadPorts0V.add(pA2.id);
+          activeLoads.push({ posPortId: pA1.id, negPortId: pA2.id });
         }
         const p24V = comp.ports.find(p => p.name.includes('24V'));
         const p0V = comp.ports.find(p => p.name.includes('0V'));
         if (p24V && p0V && nodes24V.has(p24V.id) && nodes0V.has(p0V.id)) {
-          activeLoadPorts24V.add(p24V.id);
-          activeLoadPorts0V.add(p0V.id);
+          activeLoads.push({ posPortId: p24V.id, negPortId: p0V.id });
         }
       }
 
-      // 1.3 Solenoides de Válvulas Eletropneumáticas Y1 e Y2
+      // Solenoides Y1 e Y2
       if (comp.type === 'valve_5_2_double_solenoid' || comp.type === 'valve_5_2_single_solenoid') {
         const y1Pos = comp.ports.find(p => p.name.includes('Y1 (+)') || p.name.includes('14 (Y1)'));
         const y1Neg = comp.ports.find(p => p.name.includes('Y1 (-)') || (p.functionType === 'ground_0v' && p.name.includes('Y1')));
         if (y1Pos && y1Neg && nodes24V.has(y1Pos.id) && nodes0V.has(y1Neg.id)) {
-          activeLoadPorts24V.add(y1Pos.id);
-          activeLoadPorts0V.add(y1Neg.id);
+          activeLoads.push({ posPortId: y1Pos.id, negPortId: y1Neg.id });
         }
 
         const y2Pos = comp.ports.find(p => p.name.includes('Y2 (+)') || p.name.includes('12 (Y2)'));
         const y2Neg = comp.ports.find(p => p.name.includes('Y2 (-)') || (p.functionType === 'ground_0v' && p.name.includes('Y2')));
         if (y2Pos && y2Neg && nodes24V.has(y2Pos.id) && nodes0V.has(y2Neg.id)) {
-          activeLoadPorts24V.add(y2Pos.id);
-          activeLoadPorts0V.add(y2Neg.id);
+          activeLoads.push({ posPortId: y2Pos.id, negPortId: y2Neg.id });
         }
       }
 
-      // 1.4 Sensores de proximidade / Reed Switches
+      // Sensores Industriais de Proximidade (Alimentação BN e BU)
       if (comp.type === 'reed_switch_sensor' || comp.category === 'sensors') {
         const bn = comp.ports.find(p => p.name.includes('BN'));
         const bu = comp.ports.find(p => p.name.includes('BU'));
         if (bn && bu && nodes24V.has(bn.id) && nodes0V.has(bu.id)) {
-          activeLoadPorts24V.add(bn.id);
-          activeLoadPorts0V.add(bu.id);
+          activeLoads.push({ posPortId: bn.id, negPortId: bu.id });
         }
       }
 
-      // 1.5 Módulo de Sinalização Visual (4 LEDs) & Sonoro (Buzina)
+      // Módulo de Sinalização Visual (LEDs) e Sonoro (Buzzer)
       if (comp.type === 'status_beacon_indicator') {
         const p0V = comp.ports.find(p => p.name.includes('0V'));
         if (p0V && nodes0V.has(p0V.id)) {
-          const pLed1 = comp.ports.find(p => p.name.includes('LED 1'));
-          const pLed2 = comp.ports.find(p => p.name.includes('LED 2'));
-          const pLed3 = comp.ports.find(p => p.name.includes('LED 3'));
-          const pLed4 = comp.ports.find(p => p.name.includes('LED 4'));
-          const pBuzzer = comp.ports.find(p => p.name.includes('Buzina') || p.name.includes('Buzzer'));
-
-          let anyIndicatorActive = false;
-          if (pLed1 && nodes24V.has(pLed1.id)) { activeLoadPorts24V.add(pLed1.id); anyIndicatorActive = true; }
-          if (pLed2 && nodes24V.has(pLed2.id)) { activeLoadPorts24V.add(pLed2.id); anyIndicatorActive = true; }
-          if (pLed3 && nodes24V.has(pLed3.id)) { activeLoadPorts24V.add(pLed3.id); anyIndicatorActive = true; }
-          if (pLed4 && nodes24V.has(pLed4.id)) { activeLoadPorts24V.add(pLed4.id); anyIndicatorActive = true; }
-          if (pBuzzer && nodes24V.has(pBuzzer.id)) { activeLoadPorts24V.add(pBuzzer.id); anyIndicatorActive = true; }
-
-          if (anyIndicatorActive) {
-            activeLoadPorts0V.add(p0V.id);
-          }
+          const indicators = ['LED 1', 'LED 2', 'LED 3', 'LED 4', 'Buzina', 'Buzzer'];
+          indicators.forEach(name => {
+            const pInd = comp.ports.find(p => p.name.includes(name));
+            if (pInd && nodes24V.has(pInd.id)) {
+              activeLoads.push({ posPortId: pInd.id, negPortId: p0V.id });
+            }
+          });
         }
       }
     });
 
-    // Se existem cargas ativas, rastrear os condutores elétricos que as alimentam (24V) e que fazem o retorno (0V)
-    if (activeLoadPorts24V.size > 0 || activeLoadPorts0V.size > 0) {
-      connections.forEach(c => {
-        if (c.type === 'electrical') {
-          // Cabo de 0V: conduz corrente se ambos os lados estão na rede 0V e tem carga ativa retornando
-          if (nodes0V.has(c.fromPortId) && nodes0V.has(c.toPortId)) {
-            if (activeLoadPorts0V.size > 0) {
-              activeConnIds.add(c.id);
+    // 1.3 Construir grafo de condução para o domínio 24V e domínio 0V
+    // Aresta = { neighborId: string, connId: string | null }
+    const graph24 = new Map<string, Array<{ neighborId: string; connId: string | null }>>();
+    const graph0V = new Map<string, Array<{ neighborId: string; connId: string | null }>>();
+
+    const addEdge = (
+      graph: Map<string, Array<{ neighborId: string; connId: string | null }>>,
+      u: string,
+      v: string,
+      connId: string | null
+    ) => {
+      if (!graph.has(u)) graph.set(u, []);
+      if (!graph.has(v)) graph.set(v, []);
+      graph.get(u)!.push({ neighborId: v, connId });
+      graph.get(v)!.push({ neighborId: u, connId });
+    };
+
+    // Arestas de conexões físicas elétricas
+    connections.forEach(conn => {
+      if (conn.type !== 'electrical') return;
+      if (nodes24V.has(conn.fromPortId) && nodes24V.has(conn.toPortId)) {
+        addEdge(graph24, conn.fromPortId, conn.toPortId, conn.id);
+      }
+      if (nodes0V.has(conn.fromPortId) && nodes0V.has(conn.toPortId)) {
+        addEdge(graph0V, conn.fromPortId, conn.toPortId, conn.id);
+      }
+    });
+
+    // Arestas de pontes condutivas internas em componentes
+    components.forEach(comp => {
+      // Régua de bornes 24V: todos os bornes são interligados na barra equipotencial
+      if (comp.type === 'terminal_strip_24v') {
+        for (let i = 0; i < comp.ports.length; i++) {
+          for (let j = i + 1; j < comp.ports.length; j++) {
+            if (nodes24V.has(comp.ports[i].id) && nodes24V.has(comp.ports[j].id)) {
+              addEdge(graph24, comp.ports[i].id, comp.ports[j].id, null);
             }
           }
-          // Cabo de 24V / sinal: conduz corrente se ambos os lados têm 24V e há carga ativa alimentada
-          else if (nodes24V.has(c.fromPortId) && nodes24V.has(c.toPortId)) {
-            activeConnIds.add(c.id);
+        }
+      }
+
+      // Régua de bornes 0V: todos os bornes são interligados na barra equipotencial
+      if (comp.type === 'terminal_strip_0v') {
+        for (let i = 0; i < comp.ports.length; i++) {
+          for (let j = i + 1; j < comp.ports.length; j++) {
+            if (nodes0V.has(comp.ports[i].id) && nodes0V.has(comp.ports[j].id)) {
+              addEdge(graph0V, comp.ports[i].id, comp.ports[j].id, null);
+            }
+          }
+        }
+      }
+
+      // Botão de Emergência: NF 21-22 conduz quando não acionado
+      if (comp.type === 'emergency_stop_button') {
+        const p21 = comp.ports.find(p => p.name.includes('21'));
+        const p22 = comp.ports.find(p => p.name.includes('22'));
+        if (p21 && p22 && !comp.state.isEmergencyTriggered && nodes24V.has(p21.id) && nodes24V.has(p22.id)) {
+          addEdge(graph24, p21.id, p22.id, null);
+        }
+      }
+
+      // Botoeira Industrial: NA 13-14 (quando pressionado) e NF 21-22 (quando não pressionado)
+      if (comp.type === 'push_button_station') {
+        const p13 = comp.ports.find(p => p.name.includes('13'));
+        const p14 = comp.ports.find(p => p.name.includes('14'));
+        if (p13 && p14 && comp.state.buttonNApressed && nodes24V.has(p13.id) && nodes24V.has(p14.id)) {
+          addEdge(graph24, p13.id, p14.id, null);
+        }
+
+        const p21 = comp.ports.find(p => p.name.includes('21'));
+        const p22 = comp.ports.find(p => p.name.includes('22'));
+        if (p21 && p22 && !comp.state.buttonNFpressed && nodes24V.has(p21.id) && nodes24V.has(p22.id)) {
+          addEdge(graph24, p21.id, p22.id, null);
+        }
+      }
+
+      // Relé K1: 4 contatos reversíveis
+      if (comp.type === 'industrial_relay') {
+        const pA1 = comp.ports.find(p => p.name.includes('A1'));
+        const pA2 = comp.ports.find(p => p.name.includes('A2'));
+        const isCoilEnergized = Boolean(pA1 && pA2 && nodes24V.has(pA1.id) && nodes0V.has(pA2.id));
+        const isRelayOn = isCoilEnergized || Boolean(comp.state?.isRelaySwitched);
+
+        const bridge = (portA?: ComponentPort, portB?: ComponentPort) => {
+          if (portA && portB && nodes24V.has(portA.id) && nodes24V.has(portB.id)) {
+            addEdge(graph24, portA.id, portB.id, null);
+          }
+        };
+
+        const p11 = comp.ports.find(p => p.name.includes('COM 1') || p.name.includes('11') || p.name.includes('13'));
+        const p14 = comp.ports.find(p => p.name.includes('NA 1') || p.name.includes('14'));
+        const p12 = comp.ports.find(p => p.name.includes('NF 1') || p.name.includes('12'));
+        if (isRelayOn) bridge(p11, p14); else bridge(p11, p12);
+
+        const p21 = comp.ports.find(p => p.name.includes('COM 2') || p.name.includes('21'));
+        const p24 = comp.ports.find(p => p.name.includes('NA 2') || p.name.includes('24'));
+        const p22 = comp.ports.find(p => p.name.includes('NF 2') || p.name.includes('22'));
+        if (isRelayOn) bridge(p21, p24); else bridge(p21, p22);
+
+        const p31 = comp.ports.find(p => p.name.includes('COM 3') || p.name.includes('31'));
+        const p34 = comp.ports.find(p => p.name.includes('NA 3') || p.name.includes('34'));
+        const p32 = comp.ports.find(p => p.name.includes('NF 3') || p.name.includes('32'));
+        if (isRelayOn) bridge(p31, p34); else bridge(p31, p32);
+
+        const p41 = comp.ports.find(p => p.name.includes('COM 4') || p.name.includes('41'));
+        const p44 = comp.ports.find(p => p.name.includes('NA 4') || p.name.includes('44'));
+        const p42 = comp.ports.find(p => p.name.includes('NF 4') || p.name.includes('42'));
+        if (isRelayOn) bridge(p41, p44); else bridge(p41, p42);
+      }
+
+      // Relés Temporizadores TON / TOF
+      if (comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') {
+        const isSwitched = Boolean(comp.state?.isRelaySwitched);
+        const bridge = (portA?: ComponentPort, portB?: ComponentPort) => {
+          if (portA && portB && nodes24V.has(portA.id) && nodes24V.has(portB.id)) {
+            addEdge(graph24, portA.id, portB.id, null);
+          }
+        };
+
+        const p11 = comp.ports.find(p => p.name.includes('COM 1'));
+        const p14 = comp.ports.find(p => p.name.includes('NA 1'));
+        const p12 = comp.ports.find(p => p.name.includes('NF 1'));
+        if (isSwitched) bridge(p11, p14); else bridge(p11, p12);
+
+        const p21 = comp.ports.find(p => p.name.includes('COM 2'));
+        const p24 = comp.ports.find(p => p.name.includes('NA 2'));
+        const p22 = comp.ports.find(p => p.name.includes('NF 2'));
+        if (isSwitched) bridge(p21, p24); else bridge(p21, p22);
+      }
+
+      // Sensores de Proximidade: condução eletrônica interna BN -> BK (quando detectado) ou BN -> WH (NF)
+      if (comp.category === 'sensors' || comp.type === 'reed_switch_sensor') {
+        const bn = comp.ports.find(p => p.name.includes('BN'));
+        const bk = comp.ports.find(p => p.name.includes('BK'));
+        const wh = comp.ports.find(p => p.name.includes('WH'));
+        const bu = comp.ports.find(p => p.name.includes('BU'));
+        const sensorStatus = circuitEval.sensorStatuses.get(comp.id);
+
+        if (sensorStatus?.isDetected && bn && bk && nodes24V.has(bn.id) && nodes24V.has(bk.id)) {
+          addEdge(graph24, bn.id, bk.id, null);
+        }
+        if (sensorStatus?.outputNFactive && bn && wh && nodes24V.has(bn.id) && nodes24V.has(wh.id)) {
+          addEdge(graph24, bn.id, wh.id, null);
+        }
+        // Sensor 2 fios
+        if (sensorStatus?.isDetected && comp.state.sensorWires === '2_wires' && bn && bu && nodes24V.has(bn.id) && nodes24V.has(bu.id)) {
+          addEdge(graph24, bn.id, bu.id, null);
+        }
+      }
+    });
+
+    // 1.4 Rastrear cabos que alimentam (+24V) e que retornam (0V) para cada carga ativa
+    const tracePathToTargets = (
+      startNodeId: string,
+      targetNodeIds: Set<string>,
+      graph: Map<string, Array<{ neighborId: string; connId: string | null }>>
+    ) => {
+      const queue: string[] = [startNodeId];
+      const visited = new Set<string>([startNodeId]);
+      const parentMap = new Map<string, { prevNode: string; connId: string | null }>();
+
+      let reachedTarget: string | null = null;
+      while (queue.length > 0) {
+        const curr = queue.shift()!;
+        if (targetNodeIds.has(curr)) {
+          reachedTarget = curr;
+          break;
+        }
+        const edges = graph.get(curr) || [];
+        for (const edge of edges) {
+          if (!visited.has(edge.neighborId)) {
+            visited.add(edge.neighborId);
+            parentMap.set(edge.neighborId, { prevNode: curr, connId: edge.connId });
+            queue.push(edge.neighborId);
+          }
+        }
+      }
+
+      if (reachedTarget) {
+        let curr = reachedTarget;
+        while (curr !== startNodeId) {
+          const info = parentMap.get(curr);
+          if (!info) break;
+          if (info.connId) {
+            activeConnIds.add(info.connId);
+          }
+          curr = info.prevNode;
+        }
+      }
+    };
+
+    activeLoads.forEach(load => {
+      // Rastrear caminho do polo positivo até a saída +24V da fonte
+      tracePathToTargets(load.posPortId, source24Ports, graph24);
+      // Rastrear caminho do polo negativo até o borne 0V (GND) da fonte
+      tracePathToTargets(load.negPortId, ground0Ports, graph0V);
+    });
+  }
+
+  // =========================================================================
+  // 2. AVALIAÇÃO NÓ A NÓ DE FLUXO PNEUMÁTICO (PRESSÃO E VAZÃO DE AR)
+  // =========================================================================
+  const frl = components.find(c => c.type === 'frl_unit');
+  const hasAirSupply = !frl || frl.state.activated !== false;
+
+  if (hasAirSupply) {
+    const pressurizedPorts = new Set<string>();
+
+    // 2.1 Fontes primárias de pressão pneumática
+    if (frl && frl.state.activated !== false) {
+      // Saída FRL: Port 'S' ou Port 2
+      const frlOutlet = frl.ports.find(p => p.name.includes('S') || p.name.includes('2') || p.name.includes('Saída')) || frl.ports[1];
+      if (frlOutlet) {
+        pressurizedPorts.add(frlOutlet.id);
+      }
+    }
+
+    // Bloco Distribuidor Manifold: se não houver FRL na bancada, o distribuidor atua com ar direto da linha principal
+    const manifold = components.find(c => c.type === 'air_manifold');
+    if (manifold && !frl) {
+      manifold.ports.forEach(p => pressurizedPorts.add(p.id));
+    }
+
+    // 2.2 Propagação nó a nó em cascata (Iterativo para cobrir filtros, válvulas, estranguladores e cilindros)
+    let changed = true;
+    let iteration = 0;
+
+    while (changed && iteration < 15) {
+      changed = false;
+      iteration++;
+
+      // Propagação através dos tubos pneumáticos físicos conectados
+      connections.forEach(conn => {
+        if (conn.type !== 'pneumatic') return;
+
+        if (pressurizedPorts.has(conn.fromPortId) && !pressurizedPorts.has(conn.toPortId)) {
+          pressurizedPorts.add(conn.toPortId);
+          activeConnIds.add(conn.id);
+          changed = true;
+        } else if (pressurizedPorts.has(conn.toPortId) && !pressurizedPorts.has(conn.fromPortId)) {
+          pressurizedPorts.add(conn.fromPortId);
+          activeConnIds.add(conn.id);
+          changed = true;
+        } else if (pressurizedPorts.has(conn.fromPortId) && pressurizedPorts.has(conn.toPortId)) {
+          if (!activeConnIds.has(conn.id)) {
+            activeConnIds.add(conn.id);
+            changed = true;
+          }
+        }
+      });
+
+      // Propagação interna através de componentes lógicos e válvulas
+      components.forEach(comp => {
+        // Manifold Distribuidor de Pressão: quando a entrada 1(P) é pressurizada, todas as saídas P1..P8 são pressurizadas
+        if (comp.type === 'air_manifold') {
+          const pIn = comp.ports.find(p => p.name.includes('Entrada') || p.name.includes('1')) || comp.ports[0];
+          if (pIn && pressurizedPorts.has(pIn.id)) {
+            comp.ports.forEach(p => {
+              if (p.id !== pIn.id && !pressurizedPorts.has(p.id)) {
+                pressurizedPorts.add(p.id);
+                changed = true;
+              }
+            });
+          }
+        }
+
+        // Válvula Direcional 5/2 (Duplo ou Simples Solenoide):
+        // Orifício 1(P) comuta internamente para 4(A) (carretel 'left') ou 2(B) (carretel 'right')
+        if (comp.type === 'valve_5_2_double_solenoid' || comp.type === 'valve_5_2_single_solenoid') {
+          const portP = comp.ports.find(p => p.name.includes('1') || p.name.includes('(P)') || p.functionType === 'pressure');
+          const port4 = comp.ports.find(p => p.name.includes('4') || p.name.includes('(A)') || p.functionType === 'work_a');
+          const port2 = comp.ports.find(p => p.name.includes('2') || p.name.includes('(B)') || p.functionType === 'work_b');
+
+          if (portP && pressurizedPorts.has(portP.id)) {
+            const valvePos = comp.state.valvePosition || 'left';
+            if (valvePos === 'left' && port4 && !pressurizedPorts.has(port4.id)) {
+              pressurizedPorts.add(port4.id);
+              changed = true;
+            } else if (valvePos === 'right' && port2 && !pressurizedPorts.has(port2.id)) {
+              pressurizedPorts.add(port2.id);
+              changed = true;
+            }
+          }
+        }
+
+        // Válvula Direcional 3/2 Botão Pulsador:
+        // Orifício 1(P) comuta para 2(A) quando acionada
+        if (comp.type === 'valve_3_2_button') {
+          const portP = comp.ports.find(p => p.name.includes('1') || p.name.includes('(P)'));
+          const port2 = comp.ports.find(p => p.name.includes('2') || p.name.includes('(A)'));
+          if (portP && pressurizedPorts.has(portP.id) && comp.state.activated) {
+            if (port2 && !pressurizedPorts.has(port2.id)) {
+              pressurizedPorts.add(port2.id);
+              changed = true;
+            }
+          }
+        }
+
+        // Válvula Reguladora de Fluxo Unidirecional (Estranguladora):
+        // Comunicação bidirecional entre orifícios 1 e 2
+        if (comp.type === 'flow_control_throttle') {
+          const p1 = comp.ports[0];
+          const p2 = comp.ports[1];
+          if (p1 && p2) {
+            if (pressurizedPorts.has(p1.id) && !pressurizedPorts.has(p2.id)) {
+              pressurizedPorts.add(p2.id);
+              changed = true;
+            } else if (pressurizedPorts.has(p2.id) && !pressurizedPorts.has(p1.id)) {
+              pressurizedPorts.add(p1.id);
+              changed = true;
+            }
+          }
+        }
+
+        // Válvula de Escape Rápido:
+        // Orifício 1(P) -> 2(A)
+        if (comp.type === 'quick_exhaust_valve') {
+          const p1 = comp.ports.find(p => p.name.includes('1'));
+          const p2 = comp.ports.find(p => p.name.includes('2'));
+          if (p1 && p2 && pressurizedPorts.has(p1.id) && !pressurizedPorts.has(p2.id)) {
+            pressurizedPorts.add(p2.id);
+            changed = true;
+          }
+        }
+
+        // Válvula Alternadora Elemento OU:
+        // Pressuriza a saída 2(A) se a entrada 1(X) OU 1(Y) estiver pressurizada
+        if (comp.type === 'shuttle_valve_or') {
+          const pX = comp.ports.find(p => p.name.includes('X') || p.name.includes('1 (X)'));
+          const pY = comp.ports.find(p => p.name.includes('Y') || p.name.includes('1 (Y)'));
+          const pA = comp.ports.find(p => p.name.includes('A') || p.name.includes('2'));
+          if (pA && !pressurizedPorts.has(pA.id)) {
+            if ((pX && pressurizedPorts.has(pX.id)) || (pY && pressurizedPorts.has(pY.id))) {
+              pressurizedPorts.add(pA.id);
+              changed = true;
+            }
+          }
+        }
+
+        // Válvula de Simultaneidade Elemento E:
+        // Pressuriza a saída 2(A) somente se AMBAS as entradas 1(X) E 1(Y) estiverem pressurizadas
+        if (comp.type === 'dual_pressure_and') {
+          const pX = comp.ports.find(p => p.name.includes('X') || p.name.includes('1 (X)'));
+          const pY = comp.ports.find(p => p.name.includes('Y') || p.name.includes('1 (Y)'));
+          const pA = comp.ports.find(p => p.name.includes('A') || p.name.includes('2'));
+          if (pA && !pressurizedPorts.has(pA.id)) {
+            if (pX && pressurizedPorts.has(pX.id) && pY && pressurizedPorts.has(pY.id)) {
+              pressurizedPorts.add(pA.id);
+              changed = true;
+            }
           }
         }
       });
     }
   }
 
-  // 2. FLUXO DE AR NOS TUBOS PNEUMÁTICOS
-  // O ar comprimido flui a partir da FRL / Manifold para as válvulas e atuadores
-  const frl = components.find(c => c.type === 'frl_unit');
-  const hasAirSupply = !frl || frl.state.activated !== false;
-
-  if (hasAirSupply) {
-    const valve = components.find(c => c.category === 'valves');
-    const valvePos = valve?.state.valvePosition || 'left';
-
-    connections.forEach(c => {
-      if (c.type === 'pneumatic') {
-        const { comp: fromComp, port: fromPort } = getPortInfo(c.fromComponentId, c.fromPortId);
-        const { comp: toComp, port: toPort } = getPortInfo(c.toComponentId, c.toPortId);
-
-        const involvesValve = fromComp?.category === 'valves' || toComp?.category === 'valves';
-        const involvesCyl = fromComp?.category === 'actuators' || toComp?.category === 'actuators';
-        const involvesManifold = fromComp?.type === 'air_manifold' || toComp?.type === 'air_manifold';
-        const involvesFrl = fromComp?.type === 'frl_unit' || toComp?.type === 'frl_unit';
-
-        // Linha de alimentação principal (FRL -> Manifold ou FRL -> Válvula 1(P))
-        if ((involvesFrl && (involvesManifold || involvesValve)) || (involvesManifold && involvesValve)) {
-          activeConnIds.add(c.id);
-        }
-
-        // Linha da Válvula até o Cilindro:
-        // Orifício 4 pressuriza o avanço (quando carretel está em 'left')
-        // Orifício 2 pressuriza o recuo (quando carretel está em 'right')
-        if (involvesValve && (involvesCyl || fromComp?.type === 'flow_control_throttle' || toComp?.type === 'flow_control_throttle')) {
-          const pName = fromComp?.category === 'valves' ? fromPort?.name || '' : toPort?.name || '';
-          if (valvePos === 'left' && (pName.includes('4') || pName.includes('Avanço'))) {
-            activeConnIds.add(c.id);
-          } else if (valvePos === 'right' && (pName.includes('2') || pName.includes('Recuo'))) {
-            activeConnIds.add(c.id);
-          }
-        }
-
-        // Regulador de fluxo unidirecional em série com o cilindro
-        const involvesThrottle = fromComp?.type === 'flow_control_throttle' || toComp?.type === 'flow_control_throttle';
-        if (involvesThrottle && involvesCyl) {
-          if (valvePos === 'left') {
-            activeConnIds.add(c.id);
-          } else if (valvePos === 'right') {
-            activeConnIds.add(c.id);
-          }
-        }
-      }
-    });
-  }
-
   return activeConnIds;
 }
+

@@ -31,6 +31,10 @@ export default function App() {
   const initialData = PRESET_CIRCUITS[0].build();
   const [components, setComponents] = useState<BenchComponent[]>(initialData.components);
   const [connections, setConnections] = useState<VirtualConnection[]>(initialData.connections);
+  const connectionsRef = useRef(connections);
+  useEffect(() => {
+    connectionsRef.current = connections;
+  }, [connections]);
 
   // Simulation running state
   const [isSimulating, setIsSimulating] = useState<boolean>(true);
@@ -521,7 +525,7 @@ export default function App() {
           // 10. Avaliação dos fluxos nas conexões (tubos pneumáticos e cabos elétricos)
           // Apenas conexões com fluxo de ar ou corrente elétrica ativa recebem traços brancos (active: true).
           // Se não houver fluxo/corrente, permanecem na cor sólida original do tubo e dos cabos elétricos.
-          const activeConnIds = evaluateConnectionFlows(connections, nextComps, finalCircuitEval, isSimulating);
+          const activeConnIds = evaluateConnectionFlows(connectionsRef.current, nextComps, finalCircuitEval, isSimulating);
           setConnections(prevConns => {
             let changed = false;
             const nextConns = prevConns.map(c => {
