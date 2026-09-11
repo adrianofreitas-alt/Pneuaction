@@ -40,23 +40,16 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
       {/* ------------------------------------------------------------------- */}
       <defs>
         <style>{`
-          @keyframes airFlowDashPos2_${comp.id} {
+          @keyframes airFlowForward_${comp.id} {
             from { stroke-dashoffset: 24; }
             to { stroke-dashoffset: 0; }
-          }
-          @keyframes airFlowDashPos1_${comp.id} {
-            from { stroke-dashoffset: 0; }
-            to { stroke-dashoffset: 24; }
           }
           @keyframes ledPulse_${comp.id} {
             0%, 100% { opacity: 0.88; transform: scale(1); }
             50% { opacity: 1; transform: scale(1.08); }
           }
-          .animate-flow-dash-2-${comp.id} {
-            animation: airFlowDashPos2_${comp.id} 0.65s linear infinite;
-          }
-          .animate-flow-dash-1-${comp.id} {
-            animation: airFlowDashPos1_${comp.id} 0.65s linear infinite;
+          .animate-flow-dash-${comp.id} {
+            animation: airFlowForward_${comp.id} 0.65s linear infinite;
           }
         `}</style>
 
@@ -94,19 +87,20 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           <stop offset="100%" stopColor="#030712" />
         </linearGradient>
 
-        {/* High-Pressure Air Flow Gradient (P -> Red/Orange) */}
+        {/* High-Pressure Air Flow Gradient: ENTRADA DE AR (1 -> 2,4: AZUL INDUSTRIAL / CIANO) */}
         <linearGradient id={`flow-pressure-${comp.id}`} x1="0%" y1="100%" x2="0%" y2="0%">
-          <stop offset="0%" stopColor="#dc2626" stopOpacity="0.9" />
-          <stop offset="40%" stopColor="#ea580c" stopOpacity="0.88" />
-          <stop offset="80%" stopColor="#f59e0b" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="#fef08a" stopOpacity="0.95" />
+          <stop offset="0%" stopColor="#0369a1" stopOpacity="0.95" />
+          <stop offset="35%" stopColor="#0284c7" stopOpacity="0.92" />
+          <stop offset="70%" stopColor="#0ea5e9" stopOpacity="0.95" />
+          <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.98" />
         </linearGradient>
 
-        {/* Exhaust Air Flow Gradient (Exhaust -> Blue/Cyan) */}
+        {/* Exhaust Air Flow Gradient: SAÍDA / EXAUSTÃO DE AR (2,4 -> 3,5: AMARELO / ÂMBAR) */}
         <linearGradient id={`flow-exhaust-${comp.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.9" />
-          <stop offset="60%" stopColor="#0284c7" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="#1e40af" stopOpacity="0.8" />
+          <stop offset="0%" stopColor="#fef08a" stopOpacity="0.95" />
+          <stop offset="35%" stopColor="#facc15" stopOpacity="0.92" />
+          <stop offset="70%" stopColor="#eab308" stopOpacity="0.88" />
+          <stop offset="100%" stopColor="#ca8a04" stopOpacity="0.85" />
         </linearGradient>
 
         {/* Solenoid Coil Dark Resin Gradient */}
@@ -210,7 +204,7 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           <rect x="-9" y="10" width="18" height="10" rx="1" fill="#475569" />
           <circle cx="0" cy="8" r="8.5" fill="#334155" stroke="#94a3b8" strokeWidth="1.5" />
           <circle cx="0" cy="8" r="6" fill="#0f172a" />
-          <circle cx="0" cy="8" r="3.5" fill={isLeftPos ? '#ef4444' : '#38bdf8'} />
+          <circle cx="0" cy="8" r="3.5" fill={isLeftPos ? '#0284c7' : '#eab308'} />
           <text x="0" y="-1" fill="#38bdf8" fontSize="7.5" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">
             4 (A)
           </text>
@@ -225,7 +219,7 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           <rect x="-9" y="10" width="18" height="10" rx="1" fill="#475569" />
           <circle cx="0" cy="8" r="8.5" fill="#334155" stroke="#94a3b8" strokeWidth="1.5" />
           <circle cx="0" cy="8" r="6" fill="#0f172a" />
-          <circle cx="0" cy="8" r="3.5" fill={!isLeftPos ? '#ef4444' : '#38bdf8'} />
+          <circle cx="0" cy="8" r="3.5" fill={!isLeftPos ? '#0284c7' : '#eab308'} />
           <text x="0" y="-1" fill="#38bdf8" fontSize="7.5" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">
             2 (B)
           </text>
@@ -259,13 +253,13 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           <line x1="-4.5" y1="22" x2="4.5" y2="22" stroke="#fef08a" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.5" />
           {/* Difusão de ar no escape quando ativo */}
           {!isLeftPos && (
-            <g opacity="0.85">
-              <line x1="-9" y1="18" x2="-13" y2="18" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 1" />
-              <line x1="9" y1="18" x2="13" y2="18" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 1" />
-              <line x1="0" y1="29" x2="0" y2="33" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 1" />
+            <g opacity="0.9">
+              <line x1="-9" y1="18" x2="-13" y2="18" stroke="#facc15" strokeWidth="1.2" strokeDasharray="2 1" />
+              <line x1="9" y1="18" x2="13" y2="18" stroke="#facc15" strokeWidth="1.2" strokeDasharray="2 1" />
+              <line x1="0" y1="29" x2="0" y2="33" stroke="#facc15" strokeWidth="1.2" strokeDasharray="2 1" />
             </g>
           )}
-          <text x="0" y="36" fill="#ca8a04" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+          <text x="0" y="36" fill="#eab308" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
             5 (S)
           </text>
         </g>
@@ -273,10 +267,10 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
         {/* Port 1 (P) - Entrada de Ar Comprimido Principal (Engate Rápido QS) */}
         <g transform="translate(125, 126)">
           <rect x="-12" y="0" width="24" height="14" rx="2" fill="#64748b" stroke="#334155" strokeWidth="1" />
-          <circle cx="0" cy="14" r="9.5" fill="#1e293b" stroke="#ef4444" strokeWidth="1.8" />
+          <circle cx="0" cy="14" r="9.5" fill="#1e293b" stroke="#0284c7" strokeWidth="1.8" />
           <circle cx="0" cy="14" r="6.5" fill="#0f172a" />
-          <circle cx="0" cy="14" r="4" fill="#ef4444" />
-          <text x="0" y="28" fill="#ef4444" fontSize="8" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">
+          <circle cx="0" cy="14" r="4" fill="#0284c7" />
+          <text x="0" y="28" fill="#38bdf8" fontSize="8" fontWeight="900" textAnchor="middle" fontFamily="'JetBrains Mono'">
             1 (P)
           </text>
         </g>
@@ -303,13 +297,13 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           <line x1="-4.5" y1="22" x2="4.5" y2="22" stroke="#fef08a" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.5" />
           {/* Difusão de ar no escape quando ativo */}
           {isLeftPos && (
-            <g opacity="0.85">
-              <line x1="-9" y1="18" x2="-13" y2="18" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 1" />
-              <line x1="9" y1="18" x2="13" y2="18" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 1" />
-              <line x1="0" y1="29" x2="0" y2="33" stroke="#38bdf8" strokeWidth="1" strokeDasharray="2 1" />
+            <g opacity="0.9">
+              <line x1="-9" y1="18" x2="-13" y2="18" stroke="#facc15" strokeWidth="1.2" strokeDasharray="2 1" />
+              <line x1="9" y1="18" x2="13" y2="18" stroke="#facc15" strokeWidth="1.2" strokeDasharray="2 1" />
+              <line x1="0" y1="29" x2="0" y2="33" stroke="#facc15" strokeWidth="1.2" strokeDasharray="2 1" />
             </g>
           )}
-          <text x="0" y="36" fill="#ca8a04" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+          <text x="0" y="36" fill="#eab308" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
             3 (R)
           </text>
         </g>
@@ -358,7 +352,7 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
 
           {/* DYNAMIC AIR FLOW PATHS INSIDE CHAMBER (Real-time fluid dynamic streams) */}
           {isLeftPos ? (
-            // POSIÇÃO 2 (ENERGIZADA): 1 -> 4 (Pressão) & 2 -> 3 (Escape)
+            // POSIÇÃO 2 (ENERGIZADA): 1 -> 4 (Pressão - Azul) & 2 -> 3 (Escape - Amarelo)
             <g id="fluid-channels-pos2">
               {/* Pressurized air from 1 (P) flowing into 4 (A) */}
               <path
@@ -367,9 +361,9 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
                 stroke={`url(#flow-pressure-${comp.id})`}
                 strokeWidth="8"
                 strokeLinecap="round"
-                opacity="0.88"
+                opacity="0.9"
               />
-              {/* Animated high-speed dashed stream */}
+              {/* Animated high-speed dashed stream (moving from 1 up into 4) */}
               <path
                 d="M 125 110 L 125 90 Q 125 78 110 78 L 100 78 Q 95 78 95 64"
                 fill="none"
@@ -377,31 +371,32 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeDasharray="6 4"
-                className={`animate-flow-dash-2-${comp.id}`}
-                opacity="0.9"
+                className={`animate-flow-dash-${comp.id}`}
+                opacity="0.95"
               />
-              <polygon points="95,64 91,73 99,73" fill="#fef08a" />
+              <polygon points="95,64 91,73 99,73" fill="#38bdf8" />
 
-              {/* Exhaust air from 2 (B) flowing down into 3 (S) */}
+              {/* Exhaust air from 2 (B) flowing down into 3 (R/EA) */}
               <path
                 d="M 155 64 L 155 82 Q 155 94 165 94 L 170 94 Q 175 94 175 110"
                 fill="none"
                 stroke={`url(#flow-exhaust-${comp.id})`}
                 strokeWidth="7"
                 strokeLinecap="round"
-                opacity="0.85"
+                opacity="0.88"
               />
+              {/* Animated high-speed dashed stream (moving from 2 down into 3) */}
               <path
                 d="M 155 64 L 155 82 Q 155 94 165 94 L 170 94 Q 175 94 175 110"
                 fill="none"
-                stroke="#bae6fd"
-                strokeWidth="2"
+                stroke="#ffffff"
+                strokeWidth="2.5"
                 strokeLinecap="round"
-                strokeDasharray="5 4"
-                className={`animate-flow-dash-2-${comp.id}`}
-                opacity="0.9"
+                strokeDasharray="6 4"
+                className={`animate-flow-dash-${comp.id}`}
+                opacity="0.95"
               />
-              <polygon points="175,110 171,101 179,101" fill="#38bdf8" />
+              <polygon points="175,110 171,101 179,101" fill="#facc15" />
 
               {/* Port 5 (S) Blocked seal indicator */}
               <g transform="translate(75, 96)">
@@ -411,7 +406,7 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
               </g>
             </g>
           ) : (
-            // POSIÇÃO 1 (DESENERGIZADA / MOLA): 1 -> 2 (Pressão) & 4 -> 5 (Escape)
+            // POSIÇÃO 1 (DESENERGIZADA / MOLA): 1 -> 2 (Pressão - Azul) & 4 -> 5 (Escape - Amarelo)
             <g id="fluid-channels-pos1">
               {/* Pressurized air from 1 (P) flowing into 2 (B) */}
               <path
@@ -420,8 +415,9 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
                 stroke={`url(#flow-pressure-${comp.id})`}
                 strokeWidth="8"
                 strokeLinecap="round"
-                opacity="0.88"
+                opacity="0.9"
               />
+              {/* Animated high-speed dashed stream (moving from 1 up into 2) */}
               <path
                 d="M 125 110 L 125 90 Q 125 78 140 78 L 150 78 Q 155 78 155 64"
                 fill="none"
@@ -429,31 +425,32 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeDasharray="6 4"
-                className={`animate-flow-dash-1-${comp.id}`}
-                opacity="0.9"
+                className={`animate-flow-dash-${comp.id}`}
+                opacity="0.95"
               />
-              <polygon points="155,64 151,73 159,73" fill="#fef08a" />
+              <polygon points="155,64 151,73 159,73" fill="#38bdf8" />
 
-              {/* Exhaust air from 4 (A) flowing down into 5 (R) */}
+              {/* Exhaust air from 4 (A) flowing down into 5 (S/EB) */}
               <path
                 d="M 95 64 L 95 82 Q 95 94 85 94 L 80 94 Q 75 94 75 110"
                 fill="none"
                 stroke={`url(#flow-exhaust-${comp.id})`}
                 strokeWidth="7"
                 strokeLinecap="round"
-                opacity="0.85"
+                opacity="0.88"
               />
+              {/* Animated high-speed dashed stream (moving from 4 down into 5) */}
               <path
                 d="M 95 64 L 95 82 Q 95 94 85 94 L 80 94 Q 75 94 75 110"
                 fill="none"
-                stroke="#bae6fd"
-                strokeWidth="2"
+                stroke="#ffffff"
+                strokeWidth="2.5"
                 strokeLinecap="round"
-                strokeDasharray="5 4"
-                className={`animate-flow-dash-1-${comp.id}`}
-                opacity="0.9"
+                strokeDasharray="6 4"
+                className={`animate-flow-dash-${comp.id}`}
+                opacity="0.95"
               />
-              <polygon points="75,110 71,101 79,101" fill="#38bdf8" />
+              <polygon points="75,110 71,101 79,101" fill="#facc15" />
 
               {/* Port 3 (R) Blocked seal indicator */}
               <g transform="translate(175, 96)">
@@ -627,12 +624,12 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           <g transform="translate(85, 74)">
             <rect x="0" y="0" width="38" height="34" fill="#0f172a" stroke="#475569" strokeWidth="1" />
             <rect x="38" y="0" width="38" height="34" fill="#0f172a" stroke="#475569" strokeWidth="1" />
-            {/* Box 1 (1->4 & 2->3) */}
+            {/* Box 1 (1->4 Pressão em Azul & 2->3 Escape em Amarelo) */}
             <line x1="12" y1="28" x2="12" y2="6" stroke="#38bdf8" strokeWidth="1.2" />
-            <line x1="26" y1="6" x2="26" y2="28" stroke="#38bdf8" strokeWidth="1.2" />
-            {/* Box 2 (1->2 & 4->5) */}
-            <line x1="48" y1="28" x2="66" y2="6" stroke="#94a3b8" strokeWidth="1.2" />
-            <line x1="66" y1="28" x2="48" y2="6" stroke="#94a3b8" strokeWidth="1.2" />
+            <line x1="26" y1="6" x2="26" y2="28" stroke="#facc15" strokeWidth="1.2" />
+            {/* Box 2 (1->2 Pressão em Azul & 4->5 Escape em Amarelo) */}
+            <line x1="48" y1="28" x2="66" y2="6" stroke="#38bdf8" strokeWidth="1.2" />
+            <line x1="66" y1="28" x2="48" y2="6" stroke="#facc15" strokeWidth="1.2" />
           </g>
         </g>
       )}

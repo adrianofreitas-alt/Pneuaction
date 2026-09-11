@@ -2506,11 +2506,33 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           <rect x="22" y="38" width="76" height="52" rx="3" fill="#020617" stroke="#38bdf8" strokeWidth="1.2" />
                           <rect x="24" y="44" width="72" height="38" rx="2" fill="#090d16" />
 
-                          {/* Dynamic flow: Pressed (1->2), Not pressed (2->3 exhaust) */}
+                          {/* Dynamic flow: Pressed (1->2 entrada/pressão em azul), Not pressed (2->3 escape/exaustão em amarelo) */}
                           {isPressed ? (
-                            <path d="M 38 82 L 38 60 Q 38 52 50 52 L 60 52 L 60 38" fill="none" stroke="#ef4444" strokeWidth="5" strokeLinecap="round" />
+                            <g>
+                              <path d="M 38 82 L 38 60 Q 38 52 50 52 L 60 52 L 60 38" fill="none" stroke="#0284c7" strokeWidth="5" strokeLinecap="round" />
+                              <path
+                                d="M 38 82 L 38 60 Q 38 52 50 52 L 60 52 L 60 38"
+                                fill="none"
+                                stroke="#ffffff"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeDasharray="5 3"
+                                style={{ animation: 'dash 0.8s linear infinite' }}
+                              />
+                            </g>
                           ) : (
-                            <path d="M 60 38 L 60 56 Q 60 66 72 66 L 82 66 L 82 82" fill="none" stroke="#38bdf8" strokeWidth="4" strokeLinecap="round" />
+                            <g>
+                              <path d="M 60 38 L 60 56 Q 60 66 72 66 L 82 66 L 82 82" fill="none" stroke="#eab308" strokeWidth="5" strokeLinecap="round" />
+                              <path
+                                d="M 60 38 L 60 56 Q 60 66 72 66 L 82 66 L 82 82"
+                                fill="none"
+                                stroke="#ffffff"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeDasharray="5 3"
+                                style={{ animation: 'dash 0.8s linear infinite' }}
+                              />
+                            </g>
                           )}
 
                           {/* Moving Spool / Poppet */}
@@ -5117,18 +5139,63 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                     />
 
                     {/* Animated flow dash if simulating - só exibe traços brancos quando tiver fluxo de ar ou corrente elétrica */}
-                    {isSimulating && conn.active && (
-                      <path
-                        d={pathD}
-                        fill="none"
-                        stroke="#ffffff"
-                        strokeWidth={strokeWidth * 0.45}
-                        strokeDasharray={isPneumatic ? '6 10' : '4 8'}
-                        strokeLinecap="round"
-                        style={{ animation: 'dash 1s linear infinite' }}
-                        className="pointer-events-none"
-                      />
-                    )}
+                    {isSimulating && conn.active && (() => {
+                      // Determinar sentido físico do fluxo para garantir que os tracinhos brancos sigam a física real do ar e da corrente
+                      const sourceComp = components.find((c) => c.id === conn.fromComponentId);
+                      const targetComp = components.find((c) => c.id === conn.toComponentId);
+                      let isFlowReversed = false;
+
+                      if (isPneumatic) {
+                        const getPneumaticRank = (c?: BenchComponent, portId?: string) => {
+                          if (!c) return 2;
+                          if (c.type === 'frl_unit' || c.type === 'air_supply') return 0;
+                          if (c.type === 'manifold_distributor') return 1;
+                          if (c.type.startsWith('valve_')) {
+                            const isPInlet = portId?.includes('-p-') || portId?.endsWith('-p') || portId?.includes('-1') || portId?.endsWith('-1');
+                            return isPInlet ? 1.5 : 2;
+                          }
+                          if (c.type === 'flow_control_valve' || c.type === 'flow_control') return 3;
+                          if (c.type.startsWith('cylinder_')) return 4;
+                          return 2;
+                        };
+                        const sRank = getPneumaticRank(sourceComp, conn.fromPortId);
+                        const tRank = getPneumaticRank(targetComp, conn.toPortId);
+                        if (sRank > tRank) isFlowReversed = true;
+                      } else {
+                        const getElectricalRank = (c?: BenchComponent, portId?: string) => {
+                          if (!c) return 2;
+                          const portName = portId ? (c.ports.find((p) => p.id === portId)?.name || '') : '';
+                          const isGnd = portName.includes('0V') || portName.includes('GND') || portName.includes('Terra') || portName.includes('A2');
+                          const isPos = portName.includes('24V') || portName.includes('V+') || portName.includes('+') || portName.includes('A1');
+                          if (c.type === 'power_supply' || c.type === 'terminal_strip') {
+                            if (isPos) return 0;
+                            if (isGnd) return 5;
+                            return 2;
+                          }
+                          if (c.type.includes('button') || c.type.includes('sensor')) return 1;
+                          if (c.type.includes('relay')) return isGnd ? 4.5 : 2.5;
+                          if (c.type.startsWith('valve_')) return isGnd ? 4.5 : 3;
+                          if (isGnd) return 5;
+                          return 2;
+                        };
+                        const sRank = getElectricalRank(sourceComp, conn.fromPortId);
+                        const tRank = getElectricalRank(targetComp, conn.toPortId);
+                        if (sRank > tRank) isFlowReversed = true;
+                      }
+
+                      return (
+                        <path
+                          d={pathD}
+                          fill="none"
+                          stroke="#ffffff"
+                          strokeWidth={strokeWidth * 0.45}
+                          strokeDasharray={isPneumatic ? '6 10' : '4 8'}
+                          strokeLinecap="round"
+                          style={{ animation: `${isFlowReversed ? 'dash-reverse' : 'dash'} 1s linear infinite` }}
+                          className="pointer-events-none"
+                        />
+                      );
+                    })()}
 
                     {/* ---------------------------------------------------- */}
                     {/* PHYSICAL CONNECTORS AT THE CIRCULAR ENTRANCES / EXITS */}

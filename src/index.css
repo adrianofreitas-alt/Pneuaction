@@ -14,3 +14,12 @@ body {
   }
 }
 
+@keyframes dash-reverse {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 24;
+  }
+}
+
