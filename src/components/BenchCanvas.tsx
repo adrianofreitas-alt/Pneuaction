@@ -598,7 +598,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
         toPortId: port.id,
         pressureBar: port.type === 'pneumatic' ? 6.0 : 0,
         voltageV: port.type === 'electrical' ? 24 : 0,
-        active: true,
+        active: false,
       };
 
       onUpdateConnections([...connections, newConn]);
@@ -4314,6 +4314,236 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       );
                     })()}
 
+                    {/* 11. MÓDULO SINALIZADOR VISUAL (4x LEDS) & SONORO (BUZINA / BUZZER) */}
+                    {comp.type === 'status_beacon_indicator' && (() => {
+                      const led1Active = Boolean(comp.state.led1Active);
+                      const led2Active = Boolean(comp.state.led2Active);
+                      const led3Active = Boolean(comp.state.led3Active);
+                      const led4Active = Boolean(comp.state.led4Active);
+                      const buzzerActive = Boolean(comp.state.buzzerActive);
+
+                      return (
+                        <g>
+                          {/* Faceplate chassi metálico industrial escovado */}
+                          <rect x="6" y="28" width="228" height="156" rx="6" fill="#090d16" stroke="#334155" strokeWidth="1.2" />
+
+                          {/* Placa superior de identificação e cabeçalho */}
+                          <rect x="10" y="32" width="220" height="20" rx="4" fill="#0b1329" stroke="#1e293b" strokeWidth="1" />
+                          <text
+                            x="20"
+                            y="45"
+                            fill="#f8fafc"
+                            fontSize="8"
+                            fontWeight="bold"
+                            fontFamily="'JetBrains Mono', monospace"
+                            letterSpacing="0.4"
+                          >
+                            SINALIZADOR VISUAL (4x LEDS) & SONORO
+                          </text>
+                          <rect x="186" y="35" width="40" height="14" rx="3" fill="#1e293b" />
+                          <text
+                            x="206"
+                            y="45.5"
+                            fill="#38bdf8"
+                            fontSize="7.5"
+                            fontWeight="bold"
+                            fontFamily="'JetBrains Mono', monospace"
+                            textAnchor="middle"
+                          >
+                            24VCC
+                          </text>
+
+                          {/* ---------------------------------------------------- */}
+                          {/* SEÇÃO 1: 4 SINALIZADORES LUMINOSOS LED 22mm         */}
+                          {/* ---------------------------------------------------- */}
+                          {/* Painel de fundo dos LEDs */}
+                          <rect x="10" y="56" width="154" height="74" rx="4" fill="#040711" stroke="#1e293b" strokeWidth="1" />
+                          <text x="16" y="66" fill="#64748b" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
+                            INDICAÇÃO ÓPTICA (IEC 60073)
+                          </text>
+
+                          {/* LED 1: VERDE (Operação / Normal) */}
+                          <g transform="translate(33.6, 92)">
+                            {/* Halo de irradiação difusa quando energizado */}
+                            {led1Active && (
+                              <circle r="22" fill="#10b981" opacity="0.3" className="animate-pulse pointer-events-none" />
+                            )}
+                            {/* Colar metálico cromado */}
+                            <circle r="14" fill="#1e293b" stroke="#475569" strokeWidth="1.2" />
+                            {/* Lente óptica Fresnel */}
+                            <circle
+                              r="11"
+                              fill={led1Active ? "#059669" : "#064e3b"}
+                              stroke={led1Active ? "#34d399" : "#065f46"}
+                              strokeWidth="1.5"
+                            />
+                            {/* Núcleo de emissão luminoso */}
+                            <circle r="6" fill={led1Active ? "#a7f3d0" : "#047857"} />
+                            {/* Brilho especular curvo na lente de policarbonato */}
+                            <ellipse cx="-3" cy="-4" rx="4" ry="2" fill="#ffffff" opacity={led1Active ? 0.9 : 0.2} />
+                            
+                            <text x="0" y="-17" fill="#10b981" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              LED 1
+                            </text>
+                            <text x="0" y="22" fill={led1Active ? "#34d399" : "#64748b"} fontSize="6" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              {led1Active ? "ACESO" : "APAGADO"}
+                            </text>
+                            <text x="0" y="30" fill="#94a3b8" fontSize="5.5" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              VERDE
+                            </text>
+                          </g>
+
+                          {/* LED 2: VERMELHO (Alarme / Parada / Falha) */}
+                          <g transform="translate(67.2, 92)">
+                            {led2Active && (
+                              <circle r="22" fill="#ef4444" opacity="0.3" className="animate-pulse pointer-events-none" />
+                            )}
+                            <circle r="14" fill="#1e293b" stroke="#475569" strokeWidth="1.2" />
+                            <circle
+                              r="11"
+                              fill={led2Active ? "#dc2626" : "#450a0a"}
+                              stroke={led2Active ? "#f87171" : "#7f1d1d"}
+                              strokeWidth="1.5"
+                            />
+                            <circle r="6" fill={led2Active ? "#fecaca" : "#7f1d1d"} />
+                            <ellipse cx="-3" cy="-4" rx="4" ry="2" fill="#ffffff" opacity={led2Active ? 0.9 : 0.2} />
+
+                            <text x="0" y="-17" fill="#ef4444" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              LED 2
+                            </text>
+                            <text x="0" y="22" fill={led2Active ? "#f87171" : "#64748b"} fontSize="6" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              {led2Active ? "ACESO" : "APAGADO"}
+                            </text>
+                            <text x="0" y="30" fill="#94a3b8" fontSize="5.5" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              VERM.
+                            </text>
+                          </g>
+
+                          {/* LED 3: AMARELO (Atenção / Ciclo / Espera) */}
+                          <g transform="translate(103.2, 92)">
+                            {led3Active && (
+                              <circle r="22" fill="#f59e0b" opacity="0.3" className="animate-pulse pointer-events-none" />
+                            )}
+                            <circle r="14" fill="#1e293b" stroke="#475569" strokeWidth="1.2" />
+                            <circle
+                              r="11"
+                              fill={led3Active ? "#d97706" : "#451a03"}
+                              stroke={led3Active ? "#fbbf24" : "#78350f"}
+                              strokeWidth="1.5"
+                            />
+                            <circle r="6" fill={led3Active ? "#fef08a" : "#78350f"} />
+                            <ellipse cx="-3" cy="-4" rx="4" ry="2" fill="#ffffff" opacity={led3Active ? 0.9 : 0.2} />
+
+                            <text x="0" y="-17" fill="#f59e0b" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              LED 3
+                            </text>
+                            <text x="0" y="22" fill={led3Active ? "#fbbf24" : "#64748b"} fontSize="6" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              {led3Active ? "ACESO" : "APAGADO"}
+                            </text>
+                            <text x="0" y="30" fill="#94a3b8" fontSize="5.5" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              AMAR.
+                            </text>
+                          </g>
+
+                          {/* LED 4: AZUL (Habilitação / Modo Auto) */}
+                          <g transform="translate(136.8, 92)">
+                            {led4Active && (
+                              <circle r="22" fill="#3b82f6" opacity="0.3" className="animate-pulse pointer-events-none" />
+                            )}
+                            <circle r="14" fill="#1e293b" stroke="#475569" strokeWidth="1.2" />
+                            <circle
+                              r="11"
+                              fill={led4Active ? "#2563eb" : "#172554"}
+                              stroke={led4Active ? "#60a5fa" : "#1e3a8a"}
+                              strokeWidth="1.5"
+                            />
+                            <circle r="6" fill={led4Active ? "#bfdbfe" : "#1e3a8a"} />
+                            <ellipse cx="-3" cy="-4" rx="4" ry="2" fill="#ffffff" opacity={led4Active ? 0.9 : 0.2} />
+
+                            <text x="0" y="-17" fill="#3b82f6" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              LED 4
+                            </text>
+                            <text x="0" y="22" fill={led4Active ? "#60a5fa" : "#64748b"} fontSize="6" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              {led4Active ? "ACESO" : "APAGADO"}
+                            </text>
+                            <text x="0" y="30" fill="#94a3b8" fontSize="5.5" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              AZUL
+                            </text>
+                          </g>
+
+                          {/* ---------------------------------------------------- */}
+                          {/* SEÇÃO 2: BUZINA / SINALIZADOR ACÚSTICO (BUZZER)      */}
+                          {/* ---------------------------------------------------- */}
+                          <rect x="168" y="56" width="62" height="74" rx="4" fill="#040711" stroke="#1e293b" strokeWidth="1" />
+                          <text x="199" y="66" fill="#ea580c" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                            BUZINA
+                          </text>
+
+                          <g transform="translate(199, 93)">
+                            {/* Anéis sonoros pulsantes de difusão acústica */}
+                            {buzzerActive && (
+                              <g>
+                                <circle r="24" fill="none" stroke="#f59e0b" strokeWidth="1.5" opacity="0.5" className="animate-ping pointer-events-none" />
+                                <path d="M 21 -10 A 24 24 0 0 1 21 10" fill="none" stroke="#fde047" strokeWidth="2" strokeLinecap="round" />
+                                <path d="M 26 -16 A 30 30 0 0 1 26 16" fill="none" stroke="#facc15" strokeWidth="2.5" strokeLinecap="round" />
+                              </g>
+                            )}
+
+                            {/* Carcaça externa da buzina piezoelétrica */}
+                            <circle
+                              r="17"
+                              fill="#0b1120"
+                              stroke={buzzerActive ? "#f59e0b" : "#334155"}
+                              strokeWidth={buzzerActive ? "1.8" : "1.2"}
+                            />
+                            {/* Grade acústica concêntrica com fendas de ressonância */}
+                            <circle r="12" fill="#020617" stroke="#1e293b" strokeWidth="1" />
+                            <circle r="7" fill={buzzerActive ? "#b45309" : "#0f172a"} stroke={buzzerActive ? "#fde047" : "#334155"} strokeWidth="1" />
+                            
+                            {/* Ranhuras da buzina industrial */}
+                            <line x1="-5" y1="0" x2="5" y2="0" stroke={buzzerActive ? "#fef08a" : "#475569"} strokeWidth="1.5" strokeLinecap="round" />
+                            <line x1="0" y1="-5" x2="0" y2="5" stroke={buzzerActive ? "#fef08a" : "#475569"} strokeWidth="1.5" strokeLinecap="round" />
+
+                            <text
+                              x="0"
+                              y="24"
+                              fill={buzzerActive ? "#fde047" : "#64748b"}
+                              fontSize="6"
+                              fontWeight="bold"
+                              textAnchor="middle"
+                              fontFamily="'JetBrains Mono'"
+                            >
+                              {buzzerActive ? "TOCANDO 🔊" : "MUDO"}
+                            </text>
+                            <text x="0" y="32" fill="#94a3b8" fontSize="5.5" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                              85 dB
+                            </text>
+                          </g>
+
+                          {/* ---------------------------------------------------- */}
+                          {/* SEÇÃO 3: RÉGUA DE BORNES ELÉTRICOS (INFERIOR)        */}
+                          {/* ---------------------------------------------------- */}
+                          {/* Régua de fixação dos bornes */}
+                          <rect x="10" y="134" width="220" height="46" rx="4" fill="#040711" stroke="#1e293b" strokeWidth="1" />
+
+                          {/* Faixa superior com legendas de comando */}
+                          <rect x="10" y="134" width="154" height="11" rx="3" fill="#7f1d1d" opacity="0.6" />
+                          <text x="14" y="142" fill="#fecaca" fontSize="6.5" fontWeight="bold" fontFamily="'JetBrains Mono'">
+                            5x BORNES +24V (COMANDO INDEPENDENTE)
+                          </text>
+
+                          <rect x="166" y="134" width="64" height="11" rx="3" fill="#172554" opacity="0.8" />
+                          <text x="198" y="142" fill="#bfdbfe" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="'JetBrains Mono'">
+                            0V COMUM
+                          </text>
+
+                          {/* Linha esquemática de equipotencial conectando cátodos ao 0V comum */}
+                          <line x1="33.6" y1="172" x2="216" y2="172" stroke="#1e3a8a" strokeWidth="0.8" strokeDasharray="2 2" />
+                          <circle cx="216" cy="172" r="2" fill="#3b82f6" />
+                        </g>
+                      );
+                    })()}
+
                     {/* ------------------------------------------------ */}
                     {/* PORTS RENDERING (Connection Circles / Entradas e Saídas) */}
                     {/* ------------------------------------------------ */}
@@ -4453,6 +4683,17 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         }
                       }
 
+                      // Auto-ajuste para o Módulo Sinalizador Visual e Sonoro:
+                      if (comp.type === 'status_beacon_indicator') {
+                        portY = 82;
+                        if (port.name.includes('LED 1')) portX = 14;
+                        else if (port.name.includes('LED 2')) portX = 28;
+                        else if (port.name.includes('LED 3')) portX = 43;
+                        else if (port.name.includes('LED 4')) portX = 57;
+                        else if (port.name.includes('Buzina')) portX = 74;
+                        else if (port.name.includes('0V')) portX = 90;
+                      }
+
                       const px = (comp.width * portX) / 100;
                       const py = (comp.height * portY) / 100;
                       const isPneumatic = port.type === 'pneumatic';
@@ -4492,6 +4733,13 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                         } else if (port.name.includes('NA') || port.name.includes('14') || port.name.includes('24') || port.name.includes('34') || port.name.includes('44')) {
                           labelText = 'NA';
                         }
+                      } else if (comp.type === 'status_beacon_indicator') {
+                        if (port.name.includes('LED 1')) labelText = 'L1';
+                        else if (port.name.includes('LED 2')) labelText = 'L2';
+                        else if (port.name.includes('LED 3')) labelText = 'L3';
+                        else if (port.name.includes('LED 4')) labelText = 'L4';
+                        else if (port.name.includes('Buzina')) labelText = 'BUZ';
+                        else if (port.name.includes('0V')) labelText = '0V';
                       } else if (isElectrovalve) {
                         if (port.name.includes('Y1')) {
                           labelText = 'Y1';
@@ -4515,6 +4763,8 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       let textY = isExhaust ? 26 : isButtonStation ? 13 : isFRL ? -15 : (isBottom ? -13 : 18);
                       if (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') {
                         textY = -11;
+                      } else if (comp.type === 'status_beacon_indicator') {
+                        textY = -12;
                       } else if (isTerminalStripComp) {
                         if (comp.type === 'terminal_strip_24v') {
                           textY = isStripInPort ? 16 : 14;
@@ -4687,6 +4937,12 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                   (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('NA') || port.name.includes('14') || port.name.includes('24') || port.name.includes('34') || port.name.includes('44')) ? '#059669' :
                                   (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('COM') || port.name.includes('11') || port.name.includes('21') || port.name.includes('31') || port.name.includes('41')) ? '#d97706' :
                                   (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('A2') || (port.name.includes('0V') && !port.name.includes('24V'))) ? '#1e3a8a' :
+                                  comp.type === 'status_beacon_indicator' && port.name.includes('LED 1') ? '#059669' :
+                                  comp.type === 'status_beacon_indicator' && port.name.includes('LED 2') ? '#dc2626' :
+                                  comp.type === 'status_beacon_indicator' && port.name.includes('LED 3') ? '#d97706' :
+                                  comp.type === 'status_beacon_indicator' && port.name.includes('LED 4') ? '#2563eb' :
+                                  comp.type === 'status_beacon_indicator' && port.name.includes('Buzina') ? '#ea580c' :
+                                  comp.type === 'status_beacon_indicator' && port.name.includes('0V') ? '#1e3a8a' :
                                   '#dc2626'
                                 }
                                 strokeWidth={isStripInPort ? 1.2 : 0.8}
@@ -4705,6 +4961,12 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                                   (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('NA') || port.name.includes('14') || port.name.includes('24') || port.name.includes('34') || port.name.includes('44')) ? '#34d399' :
                                   (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('COM') || port.name.includes('11') || port.name.includes('21') || port.name.includes('31') || port.name.includes('41')) ? '#fef08a' :
                                   (comp.type === 'industrial_relay' || comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') && (port.name.includes('A2') || (port.name.includes('0V') && !port.name.includes('24V'))) ? '#93c5fd' :
+                                  comp.type === 'status_beacon_indicator' && port.name.includes('LED 1') ? '#34d399' :
+                                  comp.type === 'status_beacon_indicator' && port.name.includes('LED 2') ? '#fca5a5' :
+                                  comp.type === 'status_beacon_indicator' && port.name.includes('LED 3') ? '#fef08a' :
+                                  comp.type === 'status_beacon_indicator' && port.name.includes('LED 4') ? '#93c5fd' :
+                                  comp.type === 'status_beacon_indicator' && port.name.includes('Buzina') ? '#fdba74' :
+                                  comp.type === 'status_beacon_indicator' && port.name.includes('0V') ? '#93c5fd' :
                                   '#fca5a5'
                                 }
                                 fontSize={isTerminalStripComp ? (isStripInPort ? "6.5" : "6") : "7.5"}
@@ -4854,14 +5116,14 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       className="pointer-events-none"
                     />
 
-                    {/* Animated flow dash if simulating */}
+                    {/* Animated flow dash if simulating - só exibe traços brancos quando tiver fluxo de ar ou corrente elétrica */}
                     {isSimulating && conn.active && (
                       <path
                         d={pathD}
                         fill="none"
-                        stroke={isPneumatic ? '#bae6fd' : isGroundWire ? '#93c5fd' : '#fef08a'}
-                        strokeWidth={strokeWidth * 0.5}
-                        strokeDasharray={isPneumatic ? '6 12' : '4 8'}
+                        stroke="#ffffff"
+                        strokeWidth={strokeWidth * 0.45}
+                        strokeDasharray={isPneumatic ? '6 10' : '4 8'}
                         strokeLinecap="round"
                         className="animate-[dash_1s_linear_infinite] pointer-events-none"
                       />
@@ -5781,6 +6043,119 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       <div className="flex justify-between text-slate-400 pt-1 border-t border-slate-800/80">
                         <span>Norma Aplicável:</span>
                         <span className="font-mono text-slate-200">IEC 61812-1 / DIN EN 61812</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {selectedComponent.type === 'status_beacon_indicator' && (() => {
+                const led1Active = Boolean(selectedComponent.state.led1Active);
+                const led2Active = Boolean(selectedComponent.state.led2Active);
+                const led3Active = Boolean(selectedComponent.state.led3Active);
+                const led4Active = Boolean(selectedComponent.state.led4Active);
+                const buzzerActive = Boolean(selectedComponent.state.buzzerActive);
+
+                return (
+                  <div className="space-y-3 bg-slate-950/60 p-3 rounded-xl border border-sky-900/50">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                      <span className="text-[11px] font-semibold text-slate-300">
+                        Sinalização Óptica & Acústica
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono border ${
+                        buzzerActive || led1Active || led2Active || led3Active || led4Active
+                          ? 'bg-amber-950 text-amber-400 border-amber-800'
+                          : 'bg-slate-900 text-slate-400 border-slate-800'
+                      }`}>
+                        {buzzerActive ? 'SOM + LUZ' : (led1Active || led2Active || led3Active || led4Active) ? 'SINALIZANDO' : 'REPOUSO'}
+                      </span>
+                    </div>
+
+                    {/* Status dos 4 LEDs */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] text-slate-400 font-mono">STATUS DOS SINALIZADORES LED</span>
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        {/* LED 1 */}
+                        <div className={`p-2 rounded-lg border flex items-center justify-between ${
+                          led1Active ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300' : 'bg-slate-900/60 border-slate-800 text-slate-400'
+                        }`}>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-2.5 h-2.5 rounded-full ${led1Active ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' : 'bg-emerald-950 border border-emerald-800'}`} />
+                            <span className="font-bold">LED 1 (Verde)</span>
+                          </div>
+                          <span className="font-mono text-[10px] font-bold">{led1Active ? 'LIGADO' : 'APAGADO'}</span>
+                        </div>
+
+                        {/* LED 2 */}
+                        <div className={`p-2 rounded-lg border flex items-center justify-between ${
+                          led2Active ? 'bg-red-950/60 border-red-700 text-red-300' : 'bg-slate-900/60 border-slate-800 text-slate-400'
+                        }`}>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-2.5 h-2.5 rounded-full ${led2Active ? 'bg-red-400 shadow-[0_0_8px_#ef4444]' : 'bg-red-950 border border-red-800'}`} />
+                            <span className="font-bold">LED 2 (Verm.)</span>
+                          </div>
+                          <span className="font-mono text-[10px] font-bold">{led2Active ? 'LIGADO' : 'APAGADO'}</span>
+                        </div>
+
+                        {/* LED 3 */}
+                        <div className={`p-2 rounded-lg border flex items-center justify-between ${
+                          led3Active ? 'bg-amber-950/60 border-amber-700 text-amber-300' : 'bg-slate-900/60 border-slate-800 text-slate-400'
+                        }`}>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-2.5 h-2.5 rounded-full ${led3Active ? 'bg-amber-400 shadow-[0_0_8px_#f59e0b]' : 'bg-amber-950 border border-amber-800'}`} />
+                            <span className="font-bold">LED 3 (Amar.)</span>
+                          </div>
+                          <span className="font-mono text-[10px] font-bold">{led3Active ? 'LIGADO' : 'APAGADO'}</span>
+                        </div>
+
+                        {/* LED 4 */}
+                        <div className={`p-2 rounded-lg border flex items-center justify-between ${
+                          led4Active ? 'bg-blue-950/60 border-blue-700 text-blue-300' : 'bg-slate-900/60 border-slate-800 text-slate-400'
+                        }`}>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-2.5 h-2.5 rounded-full ${led4Active ? 'bg-blue-400 shadow-[0_0_8px_#3b82f6]' : 'bg-blue-950 border border-blue-800'}`} />
+                            <span className="font-bold">LED 4 (Azul)</span>
+                          </div>
+                          <span className="font-mono text-[10px] font-bold">{led4Active ? 'LIGADO' : 'APAGADO'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Buzina / Buzzer */}
+                    <div className={`p-3 rounded-lg border flex items-center justify-between ${
+                      buzzerActive
+                        ? 'bg-amber-950/70 border-amber-600 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+                        : 'bg-slate-900/70 border-slate-800 text-slate-400'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-base ${buzzerActive ? 'animate-bounce' : 'opacity-40'}`}>🔊</span>
+                        <div>
+                          <p className="font-bold text-xs text-slate-200">Sinalizador Acústico (Buzina)</p>
+                          <p className="text-[10px] text-slate-400">85 dB Piezoelétrico contínuo</p>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                        buzzerActive
+                          ? 'bg-amber-900 text-amber-300 border-amber-500 animate-pulse'
+                          : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}>
+                        {buzzerActive ? 'EMITINDO SOM' : 'SILENCIOSO'}
+                      </span>
+                    </div>
+
+                    {/* Configuração dos Bornes */}
+                    <div className="p-2.5 rounded-lg bg-slate-900/70 border border-slate-800 space-y-1.5 text-[11px]">
+                      <div className="flex justify-between items-center text-slate-300">
+                        <span>Borne Comum:</span>
+                        <span className="font-mono text-sky-400 font-semibold">1x 0V (GND)</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-300">
+                        <span>Bornes de Comando:</span>
+                        <span className="font-mono text-rose-400 font-semibold">5x +24VCC (L1, L2, L3, L4, BUZ)</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400 pt-1 border-t border-slate-800/80">
+                        <span>Lógica de Operação:</span>
+                        <span className="text-slate-300 text-[10px]">Alimentação independente</span>
                       </div>
                     </div>
                   </div>

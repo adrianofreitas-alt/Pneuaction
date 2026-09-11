@@ -21,7 +21,7 @@ import { TestReportModal } from './components/TestReportModal';
 import { PushNotificationToast } from './components/PushNotificationToast';
 import { generateAutoCAD_DXF, generateTechnicalSVG, downloadFile } from './utils/cadExporter';
 import { benchAudio } from './utils/audioSynthesizer';
-import { evaluateCircuitElectricalState } from './utils/circuitSimulator';
+import { evaluateCircuitElectricalState, evaluateConnectionFlows } from './utils/circuitSimulator';
 
 export default function App() {
   // Navigation tab
@@ -152,6 +152,13 @@ export default function App() {
   // --------------------------------------------------------------------------
   useEffect(() => {
     if (!isSimulating || isEmergencyActive) {
+      benchAudio.stopBuzzer();
+      setConnections(prevConns => {
+        if (prevConns.some(c => c.active)) {
+          return prevConns.map(c => ({ ...c, active: false }));
+        }
+        return prevConns;
+      });
       // If emergency stopped, drop pressure and set zero flow
       if (isEmergencyActive) {
         setMetrics(m => ({ ...m, emergencyStatus: true, flowRateNlMin: 0 }));
@@ -454,6 +461,74 @@ export default function App() {
               solenoidRightActive: y2Active
             }
           };
+
+          // 9. Módulo de Sinalização Visual (4 LEDs) & Sonoro (Buzina)
+          // 4 LEDs acendem quando o borne 24V respectivo e o borne comum 0V forem energizados.
+          // Quando cessar a alimentação nos bornes, os LEDs apagam imediatamente.
+          // A buzina emite som quando o borne 24V e o 0V comum forem energizados, e cessa o som ao desenergizar.
+          let hasAnyBuzzerSound = false;
+
+          nextComps.forEach((comp, idx) => {
+            if (comp.type === 'status_beacon_indicator') {
+              const p0V = comp.ports.find(p => p.name.includes('0V'));
+              const pLed1 = comp.ports.find(p => p.name.includes('LED 1'));
+              const pLed2 = comp.ports.find(p => p.name.includes('LED 2'));
+              const pLed3 = comp.ports.find(p => p.name.includes('LED 3'));
+              const pLed4 = comp.ports.find(p => p.name.includes('LED 4'));
+              const pBuzzer = comp.ports.find(p => p.name.includes('Buzina') || p.name.includes('Buzzer'));
+
+              const has0V = Boolean(p0V && finalCircuitEval.nodes0V.has(p0V.id));
+              const isPowered = Boolean(hasElectricalPower && has0V);
+
+              const led1Active = Boolean(isPowered && pLed1 && finalCircuitEval.nodes24V.has(pLed1.id));
+              const led2Active = Boolean(isPowered && pLed2 && finalCircuitEval.nodes24V.has(pLed2.id));
+              const led3Active = Boolean(isPowered && pLed3 && finalCircuitEval.nodes24V.has(pLed3.id));
+              const led4Active = Boolean(isPowered && pLed4 && finalCircuitEval.nodes24V.has(pLed4.id));
+              const buzzerActive = Boolean(isPowered && pBuzzer && finalCircuitEval.nodes24V.has(pBuzzer.id));
+
+              if (buzzerActive) {
+                hasAnyBuzzerSound = true;
+              }
+
+              nextComps[idx] = {
+                ...comp,
+                state: {
+                  ...comp.state,
+                  isPowered,
+                  led1Active,
+                  led2Active,
+                  led3Active,
+                  led4Active,
+                  buzzerActive,
+                  ledActive: led1Active || led2Active || led3Active || led4Active
+                }
+              };
+            }
+          });
+
+          // Gerenciamento acústico contínuo da buzina
+          if (hasAnyBuzzerSound) {
+            benchAudio.startBuzzer();
+          } else {
+            benchAudio.stopBuzzer();
+          }
+
+          // 10. Avaliação dos fluxos nas conexões (tubos pneumáticos e cabos elétricos)
+          // Apenas conexões com fluxo de ar ou corrente elétrica ativa recebem traços brancos (active: true).
+          // Se não houver fluxo/corrente, permanecem na cor sólida original do tubo e dos cabos elétricos.
+          const activeConnIds = evaluateConnectionFlows(connections, nextComps, finalCircuitEval, isSimulating);
+          setConnections(prevConns => {
+            let changed = false;
+            const nextConns = prevConns.map(c => {
+              const isActive = activeConnIds.has(c.id);
+              if (c.active !== isActive) {
+                changed = true;
+                return { ...c, active: isActive };
+              }
+              return c;
+            });
+            return changed ? nextConns : prevConns;
+          });
         }
 
         return nextComps;
@@ -495,6 +570,8 @@ export default function App() {
     benchAudio.playWarningBeep();
 
     if (newState) {
+      benchAudio.stopBuzzer();
+      setConnections(prev => prev.map(c => ({ ...c, active: false })));
       const emergencyFault: DiagnosticFault = {
         id: `fault_emerg_${Date.now()}`,
         componentId: 'emerg',
@@ -515,6 +592,8 @@ export default function App() {
 
   const handleResetBench = () => {
     setIsSimulating(false);
+    benchAudio.stopBuzzer();
+    setConnections(prev => prev.map(c => ({ ...c, active: false })));
     setComponents(prev =>
       prev.map(c => ({
         ...c,

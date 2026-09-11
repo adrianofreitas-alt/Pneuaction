@@ -575,3 +575,183 @@ export function evaluateCircuitElectricalState(
     solenoidY2Active
   };
 }
+
+/**
+ * Determina se cada conexão física (tubo pneumático ou cabo elétrico)
+ * possui fluxo de ar ativo ou corrente elétrica circulando.
+ * Apenas conexões com fluxo/corrente devem exibir os traços brancos animados (flow dashes).
+ * Caso contrário, os tubos e cabos devem permanecer puramente na sua cor sólida original.
+ */
+export function evaluateConnectionFlows(
+  connections: VirtualConnection[],
+  components: BenchComponent[],
+  circuitEval: ReturnType<typeof evaluateCircuitElectricalState>,
+  isSimulating: boolean
+): Set<string> {
+  const activeConnIds = new Set<string>();
+  if (!isSimulating) return activeConnIds;
+
+  const { nodes24V, nodes0V, hasElectricalPower } = circuitEval;
+  const compMap = new Map<string, BenchComponent>(components.map(c => [c.id, c]));
+
+  const getPortInfo = (compId: string, portId: string) => {
+    const comp = compMap.get(compId);
+    const port = comp?.ports.find(p => p.id === portId);
+    return { comp, port };
+  };
+
+  // 1. CORRENTE ELÉTRICA NOS CABOS ELÉTRICOS
+  // Um condutor elétrico transporta corrente apenas quando faz parte de um circuito fechado
+  // energizando uma carga conectada entre +24V e 0V.
+  if (hasElectricalPower) {
+    const activeLoadPorts24V = new Set<string>();
+    const activeLoadPorts0V = new Set<string>();
+
+    components.forEach(comp => {
+      // 1.1 Bobina de Relé Auxiliar K1
+      if (comp.type === 'industrial_relay') {
+        const pA1 = comp.ports.find(p => p.name.includes('A1'));
+        const pA2 = comp.ports.find(p => p.name.includes('A2'));
+        if (pA1 && pA2 && nodes24V.has(pA1.id) && nodes0V.has(pA2.id)) {
+          activeLoadPorts24V.add(pA1.id);
+          activeLoadPorts0V.add(pA2.id);
+        }
+      }
+
+      // 1.2 Relés Temporizadores TON / TOF
+      if (comp.type === 'industrial_relay_on_delay' || comp.type === 'industrial_relay_off_delay') {
+        const pA1 = comp.ports.find(p => p.name.includes('A1'));
+        const pA2 = comp.ports.find(p => p.name.includes('A2'));
+        if (pA1 && pA2 && nodes24V.has(pA1.id) && nodes0V.has(pA2.id)) {
+          activeLoadPorts24V.add(pA1.id);
+          activeLoadPorts0V.add(pA2.id);
+        }
+        const p24V = comp.ports.find(p => p.name.includes('24V'));
+        const p0V = comp.ports.find(p => p.name.includes('0V'));
+        if (p24V && p0V && nodes24V.has(p24V.id) && nodes0V.has(p0V.id)) {
+          activeLoadPorts24V.add(p24V.id);
+          activeLoadPorts0V.add(p0V.id);
+        }
+      }
+
+      // 1.3 Solenoides de Válvulas Eletropneumáticas Y1 e Y2
+      if (comp.type === 'valve_5_2_double_solenoid' || comp.type === 'valve_5_2_single_solenoid') {
+        const y1Pos = comp.ports.find(p => p.name.includes('Y1 (+)') || p.name.includes('14 (Y1)'));
+        const y1Neg = comp.ports.find(p => p.name.includes('Y1 (-)') || (p.functionType === 'ground_0v' && p.name.includes('Y1')));
+        if (y1Pos && y1Neg && nodes24V.has(y1Pos.id) && nodes0V.has(y1Neg.id)) {
+          activeLoadPorts24V.add(y1Pos.id);
+          activeLoadPorts0V.add(y1Neg.id);
+        }
+
+        const y2Pos = comp.ports.find(p => p.name.includes('Y2 (+)') || p.name.includes('12 (Y2)'));
+        const y2Neg = comp.ports.find(p => p.name.includes('Y2 (-)') || (p.functionType === 'ground_0v' && p.name.includes('Y2')));
+        if (y2Pos && y2Neg && nodes24V.has(y2Pos.id) && nodes0V.has(y2Neg.id)) {
+          activeLoadPorts24V.add(y2Pos.id);
+          activeLoadPorts0V.add(y2Neg.id);
+        }
+      }
+
+      // 1.4 Sensores de proximidade / Reed Switches
+      if (comp.type === 'reed_switch_sensor' || comp.category === 'sensors') {
+        const bn = comp.ports.find(p => p.name.includes('BN'));
+        const bu = comp.ports.find(p => p.name.includes('BU'));
+        if (bn && bu && nodes24V.has(bn.id) && nodes0V.has(bu.id)) {
+          activeLoadPorts24V.add(bn.id);
+          activeLoadPorts0V.add(bu.id);
+        }
+      }
+
+      // 1.5 Módulo de Sinalização Visual (4 LEDs) & Sonoro (Buzina)
+      if (comp.type === 'status_beacon_indicator') {
+        const p0V = comp.ports.find(p => p.name.includes('0V'));
+        if (p0V && nodes0V.has(p0V.id)) {
+          const pLed1 = comp.ports.find(p => p.name.includes('LED 1'));
+          const pLed2 = comp.ports.find(p => p.name.includes('LED 2'));
+          const pLed3 = comp.ports.find(p => p.name.includes('LED 3'));
+          const pLed4 = comp.ports.find(p => p.name.includes('LED 4'));
+          const pBuzzer = comp.ports.find(p => p.name.includes('Buzina') || p.name.includes('Buzzer'));
+
+          let anyIndicatorActive = false;
+          if (pLed1 && nodes24V.has(pLed1.id)) { activeLoadPorts24V.add(pLed1.id); anyIndicatorActive = true; }
+          if (pLed2 && nodes24V.has(pLed2.id)) { activeLoadPorts24V.add(pLed2.id); anyIndicatorActive = true; }
+          if (pLed3 && nodes24V.has(pLed3.id)) { activeLoadPorts24V.add(pLed3.id); anyIndicatorActive = true; }
+          if (pLed4 && nodes24V.has(pLed4.id)) { activeLoadPorts24V.add(pLed4.id); anyIndicatorActive = true; }
+          if (pBuzzer && nodes24V.has(pBuzzer.id)) { activeLoadPorts24V.add(pBuzzer.id); anyIndicatorActive = true; }
+
+          if (anyIndicatorActive) {
+            activeLoadPorts0V.add(p0V.id);
+          }
+        }
+      }
+    });
+
+    // Se existem cargas ativas, rastrear os condutores elétricos que as alimentam (24V) e que fazem o retorno (0V)
+    if (activeLoadPorts24V.size > 0 || activeLoadPorts0V.size > 0) {
+      connections.forEach(c => {
+        if (c.type === 'electrical') {
+          // Cabo de 0V: conduz corrente se ambos os lados estão na rede 0V e tem carga ativa retornando
+          if (nodes0V.has(c.fromPortId) && nodes0V.has(c.toPortId)) {
+            if (activeLoadPorts0V.size > 0) {
+              activeConnIds.add(c.id);
+            }
+          }
+          // Cabo de 24V / sinal: conduz corrente se ambos os lados têm 24V e há carga ativa alimentada
+          else if (nodes24V.has(c.fromPortId) && nodes24V.has(c.toPortId)) {
+            activeConnIds.add(c.id);
+          }
+        }
+      });
+    }
+  }
+
+  // 2. FLUXO DE AR NOS TUBOS PNEUMÁTICOS
+  // O ar comprimido flui a partir da FRL / Manifold para as válvulas e atuadores
+  const frl = components.find(c => c.type === 'frl_unit');
+  const hasAirSupply = !frl || frl.state.activated !== false;
+
+  if (hasAirSupply) {
+    const valve = components.find(c => c.category === 'valves');
+    const valvePos = valve?.state.valvePosition || 'left';
+
+    connections.forEach(c => {
+      if (c.type === 'pneumatic') {
+        const { comp: fromComp, port: fromPort } = getPortInfo(c.fromComponentId, c.fromPortId);
+        const { comp: toComp, port: toPort } = getPortInfo(c.toComponentId, c.toPortId);
+
+        const involvesValve = fromComp?.category === 'valves' || toComp?.category === 'valves';
+        const involvesCyl = fromComp?.category === 'actuators' || toComp?.category === 'actuators';
+        const involvesManifold = fromComp?.type === 'air_manifold' || toComp?.type === 'air_manifold';
+        const involvesFrl = fromComp?.type === 'frl_unit' || toComp?.type === 'frl_unit';
+
+        // Linha de alimentação principal (FRL -> Manifold ou FRL -> Válvula 1(P))
+        if ((involvesFrl && (involvesManifold || involvesValve)) || (involvesManifold && involvesValve)) {
+          activeConnIds.add(c.id);
+        }
+
+        // Linha da Válvula até o Cilindro:
+        // Orifício 4 pressuriza o avanço (quando carretel está em 'left')
+        // Orifício 2 pressuriza o recuo (quando carretel está em 'right')
+        if (involvesValve && (involvesCyl || fromComp?.type === 'flow_control_throttle' || toComp?.type === 'flow_control_throttle')) {
+          const pName = fromComp?.category === 'valves' ? fromPort?.name || '' : toPort?.name || '';
+          if (valvePos === 'left' && (pName.includes('4') || pName.includes('Avanço'))) {
+            activeConnIds.add(c.id);
+          } else if (valvePos === 'right' && (pName.includes('2') || pName.includes('Recuo'))) {
+            activeConnIds.add(c.id);
+          }
+        }
+
+        // Regulador de fluxo unidirecional em série com o cilindro
+        const involvesThrottle = fromComp?.type === 'flow_control_throttle' || toComp?.type === 'flow_control_throttle';
+        if (involvesThrottle && involvesCyl) {
+          if (valvePos === 'left') {
+            activeConnIds.add(c.id);
+          } else if (valvePos === 'right') {
+            activeConnIds.add(c.id);
+          }
+        }
+      }
+    });
+  }
+
+  return activeConnIds;
+}
