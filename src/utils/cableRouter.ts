@@ -358,6 +358,12 @@ export function calculateRoutedConnections(
         targetPort.functionType === 'ground_0v' ||
         sourcePort.name.includes('0V') ||
         targetPort.name.includes('0V') ||
+        sourcePort.name.includes('GND') ||
+        targetPort.name.includes('GND') ||
+        sourcePort.name.includes('A2') ||
+        targetPort.name.includes('A2') ||
+        sourcePort.name.includes('BU') ||
+        targetPort.name.includes('BU') ||
         sourceComp.type === 'terminal_strip_0v' ||
         targetComp.type === 'terminal_strip_0v');
 

@@ -5338,25 +5338,51 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           // No fluxo de alimentação: o ar se move da eletroválvula em direção ao cilindro
                           if (sRank > tRank) isFlowReversed = true;
                         }
-                      } else {
-                        const getElectricalRank = (c?: BenchComponent, portId?: string) => {
-                          if (!c) return 2;
-                          const portName = portId ? (c.ports.find((p) => p.id === portId)?.name || '') : '';
-                          const isGnd = portName.includes('0V') || portName.includes('GND') || portName.includes('Terra') || portName.includes('A2');
-                          const isPos = portName.includes('24V') || portName.includes('V+') || portName.includes('+') || portName.includes('A1');
-                          if (c.type === 'power_supply' || c.type === 'terminal_strip') {
-                            if (isPos) return 0;
-                            if (isGnd) return 5;
-                            return 2;
-                          }
-                          if (c.type.includes('button') || c.type.includes('sensor')) return 1;
-                          if (c.type.includes('relay')) return isGnd ? 4.5 : 2.5;
-                          if (c.type.startsWith('valve_')) return isGnd ? 4.5 : 3;
-                          if (isGnd) return 5;
-                          return 2;
+                      } else if (isGroundWire) {
+                        // CABOS AZUIS ESCUROS (0V / GND):
+                        // O fluxo dos tracinhos brancos SEMPRE deve ser dos equipamentos para a fonte.
+                        // (Equipamento -> Régua 0V -> Fonte 0V)
+                        const getGroundRank = (c?: BenchComponent) => {
+                          if (!c) return 0;
+                          // Fonte de alimentação principal 0V: destino final de maior hierarquia
+                          if (c.type.startsWith('power_supply')) return 10;
+                          // Régua de bornes 0V (distribuição intermediária de retorno para a fonte)
+                          if (c.type === 'terminal_strip_0v') return 5;
+                          // Qualquer outro equipamento (relé A2, solenoide A2, sensor BU 0V, sinalizador 0V, etc.):
+                          // É a origem do fluxo de retorno 0V
+                          return 0;
                         };
-                        const sRank = getElectricalRank(sourceComp, conn.fromPortId);
-                        const tRank = getElectricalRank(targetComp, conn.toPortId);
+                        const sRank = getGroundRank(sourceComp);
+                        const tRank = getGroundRank(targetComp);
+                        // O fluxo deve ir do equipamento (menor rank) para a fonte (maior rank).
+                        // Se sRank > tRank (ex: cabo conectado a partir da fonte em direção ao equipamento),
+                        // invertemos a animação para fluir do equipamento para a fonte.
+                        if (sRank > tRank) isFlowReversed = true;
+                      } else {
+                        // CABOS VERMELHOS (+24V):
+                        // O fluxo dos tracinhos brancos SEMPRE deve ser da fonte para os equipamentos.
+                        // (Fonte +24V -> Régua 24V -> Botões/Emergência -> Sensores -> Contatos de Relé -> Bobinas/Sinalizadores)
+                        const getPositiveRank = (c?: BenchComponent) => {
+                          if (!c) return 5;
+                          // Fonte de alimentação principal +24V: origem primária de menor rank
+                          if (c.type.startsWith('power_supply')) return 0;
+                          // Régua de bornes 24V: distribuição primária
+                          if (c.type === 'terminal_strip_24v') return 1;
+                          // Botões de comando e emergência
+                          if (c.type.includes('button')) return 2;
+                          // Sensores (BN 24V / BK sinal de saída)
+                          if (c.type.includes('sensor')) return 3;
+                          // Contatos de relés auxiliares e temporizadores
+                          if (c.type.includes('relay')) return 4;
+                          // Cargas finais / Atuadores (+24V consumido): Bobinas A1 de eletroválvulas, sinalizadores, etc.
+                          if (c.type.startsWith('valve_') || c.type === 'status_beacon_indicator') return 5;
+                          return 5;
+                        };
+                        const sRank = getPositiveRank(sourceComp);
+                        const tRank = getPositiveRank(targetComp);
+                        // O fluxo deve ir da fonte (menor rank) para os equipamentos (maior rank).
+                        // Se sRank > tRank (ex: cabo conectado a partir do equipamento em direção à fonte),
+                        // invertemos a animação para fluir da fonte para o equipamento.
                         if (sRank > tRank) isFlowReversed = true;
                       }
 
