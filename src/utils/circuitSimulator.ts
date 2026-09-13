@@ -278,6 +278,33 @@ export function evaluateCircuitElectricalState(
           }
         }
 
+        // Fim de Curso Elétrico com Rolete (Contato Reversor Festo: Comum 1, NF 2, NA 4)
+        if (comp.type === 'electrical_limit_switch') {
+          const p1 = comp.ports.find(p => p.name.includes('1') && !p.name.includes('11') && !p.name.includes('14'));
+          const p2 = comp.ports.find(p => p.name.includes('2') && !p.name.includes('21') && !p.name.includes('24'));
+          const p4 = comp.ports.find(p => p.name.includes('4') && !p.name.includes('14') && !p.name.includes('24'));
+          const isActuated = Boolean(comp.state?.isRollerPressed || comp.state?.manualRollerPressed);
+
+          const bridge = (portA?: { id: string }, portB?: { id: string }) => {
+            if (!portA || !portB) return;
+            if (nodes24V.has(portA.id) && !nodes24V.has(portB.id)) {
+              nodes24V.add(portB.id);
+              changed = true;
+            } else if (nodes24V.has(portB.id) && !nodes24V.has(portA.id)) {
+              nodes24V.add(portA.id);
+              changed = true;
+            }
+          };
+
+          if (isActuated) {
+            // Ao tocar o rolete, comuta: une o comum 1 com o contato aberto 4
+            bridge(p1, p4);
+          } else {
+            // Em repouso: o comum 1 está unido ao contato fechado 2
+            bridge(p1, p2);
+          }
+        }
+
         // Industrial Relay: 4 Contatos Reversíveis (COM, NA, NF)
         if (comp.type === 'industrial_relay') {
           const pA1 = comp.ports.find(p => p.name.includes('A1'));
@@ -818,8 +845,32 @@ export function evaluateConnectionFlows(
         if (isSwitched) bridge(p21, p24); else bridge(p21, p22);
       }
 
+      // Fim de Curso Elétrico com Rolete: Contato Reversor (1 Comum, 2 NF, 4 NA)
+      if (comp.type === 'electrical_limit_switch') {
+        const p1 = comp.ports.find(p => p.name.includes('1') && !p.name.includes('11') && !p.name.includes('14'));
+        const p2 = comp.ports.find(p => p.name.includes('2') && !p.name.includes('21') && !p.name.includes('24'));
+        const p4 = comp.ports.find(p => p.name.includes('4') && !p.name.includes('14') && !p.name.includes('24'));
+        const isActuated = Boolean(comp.state?.isRollerPressed || comp.state?.manualRollerPressed);
+
+        const bridge = (portA?: ComponentPort, portB?: ComponentPort) => {
+          if (!portA || !portB) return;
+          if (nodes24V.has(portA.id) && nodes24V.has(portB.id)) {
+            addEdge(graph24, portA.id, portB.id, null);
+          }
+          if (nodes0V.has(portA.id) && nodes0V.has(portB.id)) {
+            addEdge(graph0V, portA.id, portB.id, null);
+          }
+        };
+
+        if (isActuated) {
+          bridge(p1, p4);
+        } else {
+          bridge(p1, p2);
+        }
+      }
+
       // Sensores de Proximidade: condução eletrônica interna BN -> BK (quando detectado) ou BN -> WH (NF)
-      if (comp.category === 'sensors' || comp.type === 'reed_switch_sensor') {
+      if (comp.type === 'reed_switch_sensor') {
         const bn = comp.ports.find(p => p.name.includes('BN'));
         const bk = comp.ports.find(p => p.name.includes('BK'));
         const wh = comp.ports.find(p => p.name.includes('WH'));

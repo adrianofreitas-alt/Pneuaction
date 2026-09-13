@@ -42,6 +42,7 @@ import {
 import { benchAudio } from '../utils/audioSynthesizer';
 import { getSensorPorts } from '../utils/circuitSimulator';
 import { ElectrovalveRenderer } from './ElectrovalveRenderer';
+import { ElectricalLimitSwitchRenderer } from './ElectricalLimitSwitchRenderer';
 import { calculateRoutedConnections } from '../utils/cableRouter';
 
 // Utility to calculate transformed world coordinates for ports taking rotation into account
@@ -93,6 +94,15 @@ export const getPortWorldCoordinates = (comp: BenchComponent, port: ComponentPor
         portY = 38;
       }
     }
+  }
+
+  // Auto-ajuste para o Fim de Curso Elétrico com Rolete (Festo Didactic):
+  // Alinhamento exato com os 3 bornes fêmea de segurança de 4mm (1 Comum, 2 NF, 4 NA)
+  if (comp.type === 'electrical_limit_switch') {
+    portY = 84;
+    if (port.name.includes('1') && !port.name.includes('11') && !port.name.includes('14')) portX = 42;
+    else if (port.name.includes('2') && !port.name.includes('21') && !port.name.includes('24')) portX = 67;
+    else if (port.name.includes('4') && !port.name.includes('14') && !port.name.includes('24')) portX = 89;
   }
 
   const rawX = (comp.width * portX) / 100;
@@ -387,8 +397,8 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
             if (c.id === draggingCompId) {
               return { ...c, x: finalCylX, y: finalCylY };
             }
-            // Sensores fixados no trilho deste cilindro acompanham o deslocamento solidariamente
-            if (c.type === 'reed_switch_sensor' && c.state.railCylinderId === draggingCompId) {
+            // Sensores e fim de curso fixados no trilho deste cilindro acompanham o deslocamento solidariamente
+            if ((c.type === 'reed_switch_sensor' || c.type === 'electrical_limit_switch') && c.state.railCylinderId === draggingCompId) {
               return {
                 ...c,
                 x: c.x + deltaX,
@@ -401,10 +411,11 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
         return;
       }
 
-      // 2. CASO ESPECIAL: SENSOR DE PROXIMIDADE (REED / INDUTIVO / CAPACITIVO / ÓPTICO)
+      // 2. CASO ESPECIAL: SENSOR DE PROXIMIDADE OU FIM DE CURSO ELÉTRICO COM ROLETE
       // "quando aproximar os sensores do trilho para sensores, o sensor deverá ficar fixado neste trilho
       // como fosse atraido magneticamente e impedindo o movimento vertical e só liberando o movimento horizontal."
-      if (draggedComp.type === 'reed_switch_sensor') {
+      if (draggedComp.type === 'reed_switch_sensor' || draggedComp.type === 'electrical_limit_switch') {
+        const isLimitSwitch = draggedComp.type === 'electrical_limit_switch';
         const cylinders = components.filter(
           item => item.type === 'double_acting_cylinder' || item.type === 'single_acting_cylinder'
         );
@@ -416,20 +427,22 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
 
         for (const cyl of cylinders) {
           const isSingle = cyl.type === 'single_acting_cylinder';
-          // O sensor fica a 90° em relação ao cilindro (vertical, com a tampa sensora no topo apontando para a haste)
-          // Suporte de fixação mecânica fica no corpo do sensor com centro em y = 42
-          // Altura da ranhura T do trilho guia do cilindro (afastado da haste para evitar sobreposição):
-          // Dupla ação: ranhura T central em cyl.y + 130. Com suporte em y = 42 => snapRailY = cyl.y + 88 (haste e esfera passam totalmente livres acima do sensor, com entreferro livre de ar de ~18px a ~30px)
-          // Simples ação: ranhura T central em cyl.y + 118. Com suporte em y = 42 => snapRailY = cyl.y + 76
-          const targetRailY = isSingle ? cyl.y + 76 : cyl.y + 88;
+          // Altura da ranhura T do trilho guia do cilindro:
+          // Com a haste do rolete alongada (rolete a y = -32), o targetRailY é ajustado para
+          // que a ponta do rolete fique perfeitamente alinhada com a haste/came do cilindro (centerY do cilindro),
+          // deixando a placa cinza de fixação (y=0 a y=140) com amplo espaço livre e sem sobreposição com o corpo/haste.
+          // Dupla ação: centerY = cyl.y + 60. Com rolete em comp.y - 32 => comp.y = cyl.y + 92 (topo da placa a 32px abaixo da haste)
+          // Simples ação: centerY = cyl.y + 50. Com rolete em comp.y - 32 => comp.y = cyl.y + 82
+          const targetRailY = isLimitSwitch 
+            ? (isSingle ? cyl.y + 82 : cyl.y + 92) 
+            : (isSingle ? cyl.y + 76 : cyl.y + 88);
 
-          // Faixa horizontal do curso do cilindro onde o sensor desliza sobre o trilho estendido:
-          // Dupla ação: centro do sensor (finalX + 55) alinha de 0mm (x=275) até 300mm (x=575) no batente
-          // Logo finalX vai de cyl.x + 205 até cyl.x + 535
-          // Simples ação: centro do sensor alinha de 0mm (x=240) até 200mm (x=440) no batente
-          // Logo finalX vai de cyl.x + 160 até cyl.x + 400
-          const rMin = isSingle ? cyl.x + 160 : cyl.x + 205;
-          const rMax = isSingle ? cyl.x + 400 : cyl.x + 535;
+          const rMin = isLimitSwitch
+            ? (isSingle ? cyl.x + 200 : cyl.x + 235)
+            : (isSingle ? cyl.x + 160 : cyl.x + 205);
+          const rMax = isLimitSwitch
+            ? (isSingle ? cyl.x + 400 : cyl.x + 550)
+            : (isSingle ? cyl.x + 400 : cyl.x + 535);
 
           // Zona de atração magnética do trilho:
           const inHorizontalRange = rawX >= rMin - 60 && rawX <= rMax + 60;
@@ -781,7 +794,7 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
   const filteredTemplates = COMPONENT_TEMPLATES.filter((tpl) => {
     if (selectedCategory === 'all') return true;
     if (selectedCategory === 'electrical') {
-      return tpl.category === 'electrical' || tpl.type === 'power_supply_24v';
+      return tpl.category === 'electrical' || tpl.type === 'power_supply_24v' || tpl.type === 'electrical_limit_switch';
     }
     if (selectedCategory === 'supply') {
       return tpl.category === 'supply' || tpl.type === 'power_supply_24v';
@@ -3549,6 +3562,15 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       );
                     })()}
 
+                    {/* 7b. FIM DE CURSO ELÉTRICO COM ROLETE (FESTO DIDACTIC) */}
+                    {comp.type === 'electrical_limit_switch' && (
+                      <ElectricalLimitSwitchRenderer
+                        comp={comp}
+                        onToggleRoller={onTriggerManualOverride}
+                        isSimulating={isSimulating}
+                      />
+                    )}
+
                     {/* 8. POWER SUPPLY 24V (FONTE COM CHAVE LIGA/DESLIGA, 5x 24V E 5x 0V) */}
                     {comp.type === 'power_supply_24v' && (() => {
                       const isPowered = comp.state.activated !== false;
@@ -5861,8 +5883,114 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                 </div>
               )}
 
+              {/* Fim de Curso Elétrico com Rolete: Status dos Contatos e Teste do Mecanismo */}
+              {selectedComponent.type === 'electrical_limit_switch' && (() => {
+                const isActuated = Boolean(selectedComponent.state.isRollerPressed || selectedComponent.state.manualRollerPressed);
+                const isSnapped = Boolean(selectedComponent.state.snappedToRail);
+
+                return (
+                  <div className="bg-slate-900 border border-slate-700/80 rounded-xl p-4 space-y-4 shadow-lg">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <Radio className="w-4 h-4 text-cyan-400" />
+                        <h4 className="text-xs font-bold text-slate-100 uppercase tracking-wider">
+                          Fim de Curso Elétrico com Rolete
+                        </h4>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-cyan-300 font-mono font-semibold border border-cyan-500/30">
+                        {selectedComponent.tag}
+                      </span>
+                    </div>
+
+                    {/* Status da Comutação dos Contatos */}
+                    <div className="space-y-2">
+                      <div className="text-[11px] font-semibold text-slate-400 flex items-center justify-between">
+                        <span>Estado do Mecanismo & Contatos</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          isActuated ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-500/40' : 'bg-slate-800 text-sky-400 border border-sky-500/30'
+                        }`}>
+                          {isActuated ? '● ROLETE ACIONADO' : '○ EM REPOUSO'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                        <div className={`p-2.5 rounded-lg border transition-all ${
+                          !isActuated 
+                            ? 'bg-sky-950/40 border-sky-500/50 text-sky-200' 
+                            : 'bg-slate-800/40 border-slate-700 text-slate-500'
+                        }`}>
+                          <div className="text-[10px] font-sans text-slate-400">Contato 1 - 2 (NF)</div>
+                          <div className="font-bold text-xs mt-0.5">
+                            {!isActuated ? 'FECHADO (Conduz)' : 'ABERTO'}
+                          </div>
+                        </div>
+
+                        <div className={`p-2.5 rounded-lg border transition-all ${
+                          isActuated 
+                            ? 'bg-emerald-950/50 border-emerald-500/60 text-emerald-200' 
+                            : 'bg-slate-800/40 border-slate-700 text-slate-500'
+                        }`}>
+                          <div className="text-[10px] font-sans text-slate-400">Contato 1 - 4 (NA)</div>
+                          <div className="font-bold text-xs mt-0.5">
+                            {isActuated ? 'FECHADO (Conduz)' : 'ABERTO'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Botão de Teste / Acionamento Manual */}
+                    <div className="pt-1">
+                      <button
+                        onClick={() => {
+                          if (onTriggerManualOverride) {
+                            onTriggerManualOverride(selectedComponent.id);
+                          }
+                        }}
+                        className={`w-full py-2.5 px-3 rounded-lg font-medium text-xs flex items-center justify-center gap-2 border transition-all shadow-sm ${
+                          isActuated
+                            ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
+                            : 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border-cyan-500/40'
+                        }`}
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        {isActuated ? 'Liberar Rolete Mecânico (Retornar ao Repouso)' : 'Pressionar Rolete Mecânico (Comutar Contatos)'}
+                      </button>
+                    </div>
+
+                    {/* Tabela Didática dos Terminais Normalizados (DIN EN 50005) */}
+                    <div className="bg-slate-950/60 rounded-lg p-2.5 border border-slate-800 space-y-1.5 text-[11px]">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                        Pinagem dos Bornes (Norma DIN EN 50005)
+                      </div>
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="font-mono font-bold text-sky-400">Borne 1:</span>
+                        <span>Comum (Entrada do sinal / +24V ou 0V)</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="font-mono font-bold text-sky-400">Borne 2:</span>
+                        <span>NF (Normalmente Fechado em repouso)</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="font-mono font-bold text-emerald-400">Borne 4:</span>
+                        <span>NA (Normalmente Aberto, fecha com o rolete)</span>
+                      </div>
+                    </div>
+
+                    {/* Status de Acoplamento ao Trilho do Cilindro */}
+                    <div className="text-[11px] text-slate-400 flex items-center gap-1.5 pt-1">
+                      <Target className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                      <span>
+                        {isSnapped 
+                          ? 'Acoplado magneticamente ao trilho guia do atuador' 
+                          : 'Posicionamento livre na bancada de ensaios'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Sensor Parameters: Tipo de Sensor, Quantidade de Fios e Diagnóstico de Alimentação */}
-              {(selectedComponent.category === 'sensors' || selectedComponent.type === 'reed_switch_sensor') && (() => {
+              {(selectedComponent.type === 'reed_switch_sensor') && (() => {
                 const currentTech: SensorTechnology = selectedComponent.state.sensorTech || 'magnetic';
                 const currentWires: SensorWireCount = selectedComponent.state.sensorWires || '3_wires';
                 const isPowerOk = selectedComponent.state.isPowerCorrect || false;

@@ -244,6 +244,35 @@ export default function App() {
 
               comp.state.sensorDetected = isVerticalAligned && isNearWithoutContact;
             }
+
+            // Atuação do fim de curso eletromecânico com rolete
+            // Ao tocar o rolete mecânico elevado, comuta o contato (une o comum 1 com o contato aberto 4)
+            if (comp.type === 'electrical_limit_switch') {
+              const rollerCenterX = comp.x + 10;  // Centro do rolete giratório elevado
+              const rollerCenterY = comp.y - 32; // Altura do rolete elevado no topo da haste longa
+
+              let isCylContact = false;
+              if (cyl) {
+                if (comp.state.snappedToRail && comp.state.railCylinderId === cyl.id) {
+                  // No trilho do cilindro: o rolete é tocado quando a esfera/came da haste alcança o rolete
+                  const dist = Math.abs(sphereX - rollerCenterX);
+                  isCylContact = dist <= 24;
+                } else {
+                  // Na bancada: contato direto se alinhado em X e Y com o rolete elevado
+                  const distX = Math.abs(sphereX - rollerCenterX);
+                  const distY = Math.abs(sphereY - rollerCenterY);
+                  isCylContact = distX <= 24 && distY <= 30;
+                }
+              }
+
+              const isNowPressed = Boolean(isCylContact || comp.state.manualRollerPressed);
+              if (comp.state.isRollerPressed !== isNowPressed) {
+                if (isNowPressed) {
+                  benchAudio.playRelayClick();
+                }
+                comp.state.isRollerPressed = isNowPressed;
+              }
+            }
           });
 
           // 2. Perform graph electrical circuit evaluation (IEC 60947-5-2)
@@ -403,11 +432,11 @@ export default function App() {
             // Bistable valve spool memory:
             // Y1 energization drives spool to 'left' (Advance)
             // Y2 energization drives spool to 'right' (Retract)
-            const activeY2Sensor = y2Active ? nextComps.find(c => c.type === 'reed_switch_sensor' && c.state.sensorDetected) : undefined;
-            const activeY1Sensor = y1Active ? nextComps.find(c => c.type === 'reed_switch_sensor' && c.state.sensorDetected) : undefined;
+            const activeY2Sensor = y2Active ? nextComps.find(c => (c.type === 'reed_switch_sensor' && c.state.sensorDetected) || (c.type === 'electrical_limit_switch' && c.state.isRollerPressed)) : undefined;
+            const activeY1Sensor = y1Active ? nextComps.find(c => (c.type === 'reed_switch_sensor' && c.state.sensorDetected) || (c.type === 'electrical_limit_switch' && c.state.isRollerPressed)) : undefined;
             
-            const y2TargetX = activeY2Sensor ? activeY2Sensor.x + activeY2Sensor.width / 2 : undefined;
-            const y1TargetX = activeY1Sensor ? activeY1Sensor.x + activeY1Sensor.width / 2 : undefined;
+            const y2TargetX = activeY2Sensor ? (activeY2Sensor.type === 'electrical_limit_switch' ? activeY2Sensor.x + 14 : activeY2Sensor.x + activeY2Sensor.width / 2) : undefined;
+            const y1TargetX = activeY1Sensor ? (activeY1Sensor.type === 'electrical_limit_switch' ? activeY1Sensor.x + 14 : activeY1Sensor.x + activeY1Sensor.width / 2) : undefined;
 
             if (y1Active && !y2Active && valvePos !== 'left') {
               const readyToAdvance = y1TargetX !== undefined ? (sphereX <= y1TargetX || pos <= 0) : true;
@@ -728,11 +757,23 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedComponent]);
 
-  // Manual valve spool override
+  // Manual valve spool override or limit switch roller toggle
   const handleTriggerManualOverride = (componentId: string) => {
     setComponents(prev =>
       prev.map(c => {
         if (c.id === componentId) {
+          if (c.type === 'electrical_limit_switch') {
+            const nextPressed = !c.state.manualRollerPressed;
+            benchAudio.playRelayClick();
+            return {
+              ...c,
+              state: {
+                ...c.state,
+                manualRollerPressed: nextPressed,
+                isRollerPressed: nextPressed
+              }
+            };
+          }
           const newPos = c.state.valvePosition === 'left' ? 'right' : 'left';
           benchAudio.playExhaust(0.15, 0.25);
           return {

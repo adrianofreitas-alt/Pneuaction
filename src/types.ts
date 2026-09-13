@@ -93,6 +93,9 @@ export interface BenchComponent {
     powerErrorDetail?: string;
     outputNAactive?: boolean;
     outputNFactive?: boolean;
+    // Fim de curso elétrico com rolete (contato reversor)
+    isRollerPressed?: boolean;
+    manualRollerPressed?: boolean;
     // Timer Relay (On-Delay / Off-Delay) and Relay parameters
     timerDelaySec?: number; // Tempo programado no display (ex: 5.0 s)
     timerElapsedSec?: number; // Tempo decorrido na contagem (s)

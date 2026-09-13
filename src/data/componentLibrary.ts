@@ -454,6 +454,27 @@ export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
     }
   },
   {
+    type: 'electrical_limit_switch',
+    name: 'Fim de Curso Elétrico com Rolete',
+    category: 'sensors',
+    width: 140,
+    height: 140,
+    tagPrefix: '1S_FC',
+    description: 'Chave fim de curso eletromecânica com alavanca longa e rolete mecânico para montagem no perfil guia do atuador ou bancada de ensaios. Possui contato de comutação unipolar reversor (SPDT): Borne 1 (Comum), Borne 2 (NF - Normalmente Fechado) e Borne 4 (NA - Normalmente Aberto). Ao acionar o rolete mecânico, o contato comum 1 comuta do borne 2 para o borne 4.',
+    defaultPorts: [
+      { name: '1 (Comum)', type: 'electrical', functionType: 'signal_in', x: 42, y: 84 },
+      { name: '2 (NF - Fechado)', type: 'electrical', functionType: 'signal_out', x: 67, y: 84 },
+      { name: '4 (NA - Aberto)', type: 'electrical', functionType: 'signal_out', x: 89, y: 84 },
+    ],
+    defaultState: {
+      isRollerPressed: false,
+      manualRollerPressed: false,
+      targetCylinderTag: '1A',
+      detectionPosition: 100, // 100% = avançado, 0% = recuado
+      snappedToRail: false,
+    }
+  },
+  {
     type: 'status_beacon_indicator',
     name: 'Módulo Sinalizador Visual (4 LEDs) & Sonoro (Buzina)',
     category: 'electrical',
