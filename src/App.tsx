@@ -431,19 +431,24 @@ export default function App() {
             } else {
               valvePos = 'right';
             }
+          } else if (valve.type === 'valve_3_2_button') {
+            valvePos = valve.state.activated ? 'left' : 'right';
           }
 
           // 8. Cylinder physical displacement based on valve position
+          let isMoving = false;
           if (!hasStuck) {
             if (valvePos === 'left') {
               // Chamber 4 pressurized -> Advance towards 100%
               if (pos < 100) {
                 pos = Math.min(100, pos + speed);
+                isMoving = true;
               }
             } else {
               // Chamber 2 pressurized -> Return towards 0%
               if (pos > 0) {
                 pos = Math.max(0, pos - speed);
+                isMoving = true;
                 if (pos === 0) {
                   // Increment full cycle
                   setMetrics(m => ({
@@ -458,7 +463,7 @@ export default function App() {
 
           nextComps[cylIndex] = {
             ...cyl,
-            state: { ...cyl.state, position: pos }
+            state: { ...cyl.state, position: pos, isMoving }
           };
 
           nextComps[valveIndex] = {
@@ -604,11 +609,11 @@ export default function App() {
   const handleResetBench = () => {
     setIsSimulating(false);
     benchAudio.stopBuzzer();
-    setConnections(prev => prev.map(c => ({ ...c, active: false })));
+    setConnections(prev => prev.map(c => ({ ...c, active: false, isExhaust: false })));
     setComponents(prev =>
       prev.map(c => ({
         ...c,
-        state: { ...c.state, position: 0, valvePosition: 'left' }
+        state: { ...c.state, position: 0, valvePosition: 'left', isMoving: false }
       }))
     );
     benchAudio.playExhaust(0.3, 0.3);

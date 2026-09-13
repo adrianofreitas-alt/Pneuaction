@@ -67,6 +67,7 @@ export interface BenchComponent {
     isEmergencyTriggered?: boolean;
     isLocked?: boolean;
     flowThrottlePercent?: number; // 1 to 100%
+    isMoving?: boolean; // Se o atuador está atualmente em movimento (gerando fluxo de ar)
     contactClosed?: boolean;
     ledActive?: boolean;
     led1Active?: boolean;

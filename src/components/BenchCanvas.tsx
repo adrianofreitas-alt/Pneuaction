@@ -5198,13 +5198,15 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                 let highlightColor = '#38bdf8';
                 let strokeWidth = isPneumatic ? 5.5 : 4;
 
+                const isExhaustActive = Boolean(isPneumatic && conn.isExhaust && conn.active && isSimulating);
+
                 if (!isPneumatic) {
                   // Cabo 0V (GND) em Azul Escuro para não confundir com mangueiras pneumáticas azuis claras
                   strokeColor = isGroundWire ? '#172554' : '#ef4444';
                   highlightColor = isGroundWire ? '#2563eb' : '#f87171';
-                } else if (conn.isExhaust) {
+                } else if (isExhaustActive) {
                   // Fluxo de ar vindo do cilindro pneumático para a eletroválvula em exaustão:
-                  // Tubulação em tom amarelo (#fef08a a #eab308)
+                  // Tubulação em tom amarelo (#fef08a a #eab308) estritamente durante o fluxo dinâmico
                   strokeColor = '#eab308';
                   highlightColor = '#fef08a';
                 }
@@ -5408,9 +5410,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       // Engate Rápido Pneumático Festo QS conectado no círculo de origem
                       <g transform={`translate(${x1}, ${y1})`} className="pointer-events-none">
                         <circle r="7.5" fill="#334155" stroke="#94a3b8" strokeWidth="1.2" />
-                        <circle r="5.2" fill={conn.isExhaust ? '#ca8a04' : '#0284c7'} stroke={conn.isExhaust ? '#a16207' : '#0369a1'} strokeWidth="0.8" />
-                        <circle r="3" fill={conn.isExhaust ? '#fef08a' : '#38bdf8'} />
-                        <circle r="1.5" fill={conn.isExhaust ? '#eab308' : '#0284c7'} />
+                        <circle r="5.2" fill={isExhaustActive ? '#ca8a04' : '#0284c7'} stroke={isExhaustActive ? '#a16207' : '#0369a1'} strokeWidth="0.8" />
+                        <circle r="3" fill={isExhaustActive ? '#fef08a' : '#38bdf8'} />
+                        <circle r="1.5" fill={isExhaustActive ? '#eab308' : '#0284c7'} />
                       </g>
                     ) : (
                       // Plugue Banana 4mm conectado no borne circular de origem
@@ -5426,9 +5428,9 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                       // Engate Rápido Pneumático Festo QS conectado no círculo de destino
                       <g transform={`translate(${x2}, ${y2})`} className="pointer-events-none">
                         <circle r="7.5" fill="#334155" stroke="#94a3b8" strokeWidth="1.2" />
-                        <circle r="5.2" fill={conn.isExhaust ? '#ca8a04' : '#0284c7'} stroke={conn.isExhaust ? '#a16207' : '#0369a1'} strokeWidth="0.8" />
-                        <circle r="3" fill={conn.isExhaust ? '#fef08a' : '#38bdf8'} />
-                        <circle r="1.5" fill={conn.isExhaust ? '#eab308' : '#0284c7'} />
+                        <circle r="5.2" fill={isExhaustActive ? '#ca8a04' : '#0284c7'} stroke={isExhaustActive ? '#a16207' : '#0369a1'} strokeWidth="0.8" />
+                        <circle r="3" fill={isExhaustActive ? '#fef08a' : '#38bdf8'} />
+                        <circle r="1.5" fill={isExhaustActive ? '#eab308' : '#0284c7'} />
                       </g>
                     ) : (
                       // Plugue Banana 4mm conectado no borne circular de destino

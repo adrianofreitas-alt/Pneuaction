@@ -888,8 +888,13 @@ export function evaluateConnectionFlows(
   }
 
   // =========================================================================
-  // 2. AVALIAÇÃO NÓ A NÓ DE FLUXO PNEUMÁTICO (PRESSÃO E VAZÃO DE AR)
+  // 2. AVALIAÇÃO NÓ A NÓ DE FLUXO PNEUMÁTICO (PRESSÃO E VAZÃO DINÂMICA DE AR)
   // =========================================================================
+  // Quando não houver movimento nos cilindros pneumáticos e nas válvulas (sem fluxo de ar),
+  // os tracinhos brancos NÃO devem aparecer e todos os tubos sem fluxo devem
+  // permanecer na cor azul original Festo (#0284c7 / #38bdf8).
+  // Quando reestabelecer o fluxo de ar dinâmico, retornam os tracinhos brancos e a
+  // mudança de cor dos tubos (exaustão em amarelo #fef08a a #eab308 e alimentação em azul Festo).
   const frl = components.find(c => c.type === 'frl_unit');
   const hasAirSupply = !frl || frl.state.activated !== false;
 
@@ -911,7 +916,7 @@ export function evaluateConnectionFlows(
       manifold.ports.forEach(p => pressurizedPorts.add(p.id));
     }
 
-    // 2.2 Propagação nó a nó em cascata (Iterativo para cobrir filtros, válvulas, estranguladores e cilindros)
+    // 2.2 Propagação de pressão estática nó a nó (para saber quais ramos recebem ar)
     let changed = true;
     let iteration = 0;
 
@@ -925,17 +930,10 @@ export function evaluateConnectionFlows(
 
         if (pressurizedPorts.has(conn.fromPortId) && !pressurizedPorts.has(conn.toPortId)) {
           pressurizedPorts.add(conn.toPortId);
-          activeConnIds.add(conn.id);
           changed = true;
         } else if (pressurizedPorts.has(conn.toPortId) && !pressurizedPorts.has(conn.fromPortId)) {
           pressurizedPorts.add(conn.fromPortId);
-          activeConnIds.add(conn.id);
           changed = true;
-        } else if (pressurizedPorts.has(conn.fromPortId) && pressurizedPorts.has(conn.toPortId)) {
-          if (!activeConnIds.has(conn.id)) {
-            activeConnIds.add(conn.id);
-            changed = true;
-          }
         }
       });
 
@@ -1043,130 +1041,212 @@ export function evaluateConnectionFlows(
       });
     }
 
-    // 2.3 Identificação dos pórticos das eletroválvulas em estado de EXAUSTÃO
-    const exhaustPortIds = new Set<string>();
+    // 2.3 Grafo de conectividade física pneumática para rastreamento de fluxo
+    const pneuGraph = new Map<string, Array<{ neighborPortId: string; connId: string | null }>>();
+    const addPneuEdge = (pA: string, pB: string, cId: string | null) => {
+      if (!pneuGraph.has(pA)) pneuGraph.set(pA, []);
+      if (!pneuGraph.has(pB)) pneuGraph.set(pB, []);
+      pneuGraph.get(pA)!.push({ neighborPortId: pB, connId: cId });
+      pneuGraph.get(pB)!.push({ neighborPortId: pA, connId: cId });
+    };
 
-    components.forEach(comp => {
-      // Eletroválvula 5/2 (duplo ou simples solenoide):
-      if (comp.type === 'valve_5_2_double_solenoid' || comp.type === 'valve_5_2_single_solenoid') {
-        const portP = comp.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'pressure' || p.name.startsWith('1') || p.name.includes('(P)')));
-        const port4 = comp.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'work_a' || p.name.startsWith('4') || p.name.includes('(A)')));
-        const port2 = comp.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'work_b' || p.name.startsWith('2') || p.name.includes('(B)')));
-
-        const isPressurized = (portP && pressurizedPorts.has(portP.id)) || (comp.state?.pressureP ?? 0) > 0 || !components.some(c => c.type === 'frl_unit' || c.type === 'air_manifold');
-
-        if (isPressurized) {
-          const valvePos = comp.state.valvePosition || (comp.type === 'valve_5_2_single_solenoid' ? 'right' : 'left');
-          // Se carretel está em 'left' (ar entra pela conexão 4 na câmara traseira 1 do cilindro):
-          // O tubo da conexão 2 da eletroválvula que liga a conexão 2 do cilindro fica em EXAUSTÃO (amarelo)
-          if (valvePos === 'left' && port2) {
-            exhaustPortIds.add(port2.id);
-          }
-          // Se carretel está em 'right' (ar entra pela conexão 2 na câmara dianteira 2 do cilindro):
-          // O tubo da conexão 4 da eletroválvula que liga a conexão 1 do cilindro fica em EXAUSTÃO (amarelo)
-          else if (valvePos === 'right' && port4) {
-            exhaustPortIds.add(port4.id);
-          }
-        }
+    connections.forEach(conn => {
+      if (conn.type === 'pneumatic') {
+        addPneuEdge(conn.fromPortId, conn.toPortId, conn.id);
       }
+    });
 
-      // Válvula Direcional 3/2 Botão Pulsador:
-      if (comp.type === 'valve_3_2_button') {
-        const portP = comp.ports.find(p => p.name.includes('1') || p.name.includes('(P)'));
-        const port2 = comp.ports.find(p => p.name.includes('2') || p.name.includes('(A)'));
-        if (portP && pressurizedPorts.has(portP.id) && !comp.state.activated && port2) {
-          // Quando em repouso com pressão em 1, pórtico 2 comunica com o escape 3
-          exhaustPortIds.add(port2.id);
+    // Passagens internas em componentes intermediários (válvula estranguladora, escape rápido, manifold)
+    components.forEach(comp => {
+      if (comp.type === 'flow_control_throttle') {
+        if (comp.ports[0] && comp.ports[1]) {
+          addPneuEdge(comp.ports[0].id, comp.ports[1].id, null);
+        }
+      } else if (comp.type === 'quick_exhaust_valve') {
+        const p1 = comp.ports.find(p => p.name.includes('1'));
+        const p2 = comp.ports.find(p => p.name.includes('2'));
+        if (p1 && p2) {
+          addPneuEdge(p1.id, p2.id, null);
+        }
+      } else if (comp.type === 'air_manifold') {
+        const pIn = comp.ports.find(p => p.name.includes('Entrada') || p.name.includes('1')) || comp.ports[0];
+        if (pIn) {
+          comp.ports.forEach(p => {
+            if (p.id !== pIn.id) {
+              addPneuEdge(pIn.id, p.id, null);
+            }
+          });
         }
       }
     });
 
-    // 2.4 Rastreamento da linha de exaustão conectando a eletroválvula ao cilindro pneumático
-    // Apenas as tubulações que interligam o pórtico de escape da válvula a uma câmara de cilindro
-    // (diretamente ou via estranguladores / válvulas de escape rápido) são classificadas como exaustão!
-    if (exhaustPortIds.size > 0) {
-      const pneuGraph = new Map<string, Array<{ neighborPortId: string; connId: string | null }>>();
-      const addPneuEdge = (pA: string, pB: string, cId: string | null) => {
-        if (!pneuGraph.has(pA)) pneuGraph.set(pA, []);
-        if (!pneuGraph.has(pB)) pneuGraph.set(pB, []);
-        pneuGraph.get(pA)!.push({ neighborPortId: pB, connId: cId });
-        pneuGraph.get(pB)!.push({ neighborPortId: pA, connId: cId });
-      };
+    // BFS para encontrar todas as conexões físicas no trajeto entre duas portas
+    const traceConnectionsBetween = (startPortId: string, targetPortIds: Set<string>): string[] => {
+      const queue: string[] = [startPortId];
+      const visited = new Set<string>([startPortId]);
+      const parentMap = new Map<string, { prevPort: string; connId: string | null }>();
+      let reachedTarget: string | null = null;
 
-      // Conexões físicas pneumáticas
-      connections.forEach(conn => {
-        if (conn.type === 'pneumatic') {
-          addPneuEdge(conn.fromPortId, conn.toPortId, conn.id);
+      while (queue.length > 0) {
+        const curr = queue.shift()!;
+        if (targetPortIds.has(curr)) {
+          reachedTarget = curr;
+          break;
         }
-      });
-
-      // Passagens internas em componentes intermediários (válvula estranguladora / escape rápido)
-      components.forEach(comp => {
-        if (comp.type === 'flow_control_throttle') {
-          if (comp.ports[0] && comp.ports[1]) {
-            addPneuEdge(comp.ports[0].id, comp.ports[1].id, null);
-          }
-        } else if (comp.type === 'quick_exhaust_valve') {
-          const p1 = comp.ports.find(p => p.name.includes('1'));
-          const p2 = comp.ports.find(p => p.name.includes('2'));
-          if (p1 && p2) {
-            addPneuEdge(p1.id, p2.id, null);
+        const edges = pneuGraph.get(curr) || [];
+        for (const edge of edges) {
+          if (!visited.has(edge.neighborPortId)) {
+            visited.add(edge.neighborPortId);
+            parentMap.set(edge.neighborPortId, { prevPort: curr, connId: edge.connId });
+            queue.push(edge.neighborPortId);
           }
         }
-      });
+      }
 
-      // Identificar todos os pórticos pertencentes a cilindros
-      const cylinderPortIds = new Set<string>();
-      components.forEach(c => {
-        if (c.type.includes('cylinder') || c.category === 'actuators') {
-          c.ports.forEach(p => {
-            if (p.type === 'pneumatic') {
-              cylinderPortIds.add(p.id);
+      const collectedConnIds: string[] = [];
+      if (reachedTarget) {
+        let curr = reachedTarget;
+        while (curr !== startPortId) {
+          const info = parentMap.get(curr);
+          if (!info) break;
+          if (info.connId) {
+            collectedConnIds.push(info.connId);
+          }
+          curr = info.prevPort;
+        }
+      }
+      return collectedConnIds;
+    };
+
+    // Fontes primárias de ar (FRL / Manifold)
+    const primaryAirSources = new Set<string>();
+    if (frl) {
+      const frlOut = frl.ports.find(p => p.name.includes('S') || p.name.includes('2') || p.name.includes('Saída')) || frl.ports[1];
+      if (frlOut) primaryAirSources.add(frlOut.id);
+    }
+    const manifoldComp = components.find(c => c.type === 'air_manifold');
+    if (manifoldComp) {
+      manifoldComp.ports.forEach(p => primaryAirSources.add(p.id));
+    }
+
+    // 2.4 Avaliação de fluxo dinâmico em cilindros (alimentação e exaustão ativa)
+    components.forEach(comp => {
+      if (comp.category === 'actuators' || comp.type.includes('cylinder')) {
+        // Encontrar a válvula que comanda este cilindro
+        const valve = components.find(c => c.category === 'valves' || c.type.startsWith('valve_'));
+        const valvePos = valve?.state?.valvePosition || (valve?.type === 'valve_5_2_single_solenoid' ? 'right' : 'left');
+
+        const pos = comp.state?.position ?? 0;
+        const isStuck = Boolean(comp.faults?.isStuck);
+        
+        // Verifica se o atuador está em movimento ativo
+        const fallbackMoving = !isStuck && (
+          (valvePos === 'left' && pos < 99.8) ||
+          (valvePos === 'right' && pos > 0.2)
+        );
+        const isActuatorMoving = Boolean(comp.state?.isMoving ?? fallbackMoving);
+
+        // SE NÃO HOUVER MOVIMENTO NO CILINDRO:
+        // Não há fluxo dinâmico de ar neste ramo. Os tracinhos brancos NÃO devem aparecer
+        // e todos os tubos devem permanecer ou retornar à cor azul original Festo (#0284c7 / #38bdf8).
+        if (!isActuatorMoving) {
+          return;
+        }
+
+        // Portas das câmaras do cilindro
+        const portRear = comp.ports.find(p => p.type === 'pneumatic' && (p.name.includes('1') || p.name.includes('Avanço') || p.functionType === 'work_a'));
+        const portFront = comp.ports.find(p => p.type === 'pneumatic' && (p.name.includes('2') || p.name.includes('Recuo') || p.functionType === 'work_b'));
+
+        // Portas de trabalho e alimentação da válvula
+        const valvePort4 = valve?.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'work_a' || p.name.startsWith('4') || p.name.includes('(A)')));
+        const valvePort2 = valve?.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'work_b' || p.name.startsWith('2') || p.name.includes('(B)')));
+        const valvePortP = valve?.ports.find(p => p.type === 'pneumatic' && (p.functionType === 'pressure' || p.name.startsWith('1') || p.name.includes('(P)')));
+
+        if (valvePos === 'left') {
+          // === AVANÇO DO CILINDRO ===
+          // 1. Ar comprimido entra na câmara traseira pelo tubo que liga a conexão 4 da eletroválvula
+          //    e a conexão 1 do cilindro: ALIMENTAÇÃO (azul Festo #0284c7/#38bdf8 com traços brancos para o cilindro).
+          if (portRear && valvePort4) {
+            const feedConns = traceConnectionsBetween(portRear.id, new Set([valvePort4.id]));
+            feedConns.forEach(id => activeConnIds.add(id));
+          }
+
+          // 2. Ar expulso da câmara dianteira pelo tubo que liga a conexão 2 do cilindro
+          //    e a conexão 2 da eletroválvula para escape: EXAUSTÃO (amarelo #fef08a a #eab308 com traços brancos para a válvula).
+          if (portFront && valvePort2) {
+            const exhaustConns = traceConnectionsBetween(portFront.id, new Set([valvePort2.id]));
+            exhaustConns.forEach(id => {
+              exhaustConnIds.add(id);
+              activeConnIds.add(id);
+            });
+          }
+        } else {
+          // === RECUO DO CILINDRO ===
+          // 1. Ar comprimido entra na câmara dianteira pelo tubo que liga a conexão 2 da eletroválvula
+          //    e a conexão 2 do cilindro: ALIMENTAÇÃO (azul Festo #0284c7/#38bdf8 com traços brancos para o cilindro).
+          if (portFront && valvePort2) {
+            const feedConns = traceConnectionsBetween(portFront.id, new Set([valvePort2.id]));
+            feedConns.forEach(id => activeConnIds.add(id));
+          }
+
+          // 2. Ar expulso da câmara traseira pelo tubo que liga a conexão 1 do cilindro
+          //    e a conexão 4 da eletroválvula para escape: EXAUSTÃO (amarelo #fef08a a #eab308 com traços brancos para a válvula).
+          if (portRear && valvePort4) {
+            const exhaustConns = traceConnectionsBetween(portRear.id, new Set([valvePort4.id]));
+            exhaustConns.forEach(id => {
+              exhaustConnIds.add(id);
+              activeConnIds.add(id);
+            });
+          }
+        }
+
+        // 3. Linha de alimentação da válvula: do orifício 1(P) até a fonte primária de ar (Manifold / FRL)
+        if (valvePortP && primaryAirSources.size > 0) {
+          const supplyConns = traceConnectionsBetween(valvePortP.id, primaryAirSources);
+          supplyConns.forEach(id => activeConnIds.add(id));
+        }
+
+        // 4. Linha de alimentação do Manifold a partir da FRL (se ambos existirem)
+        if (frl && manifoldComp) {
+          const frlOut = frl.ports.find(p => p.name.includes('S') || p.name.includes('2') || p.name.includes('Saída')) || frl.ports[1];
+          const manIn = manifoldComp.ports.find(p => p.name.includes('Entrada') || p.name.includes('1')) || manifoldComp.ports[0];
+          if (frlOut && manIn) {
+            const frlManConns = traceConnectionsBetween(manIn.id, new Set([frlOut.id]));
+            frlManConns.forEach(id => activeConnIds.add(id));
+          }
+        }
+      }
+    });
+
+    // 2.5 Fluxo através de válvulas 3/2 acionadas manualmente
+    components.forEach(comp => {
+      if (comp.type === 'valve_3_2_button' && comp.state.activated) {
+        const portP = comp.ports.find(p => p.name.includes('1') || p.name.includes('(P)'));
+        const port2 = comp.ports.find(p => p.name.includes('2') || p.name.includes('(A)'));
+        if (portP && primaryAirSources.size > 0) {
+          const inConns = traceConnectionsBetween(portP.id, primaryAirSources);
+          inConns.forEach(id => activeConnIds.add(id));
+        }
+        if (port2) {
+          connections.forEach(c => {
+            if (c.type === 'pneumatic' && (c.fromPortId === port2.id || c.toPortId === port2.id)) {
+              activeConnIds.add(c.id);
             }
           });
         }
-      });
+      }
+    });
 
-      // Para cada pórtico de escape da eletroválvula, fazer BFS para encontrar conexões até o cilindro
-      exhaustPortIds.forEach(startExhaustPort => {
-        const queue: string[] = [startExhaustPort];
-        const visited = new Set<string>([startExhaustPort]);
-        const parentMap = new Map<string, { prevPort: string; connId: string | null }>();
-
-        const reachedCylinderPorts: string[] = [];
-
-        while (queue.length > 0) {
-          const curr = queue.shift()!;
-
-          const edges = pneuGraph.get(curr) || [];
-          for (const edge of edges) {
-            if (!visited.has(edge.neighborPortId)) {
-              visited.add(edge.neighborPortId);
-              parentMap.set(edge.neighborPortId, { prevPort: curr, connId: edge.connId });
-              if (cylinderPortIds.has(edge.neighborPortId)) {
-                reachedCylinderPorts.push(edge.neighborPortId);
-              } else {
-                queue.push(edge.neighborPortId);
-              }
-            }
-          }
+    // 2.6 Fluxo dinâmico gerado por vazamento de ar ativo
+    components.forEach(comp => {
+      if (comp.faults?.isLeaking && primaryAirSources.size > 0) {
+        const leakPort = comp.ports.find(p => p.type === 'pneumatic') || comp.ports[0];
+        if (leakPort) {
+          const leakConns = traceConnectionsBetween(leakPort.id, primaryAirSources);
+          leakConns.forEach(id => activeConnIds.add(id));
         }
-
-        // Se alcançou um cilindro pneumático, marca todos os tubos do trajeto como exaustão ativa!
-        reachedCylinderPorts.forEach(cylPort => {
-          let curr = cylPort;
-          while (curr !== startExhaustPort) {
-            const info = parentMap.get(curr);
-            if (!info) break;
-            if (info.connId) {
-              exhaustConnIds.add(info.connId);
-              activeConnIds.add(info.connId);
-            }
-            curr = info.prevPort;
-          }
-        });
-      });
-    }
+      }
+    });
   }
 
   return { activeConnIds, exhaustConnIds };
