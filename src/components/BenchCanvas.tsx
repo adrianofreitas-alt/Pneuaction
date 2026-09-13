@@ -2617,17 +2617,30 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                     )}
 
                     {/* 4. 5/2 WAY DIRECTIONAL ELECTROVALVE (INDUSTRIAL 4V220 / 4V210 WITH TRANSPARENT GLASS CUTAWAY) */}
-                    {(comp.type === 'valve_5_2_double_solenoid' || comp.type === 'valve_5_2_single_solenoid') && (
-                      <ElectrovalveRenderer
-                        comp={comp}
-                        onTriggerManualOverride={onTriggerManualOverride}
-                        isSimulating={isSimulating}
-                      />
-                    )}
+                    {(comp.type === 'valve_5_2_double_solenoid' || comp.type === 'valve_5_2_single_solenoid') && (() => {
+                      const valvePortIds = new Set(comp.ports.map(p => p.id));
+                      const hasActiveTube = connections.some(
+                        c => c.type === 'pneumatic' && c.active && (valvePortIds.has(c.fromPortId) || valvePortIds.has(c.toPortId))
+                      );
+                      const hasAirFlow = Boolean(isSimulating && (hasActiveTube || comp.state.hasAirFlow));
+                      return (
+                        <ElectrovalveRenderer
+                          comp={comp}
+                          onTriggerManualOverride={onTriggerManualOverride}
+                          isSimulating={isSimulating}
+                          hasAirFlow={hasAirFlow}
+                        />
+                      );
+                    })()}
 
                     {/* 4b. 3/2 WAY PUSH BUTTON VALVE WITH TRANSPARENT GLASS CUTAWAY BODY */}
                     {comp.type === 'valve_3_2_button' && (() => {
                       const isPressed = comp.state.activated || comp.state.valvePosition === 'left';
+                      const valvePortIds = new Set(comp.ports.map(p => p.id));
+                      const hasActiveTube = connections.some(
+                        c => c.type === 'pneumatic' && c.active && (valvePortIds.has(c.fromPortId) || valvePortIds.has(c.toPortId))
+                      );
+                      const hasAirFlow = Boolean(isSimulating && (hasActiveTube || comp.state.hasAirFlow));
                       return (
                         <g transform="translate(10, 20)">
                           {/* Machined aluminum block */}
@@ -2655,29 +2668,33 @@ export const BenchCanvas: React.FC<BenchCanvasProps> = ({
                           {/* Dynamic flow: Pressed (1->2 entrada/pressão em azul), Not pressed (2->3 escape/exaustão em amarelo) */}
                           {isPressed ? (
                             <g>
-                              <path d="M 38 82 L 38 60 Q 38 52 50 52 L 60 52 L 60 38" fill="none" stroke="#0284c7" strokeWidth="5" strokeLinecap="round" />
-                              <path
-                                d="M 38 82 L 38 60 Q 38 52 50 52 L 60 52 L 60 38"
-                                fill="none"
-                                stroke="#ffffff"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeDasharray="5 3"
-                                style={{ animation: 'dash 0.8s linear infinite' }}
-                              />
+                              <path d="M 38 82 L 38 60 Q 38 52 50 52 L 60 52 L 60 38" fill="none" stroke="#0284c7" strokeWidth="5" strokeLinecap="round" opacity={hasAirFlow ? 1 : 0.4} />
+                              {hasAirFlow && (
+                                <path
+                                  d="M 38 82 L 38 60 Q 38 52 50 52 L 60 52 L 60 38"
+                                  fill="none"
+                                  stroke="#ffffff"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeDasharray="5 3"
+                                  style={{ animation: 'dash 0.8s linear infinite' }}
+                                />
+                              )}
                             </g>
                           ) : (
                             <g>
-                              <path d="M 60 38 L 60 56 Q 60 66 72 66 L 82 66 L 82 82" fill="none" stroke="#eab308" strokeWidth="5" strokeLinecap="round" />
-                              <path
-                                d="M 60 38 L 60 56 Q 60 66 72 66 L 82 66 L 82 82"
-                                fill="none"
-                                stroke="#ffffff"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeDasharray="5 3"
-                                style={{ animation: 'dash 0.8s linear infinite' }}
-                              />
+                              <path d="M 60 38 L 60 56 Q 60 66 72 66 L 82 66 L 82 82" fill="none" stroke="#eab308" strokeWidth="5" strokeLinecap="round" opacity={hasAirFlow ? 1 : 0.4} />
+                              {hasAirFlow && (
+                                <path
+                                  d="M 60 38 L 60 56 Q 60 66 72 66 L 82 66 L 82 82"
+                                  fill="none"
+                                  stroke="#ffffff"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeDasharray="5 3"
+                                  style={{ animation: 'dash 0.8s linear infinite' }}
+                                />
+                              )}
                             </g>
                           )}
 

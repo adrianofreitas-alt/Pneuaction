@@ -472,7 +472,8 @@ export default function App() {
               ...valve.state,
               valvePosition: valvePos,
               solenoidLeftActive: y1Active,
-              solenoidRightActive: y2Active
+              solenoidRightActive: y2Active,
+              hasAirFlow: isMoving
             }
           };
 
@@ -613,7 +614,7 @@ export default function App() {
     setComponents(prev =>
       prev.map(c => ({
         ...c,
-        state: { ...c.state, position: 0, valvePosition: 'left', isMoving: false }
+        state: { ...c.state, position: 0, valvePosition: 'left', isMoving: false, hasAirFlow: false }
       }))
     );
     benchAudio.playExhaust(0.3, 0.3);

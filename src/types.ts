@@ -68,6 +68,7 @@ export interface BenchComponent {
     isLocked?: boolean;
     flowThrottlePercent?: number; // 1 to 100%
     isMoving?: boolean; // Se o atuador está atualmente em movimento (gerando fluxo de ar)
+    hasAirFlow?: boolean; // Se há fluxo de ar dinâmico passando pela válvula ou componente
     contactClosed?: boolean;
     ledActive?: boolean;
     led1Active?: boolean;

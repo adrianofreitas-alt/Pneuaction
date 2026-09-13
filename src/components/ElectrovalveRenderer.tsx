@@ -5,17 +5,29 @@ interface ElectrovalveRendererProps {
   comp: BenchComponent;
   onTriggerManualOverride: (componentId: string) => void;
   isSimulating?: boolean;
+  hasAirFlow?: boolean;
 }
 
 export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
   comp,
   onTriggerManualOverride,
+  isSimulating,
+  hasAirFlow,
 }) => {
   const isDouble = comp.type === 'valve_5_2_double_solenoid';
   const isLeftPos = comp.state.valvePosition === 'left'; // Pos 2 (Energizada): 1->4 & 2->3
   const y1Active = !!comp.state.solenoidLeftActive;
   const y2Active = !!comp.state.solenoidRightActive;
   const isManual = !!comp.state.manualOverride;
+
+  // Fluxo dinâmico de ar: só existe fluxo quando a simulação estiver ativa e houver vazão/movimento
+  const hasFlow = Boolean(
+    isSimulating && (
+      hasAirFlow !== undefined
+        ? hasAirFlow
+        : (comp.state.hasAirFlow ?? false)
+    )
+  );
 
   // View mode: default is true (Glass cutaway transparent mode as requested)
   const [showGlassCutaway, setShowGlassCutaway] = useState<boolean>(
@@ -252,7 +264,7 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           <line x1="-5.5" y1="18" x2="5.5" y2="18" stroke="#451a03" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.8" />
           <line x1="-4.5" y1="22" x2="4.5" y2="22" stroke="#fef08a" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.5" />
           {/* Difusão de ar no escape quando ativo */}
-          {!isLeftPos && (
+          {!isLeftPos && hasFlow && (
             <g opacity="0.9">
               <line x1="-9" y1="18" x2="-13" y2="18" stroke="#facc15" strokeWidth="1.2" strokeDasharray="2 1" />
               <line x1="9" y1="18" x2="13" y2="18" stroke="#facc15" strokeWidth="1.2" strokeDasharray="2 1" />
@@ -296,7 +308,7 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
           <line x1="-5.5" y1="18" x2="5.5" y2="18" stroke="#451a03" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.8" />
           <line x1="-4.5" y1="22" x2="4.5" y2="22" stroke="#fef08a" strokeWidth="0.6" strokeDasharray="1.5 1.5" opacity="0.5" />
           {/* Difusão de ar no escape quando ativo */}
-          {isLeftPos && (
+          {isLeftPos && hasFlow && (
             <g opacity="0.9">
               <line x1="-9" y1="18" x2="-13" y2="18" stroke="#facc15" strokeWidth="1.2" strokeDasharray="2 1" />
               <line x1="9" y1="18" x2="13" y2="18" stroke="#facc15" strokeWidth="1.2" strokeDasharray="2 1" />
@@ -361,20 +373,24 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
                 stroke={`url(#flow-pressure-${comp.id})`}
                 strokeWidth="8"
                 strokeLinecap="round"
-                opacity="0.9"
+                opacity={hasFlow ? 0.9 : 0.4}
               />
-              {/* Animated high-speed dashed stream (moving from 1 up into 4) */}
-              <path
-                d="M 125 110 L 125 90 Q 125 78 110 78 L 100 78 Q 95 78 95 64"
-                fill="none"
-                stroke="#ffffff"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeDasharray="6 4"
-                className={`animate-flow-dash-${comp.id}`}
-                opacity="0.95"
-              />
-              <polygon points="95,64 91,73 99,73" fill="#38bdf8" />
+              {/* Animated high-speed dashed stream (moving from 1 up into 4) - só quando houver fluxo ativo */}
+              {hasFlow && (
+                <>
+                  <path
+                    d="M 125 110 L 125 90 Q 125 78 110 78 L 100 78 Q 95 78 95 64"
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeDasharray="6 4"
+                    className={`animate-flow-dash-${comp.id}`}
+                    opacity="0.95"
+                  />
+                  <polygon points="95,64 91,73 99,73" fill="#38bdf8" />
+                </>
+              )}
 
               {/* Exhaust air from 2 (B) flowing down into 3 (R/EA) */}
               <path
@@ -383,20 +399,24 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
                 stroke={`url(#flow-exhaust-${comp.id})`}
                 strokeWidth="7"
                 strokeLinecap="round"
-                opacity="0.88"
+                opacity={hasFlow ? 0.88 : 0.4}
               />
-              {/* Animated high-speed dashed stream (moving from 2 down into 3) */}
-              <path
-                d="M 155 64 L 155 82 Q 155 94 165 94 L 170 94 Q 175 94 175 110"
-                fill="none"
-                stroke="#ffffff"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeDasharray="6 4"
-                className={`animate-flow-dash-${comp.id}`}
-                opacity="0.95"
-              />
-              <polygon points="175,110 171,101 179,101" fill="#facc15" />
+              {/* Animated high-speed dashed stream (moving from 2 down into 3) - só quando houver fluxo ativo */}
+              {hasFlow && (
+                <>
+                  <path
+                    d="M 155 64 L 155 82 Q 155 94 165 94 L 170 94 Q 175 94 175 110"
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeDasharray="6 4"
+                    className={`animate-flow-dash-${comp.id}`}
+                    opacity="0.95"
+                  />
+                  <polygon points="175,110 171,101 179,101" fill="#facc15" />
+                </>
+              )}
 
               {/* Port 5 (S) Blocked seal indicator */}
               <g transform="translate(75, 96)">
@@ -415,20 +435,24 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
                 stroke={`url(#flow-pressure-${comp.id})`}
                 strokeWidth="8"
                 strokeLinecap="round"
-                opacity="0.9"
+                opacity={hasFlow ? 0.9 : 0.4}
               />
-              {/* Animated high-speed dashed stream (moving from 1 up into 2) */}
-              <path
-                d="M 125 110 L 125 90 Q 125 78 140 78 L 150 78 Q 155 78 155 64"
-                fill="none"
-                stroke="#ffffff"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeDasharray="6 4"
-                className={`animate-flow-dash-${comp.id}`}
-                opacity="0.95"
-              />
-              <polygon points="155,64 151,73 159,73" fill="#38bdf8" />
+              {/* Animated high-speed dashed stream (moving from 1 up into 2) - só quando houver fluxo ativo */}
+              {hasFlow && (
+                <>
+                  <path
+                    d="M 125 110 L 125 90 Q 125 78 140 78 L 150 78 Q 155 78 155 64"
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeDasharray="6 4"
+                    className={`animate-flow-dash-${comp.id}`}
+                    opacity="0.95"
+                  />
+                  <polygon points="155,64 151,73 159,73" fill="#38bdf8" />
+                </>
+              )}
 
               {/* Exhaust air from 4 (A) flowing down into 5 (S/EB) */}
               <path
@@ -437,20 +461,24 @@ export const ElectrovalveRenderer: React.FC<ElectrovalveRendererProps> = ({
                 stroke={`url(#flow-exhaust-${comp.id})`}
                 strokeWidth="7"
                 strokeLinecap="round"
-                opacity="0.88"
+                opacity={hasFlow ? 0.88 : 0.4}
               />
-              {/* Animated high-speed dashed stream (moving from 4 down into 5) */}
-              <path
-                d="M 95 64 L 95 82 Q 95 94 85 94 L 80 94 Q 75 94 75 110"
-                fill="none"
-                stroke="#ffffff"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeDasharray="6 4"
-                className={`animate-flow-dash-${comp.id}`}
-                opacity="0.95"
-              />
-              <polygon points="75,110 71,101 79,101" fill="#facc15" />
+              {/* Animated high-speed dashed stream (moving from 4 down into 5) - só quando houver fluxo ativo */}
+              {hasFlow && (
+                <>
+                  <path
+                    d="M 95 64 L 95 82 Q 95 94 85 94 L 80 94 Q 75 94 75 110"
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeDasharray="6 4"
+                    className={`animate-flow-dash-${comp.id}`}
+                    opacity="0.95"
+                  />
+                  <polygon points="75,110 71,101 79,101" fill="#facc15" />
+                </>
+              )}
 
               {/* Port 3 (R) Blocked seal indicator */}
               <g transform="translate(175, 96)">
